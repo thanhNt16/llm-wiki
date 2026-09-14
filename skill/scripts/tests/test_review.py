@@ -68,8 +68,8 @@ class TestReview(unittest.TestCase):
         got = claims.load_claim(wiki, disputed["id"])
         self.assertEqual(got["status"], "accepted")
         self.assertEqual(got["acceptance"]["reason"], "human_review")
-        # the losing claim stays as the human left it (target untouched)
-        self.assertEqual(claims.load_claim(wiki, target["id"])["status"], "accepted")
+        # the losing claim is untouched by accepting the disputed one
+        self.assertEqual(claims.load_claim(wiki, target["id"])["status"], "candidate")
 
     def test_set_scope_updates_claim(self):
         wiki = fresh()
