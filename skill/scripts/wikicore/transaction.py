@@ -5,6 +5,7 @@ commit lock (flock) with optimistic base_revision checking (PRD §40-42).
 Failed commits leave staging behind for doctor inspection and never
 partially apply (release gate: atomicity).
 """
+import errno
 import fcntl
 import json
 import os
@@ -170,10 +171,13 @@ def _default_validator(txn: Transaction) -> None:
 
 
 def _check_object(rel: str, data) -> None:
-    schema_file = {
-        "claims": "claim.schema.json",
-        "decisions": "decision.schema.json",
-    }.get(rel.split("/")[0])
+    """Schema-enforce canonically-named files only (claims/claim_*, decisions/decision_*)."""
+    base = os.path.basename(rel)
+    schema_file = None
+    if rel.startswith("claims/") and base.startswith("claim_"):
+        schema_file = "claim.schema.json"
+    elif rel.startswith("decisions/") and base.startswith("decision_"):
+        schema_file = "decision.schema.json"
     if schema_file and isinstance(data, dict):
         with open(_RUN_RECEIPT_SCHEMA_PATH.replace("run-receipt.schema.json", schema_file)) as f:
             s = json.load(f)
