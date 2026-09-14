@@ -23,7 +23,9 @@ _WORD_RE = re.compile(r"[a-z0-9_]+")
 
 
 def _tokens(text: str) -> set:
-    return {t for t in _WORD_RE.findall(text.lower()) if t not in STOPWORDS}
+    # split snake_case too: predicate click_lookback_window must match "click window"
+    return {t for t in _WORD_RE.findall(text.lower().replace("_", " "))
+            if t not in STOPWORDS}
 
 
 def _est(text: str) -> int:
