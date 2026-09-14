@@ -67,6 +67,18 @@ class Transaction:
     def stage_delete(self, rel: str) -> None:
         self.staged.append(("delete", _clean_rel(rel), None))
 
+    def stage_state(self, rel: str, update_fn) -> dict:
+        """Read a canonical JSON state file, apply update_fn(dict), stage the result."""
+        path = self.wiki.p(rel)
+        if os.path.isfile(path):
+            with open(path) as f:
+                data = json.load(f)
+        else:
+            data = {}
+        update_fn(data)
+        self.stage_write(rel, data)
+        return data
+
     # ---- VALIDATE -------------------------------------------------------
     def validate(self) -> None:
         for check in list(Transaction.VALIDATORS):
@@ -142,9 +154,12 @@ def _now() -> str:
 
 def _clean_rel(rel: str) -> str:
     rel = rel.strip("/")
-    if not rel or rel.startswith(".") or ".." in rel.split("/"):
+    parts = [p for p in rel.split("/") if p not in ("", ".")]
+    if not parts or ".." in parts or any(p.startswith(".") for p in parts[1:]):
         raise TxnError("illegal staging path: %r" % rel)
-    return rel
+    if parts[0].startswith(".") and parts[0] != ".state":
+        raise TxnError("illegal staging path: %r" % rel)
+    return "/".join(parts)
 
 
 _RUN_RECEIPT_SCHEMA_PATH = os.path.join(
