@@ -27,21 +27,27 @@ def graph(wiki) -> dict:
     return wiki.load_json(DEPS_FILE)
 
 
-def invalidate(wiki, changed_ids: list) -> list:
+def invalidate(wiki, changed_ids: list, txn: Transaction = None) -> list:
     """Mark artifacts depending (directly or transitively) on changed ids stale.
 
-    Returns the list of newly stale artifacts. Persists to dependencies.json
-    via its own internal transaction.
+    Returns the list of newly stale artifacts. When `txn` is given the update
+    is staged inside that transaction (atomic with the caller's commit);
+    otherwise it commits in its own internal transaction.
     """
     g = graph(wiki)
     edges = g.get("edges", {})
     stale = set(g.get("stale", []))
+    # include staged-but-uncommitted edge changes from the caller's txn
+    if txn is not None:
+        overlay = txn._state_overlay.get(DEPS_FILE)
+        if overlay is not None:
+            edges = overlay.get("edges", edges)
+            stale = set(overlay.get("stale", stale))
 
     def depends_on(dep: str) -> bool:
         dep_id = dep.split("@", 1)[0]
         return dep_id in changed_ids
 
-    # BFS: seeds = artifacts directly depending on changed ids
     frontier = [a for a, ds in edges.items() if any(depends_on(d) for d in ds)]
     newly = []
     while frontier:
@@ -50,19 +56,24 @@ def invalidate(wiki, changed_ids: list) -> list:
             continue
         stale.add(artifact)
         newly.append(artifact)
-        # transitively: artifacts that depend on this artifact (as a dep string)
         for other, ds in edges.items():
             if other not in stale and any(d.split("@", 1)[0] == artifact for d in ds):
                 frontier.append(other)
 
     if newly:
-        txn = Transaction(wiki, "wiki-internal-invalidate")
+        if txn is not None:
+            def _upd(data):
+                data["stale"] = sorted(stale)
 
-        def _upd(data):
-            data["stale"] = sorted(stale)
+            txn.stage_state(DEPS_FILE, _upd)
+        else:
+            inner = Transaction(wiki, "wiki-internal-invalidate")
 
-        txn.stage_state(DEPS_FILE, _upd)
-        txn.commit(wiki.revision())
+            def _upd(data):
+                data["stale"] = sorted(stale)
+
+            inner.stage_state(DEPS_FILE, _upd)
+            inner.commit(wiki.revision())
     return sorted(newly)
 
 
