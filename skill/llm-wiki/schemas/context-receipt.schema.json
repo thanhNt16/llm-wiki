@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ContextReceipt",
+  "type": "object",
+  "required": [
+    "context_id",
+    "task",
+    "generated_at",
+    "budget",
+    "claims",
+    "decisions",
+    "sources",
+    "wiki_pages"
+  ],
+  "properties": {
+    "context_id": {
+      "type": "string",
+      "pattern": "^context_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "task": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "budget": {
+      "type": "object",
+      "required": [
+        "requested",
+        "estimated"
+      ],
+      "properties": {
+        "requested": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "estimated": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "wiki_pages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

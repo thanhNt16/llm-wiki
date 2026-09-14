@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Decision",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "status",
+    "decided_on",
+    "recorded_at",
+    "version",
+    "claims",
+    "evidence"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^decision_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "proposed",
+        "accepted",
+        "superseded",
+        "retracted"
+      ]
+    },
+    "decided_on": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "recorded_at": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id",
+          "source_version",
+          "locator"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "pattern": "^source_[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "source_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "locator": {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "heading",
+                  "line_range",
+                  "pdf_region",
+                  "spreadsheet_range",
+                  "slide",
+                  "repo_path",
+                  "url_section",
+                  "transcript_timestamp",
+                  "text"
+                ]
+              },
+              "value": {
+                "type": "string"
+              },
+              "sheet": {
+                "type": "string"
+              },
+              "range": {
+                "type": "string"
+              },
+              "line_start": {
+                "type": "integer"
+              },
+              "line_end": {
+                "type": "integer"
+              },
+              "url_section": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "superseded_by": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "body": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "object"
+    }
+  }
+}
