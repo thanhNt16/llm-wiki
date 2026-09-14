@@ -41,6 +41,7 @@ class Transaction:
         self.run_id = ids.new("run")
         self.started_at = _now()
         self.staged = []  # ordered ops: ("write", rel, src_path_in_staging) | ("delete", rel, None)
+        self._state_overlay = {}  # rel -> dict; composes repeated stage_state calls
         self.changes = {}
         self.warnings = []
         self.conflicts = []
@@ -62,21 +63,42 @@ class Transaction:
         else:
             with open(dst, "w", encoding="utf-8") as f:
                 f.write(str(data))
-        self.staged.append(("write", rel, dst))
+        self._replace_or_append(("write", rel, dst))
+        self._state_overlay.pop(rel, None)
+
+    def _replace_or_append(self, op) -> None:
+        """Last write to the same rel wins (compose repeated stage_state calls)."""
+        for i, existing in enumerate(self.staged):
+            if existing[0] == op[0] and existing[1] == op[1]:
+                self.staged[i] = op
+                return
+        self.staged.append(op)
 
     def stage_delete(self, rel: str) -> None:
-        self.staged.append(("delete", _clean_rel(rel), None))
+        rel = _clean_rel(rel)
+        self._replace_or_append(("delete", rel, None))
+        self._state_overlay.pop(rel, None)
 
     def stage_state(self, rel: str, update_fn) -> dict:
-        """Read a canonical JSON state file, apply update_fn(dict), stage the result."""
-        path = self.wiki.p(rel)
-        if os.path.isfile(path):
-            with open(path) as f:
-                data = json.load(f)
+        """Read a canonical JSON state file (or earlier staged version), apply
+        update_fn(dict), stage the result. Repeated calls compose."""
+        rel = _clean_rel(rel)
+        if rel in self._state_overlay:
+            data = self._state_overlay[rel]
         else:
-            data = {}
+            path = self.wiki.p(rel)
+            if os.path.isfile(path):
+                with open(path) as f:
+                    data = json.load(f)
+            else:
+                data = {}
         update_fn(data)
-        self.stage_write(rel, data)
+        self._state_overlay[rel] = data
+        dst = os.path.join(self.staging_dir, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        with open(dst, "w", encoding="utf-8") as f:
+            f.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+        self._replace_or_append(("write", rel, dst))
         return data
 
     # ---- VALIDATE -------------------------------------------------------
