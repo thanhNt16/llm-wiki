@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from wikicore import schema
 
 SCHEMAS_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "llm-wiki", "schemas"
+    os.path.dirname(__file__), "..", "..", "schemas"
 )
 
 

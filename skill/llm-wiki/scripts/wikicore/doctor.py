@@ -7,7 +7,7 @@ from . import claims, deps, schema as schema_mod
 from .hashing import canonical_json
 from .transaction import TxnError
 
-_SCHEMAS = os.path.join(os.path.dirname(__file__), "..", "..", "llm-wiki", "schemas")
+_SCHEMAS = os.path.join(os.path.dirname(__file__), "..", "..", "schemas")
 
 _ID_RE = re.compile(r"^[a-z]+_[0-9A-HJKMNP-TV-Z]{26}$")
 

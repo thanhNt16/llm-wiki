@@ -12,7 +12,7 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "..", "skill", "scripts"))
+sys.path.insert(0, os.path.join(HERE, "..", "..", "skill", "llm-wiki", "scripts"))
 
 from wikicore import claims, compile as wc_compile, contextpack, deps, pages, query, sources  # noqa: E402
 from wikicore.store import Wiki, init_wiki  # noqa: E402

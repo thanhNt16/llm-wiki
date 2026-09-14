@@ -13,6 +13,23 @@ Local-first project memory for coding agents. Two invariants govern everything:
 2. **Derived is disposable.** `wiki/`, `context/`, `views/` are rebuildable.
    Canonical state lives only in `sources/`, `claims/`, `decisions/`, `.state/`.
 
+## CRITICAL — you never touch `.llm-wiki/` yourself
+
+Every state change goes through the deterministic CLI that ships **next to this
+file** at `scripts/wiki.py`. Resolve this skill's base directory (the folder
+containing this SKILL.md — under OMP typically `~/.omp/agent/skills/llm-wiki`,
+otherwise `~/.agents/skills/llm-wiki`), then:
+
+```bash
+python3 <skill-base-dir>/scripts/wiki.py <command> ...
+```
+
+**Do NOT create `.llm-wiki/`, `wiki.json`, claims or sources by hand** — a
+hand-made layout is unusable by the scripts (state manifests and schemas will
+not exist) and counts as doing the task wrong. If one already exists without
+`.state/`, it is debris from a previous improvised attempt: ask the user
+before removing it.
+
 ## Hard rules
 
 - **Never edit canonical files by hand.** Every mutation goes through
@@ -48,3 +65,12 @@ A failed subcommand leaves canonical state untouched (staging is discarded on
 validation failure). On exit code 4, re-run `compile-plan`/`status` to refresh
 your view, re-apply your semantic decision, and commit with the fresh revision.
 On repeated failures run `wiki.py doctor` and report findings to the user.
+
+## Red flags — STOP and re-read this skill
+
+- You are about to `mkdir .llm-wiki` or write `wiki.json`/claim files yourself.
+- You cannot find `scripts/wiki.py` — re-resolve the base directory of THIS
+  file instead of substituting your own layout.
+- You answered a project question without `query-prepare` output or citations.
+- You loaded more than one or two full sources into context during compile —
+  process sources one at a time and write candidates per source.

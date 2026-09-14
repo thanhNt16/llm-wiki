@@ -2,7 +2,7 @@ import os, re, sys, unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-SKILL_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "llm-wiki")
+SKILL_DIR = os.path.join(os.path.dirname(__file__), "..", "..")
 
 import wiki as cli  # noqa: E402
 

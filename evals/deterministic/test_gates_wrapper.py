@@ -2,8 +2,6 @@
 import os, sys, unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "run_gates" and "..", "deterministic"))
-
 import importlib.util
 
 spec = importlib.util.spec_from_file_location(

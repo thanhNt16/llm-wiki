@@ -13,7 +13,7 @@ from . import ids
 from .schema import validate as schema_validate
 from .transaction import Transaction, TxnError
 
-_SCHEMAS = os.path.join(os.path.dirname(__file__), "..", "..", "llm-wiki", "schemas")
+_SCHEMAS = os.path.join(os.path.dirname(__file__), "..", "..", "schemas")
 
 
 def _schema(name: str) -> dict:

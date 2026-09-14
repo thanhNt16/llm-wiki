@@ -185,7 +185,7 @@ def _clean_rel(rel: str) -> str:
 
 
 _RUN_RECEIPT_SCHEMA_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "llm-wiki", "schemas", "run-receipt.schema.json"
+    os.path.dirname(__file__), "..", "..", "schemas", "run-receipt.schema.json"
 )
 
 
