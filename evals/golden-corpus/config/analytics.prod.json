@@ -1,0 +1,11 @@
+{
+  "environment": "production",
+  "analytics": {
+    "attribution": {
+      "click_lookback_days": 7
+    }
+  },
+  "orders": {
+    "payment_gateway_retries": 5
+  }
+}

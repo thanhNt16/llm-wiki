@@ -1,0 +1,11 @@
+{
+  "environment": "sandbox",
+  "analytics": {
+    "attribution": {
+      "click_lookback_days": 30
+    }
+  },
+  "orders": {
+    "payment_gateway_retries": 5
+  }
+}
