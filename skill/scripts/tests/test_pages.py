@@ -95,6 +95,7 @@ class TestPages(unittest.TestCase):
         pages.build_pages(wiki, wiki.revision())
         txn = Transaction(wiki, "concept")
         txn.stage_write("wiki/concepts/orphan.md", "no frontmatter here")
+        deps.register(txn, "wiki/concepts/orphan.md", [])
         txn.commit(wiki.revision())
         v = pages.verify(wiki)
         self.assertFalse(v["ok"])
