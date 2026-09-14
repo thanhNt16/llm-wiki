@@ -131,6 +131,12 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
             break
     txn.stage_write(QUEUE, _dump(queue))
 
+    # release gate: claim mutations invalidate dependent artifacts (PRD §58)
+    if claim is not None:
+        from . import deps as deps_mod
+
+        deps_mod.invalidate(wiki, [claim["id"]], txn=txn)
+
     txn.changes = {"review_actions": 1}
     receipt = txn.commit(base_revision)
     receipt["item"] = item
