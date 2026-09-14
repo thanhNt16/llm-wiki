@@ -60,7 +60,7 @@ class TestDeps(unittest.TestCase):
         deps.invalidate(wiki, ["claim_01JABC"])
         txn2 = Transaction(wiki, "t2")
         deps.clear_stale(txn2, ["wiki/a.md"])
-        txn2.commit(1)
+        txn2.commit(wiki.revision())
         self.assertFalse(deps.is_stale(wiki, "wiki/a.md"))
         self.assertTrue(deps.is_stale(wiki, "wiki/b.md"))
 
