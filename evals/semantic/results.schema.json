@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SemanticEvalResult",
+  "type": "object",
+  "required": ["scenario", "timestamp", "pass", "answer", "citations"],
+  "properties": {
+    "scenario": {"enum": ["direct_recall", "cross_source_synthesis", "correction",
+                           "historical", "scope", "conflict", "unanswerable", "isolation"]},
+    "timestamp": {"type": "string"},
+    "pass": {"type": "boolean"},
+    "answer": {"type": "string"},
+    "citations": {"type": "array", "items": {"type": "string"}},
+    "rubric_notes": {"type": "string"}
+  }
+}

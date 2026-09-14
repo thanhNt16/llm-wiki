@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExtractionReport",
+  "type": "object",
+  "required": [
+    "source_id",
+    "source_version",
+    "coverage",
+    "warnings",
+    "parser"
+  ],
+  "properties": {
+    "source_id": {
+      "type": "string"
+    },
+    "source_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "enum": [
+            "complete",
+            "partial",
+            "preserved",
+            "not_extracted",
+            "skipped"
+          ]
+        },
+        "tables": {
+          "enum": [
+            "complete",
+            "partial",
+            "preserved",
+            "not_extracted",
+            "skipped"
+          ]
+        },
+        "images": {
+          "enum": [
+            "complete",
+            "partial",
+            "preserved",
+            "not_extracted",
+            "skipped"
+          ]
+        },
+        "diagrams": {
+          "enum": [
+            "complete",
+            "partial",
+            "preserved",
+            "not_extracted",
+            "skipped"
+          ]
+        },
+        "formulas": {
+          "enum": [
+            "complete",
+            "partial",
+            "preserved",
+            "not_extracted",
+            "skipped"
+          ]
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "parser": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

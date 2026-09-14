@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReviewItem",
+  "type": "object",
+  "required": [
+    "id",
+    "created_at",
+    "kind",
+    "status",
+    "problem",
+    "evidence",
+    "affected",
+    "risk"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^review_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "possible_contradiction",
+        "possible_correction",
+        "ambiguous_scope",
+        "authority_conflict",
+        "duplicate_identity",
+        "low_extraction_quality",
+        "candidate_decision",
+        "source_retraction_impact"
+      ]
+    },
+    "status": {
+      "enum": [
+        "open",
+        "resolved",
+        "deferred"
+      ]
+    },
+    "problem": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "affected": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risk": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "proposed_resolution": {
+      "type": "string"
+    },
+    "resolution": {
+      "type": "string"
+    },
+    "resolved_at": {
+      "type": "string"
+    }
+  }
+}

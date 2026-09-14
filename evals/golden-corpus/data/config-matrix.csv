@@ -1,0 +1,5 @@
+setting,environment,key,value
+attribution_window,production,click_lookback_days,7
+attribution_window,sandbox,click_lookback_days,30
+payment_retries,production,payment_gateway_retries,5
+database,production,engine,postgres

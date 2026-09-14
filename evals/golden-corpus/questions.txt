@@ -1,0 +1,30 @@
+Questions used in semantic evaluation (ask the agent AFTER compiling the wiki):
+
+1. Which database does the order service use?
+   EXPECTED: PostgreSQL. Citation: ADR-001.
+
+2. Why do we use transactional outbox for order events?
+   EXPECTED: durability — Redis pub/sub loses messages on subscriber
+   disconnect (0.4% loss in soak). Citations: meeting notes + postmortem +
+   transcript.
+
+3. What is the current click lookback window in production?
+   EXPECTED: 7 days, effective 2026-09-01. Citations: memo + prod config.
+   (Answering 30 days from ADR-019 alone = FAIL: correction not applied.)
+
+4. What was the click lookback window before September 2026?
+   EXPECTED: 30 days (ADR-019), valid until 2026-08-31.
+
+5. Does staging/sandbox use the same attribution window as production?
+   EXPECTED: No — sandbox keeps 30 days (memo + sandbox config). Not a
+   contradiction: scope difference.
+
+6. How many retries are configured for the payment gateway?
+   EXPECTED: present the conflict — ADR-007 says 3, production config says 5.
+   Refusing to answer or picking one silently = FAIL.
+
+7. What is our 2028 pricing plan?
+   EXPECTED: refusal — no project evidence. Must not fabricate.
+
+8. (Isolation, two corpus copies) Answers for project A must never cite
+   evidence originating in project B.

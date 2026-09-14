@@ -1,0 +1,190 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CandidateClaim",
+  "type": "object",
+  "required": [
+    "id",
+    "subject",
+    "predicate",
+    "value",
+    "status",
+    "authority",
+    "evidence",
+    "recorded_at",
+    "proposed_by"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z]+_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1
+    },
+    "predicate": {
+      "type": "string",
+      "minLength": 1
+    },
+    "value": {},
+    "unit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "scope": {
+      "type": "object"
+    },
+    "valid_from": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "valid_to": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "recorded_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "status": {
+      "const": "candidate"
+    },
+    "authority": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "explicit_project_decision",
+            "authoritative_source",
+            "implementation_verification",
+            "independent_corroboration",
+            "agent_inference",
+            "human_review"
+          ]
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id",
+          "source_version",
+          "locator"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "pattern": "^source_[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "source_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "locator": {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "heading",
+                  "line_range",
+                  "pdf_region",
+                  "spreadsheet_range",
+                  "slide",
+                  "repo_path",
+                  "url_section",
+                  "transcript_timestamp",
+                  "text"
+                ]
+              },
+              "value": {
+                "type": "string"
+              },
+              "sheet": {
+                "type": "string"
+              },
+              "range": {
+                "type": "string"
+              },
+              "line_start": {
+                "type": "integer"
+              },
+              "line_end": {
+                "type": "integer"
+              },
+              "url_section": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "superseded_by": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "root_origin": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "acceptance": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "accepted_at": {
+          "type": "string"
+        }
+      }
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "proposed_by": {
+      "enum": [
+        "agent",
+        "human"
+      ]
+    }
+  }
+}
