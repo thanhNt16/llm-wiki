@@ -34,10 +34,20 @@ revision-checked transaction — failed runs never partially commit.
 
 ## Install
 
+One line, no clone (clones to `~/.llm-wiki` and symlinks the skill into OMP's
+user skills dir; re-running the same command updates the clone):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thanhNt16/llm-wiki/main/install.sh | bash
+```
+
+From a checkout of this repo instead:
+
 ```bash
 ./install.sh              # OMP native: ~/.omp/agent/skills/llm-wiki
 ./install.sh --agents     # cross-runtime: ~/.agents/skills/llm-wiki
-./install.sh --uninstall
+./install.sh --uninstall  # remove the symlink
+./install.sh --purge      # uninstall + delete the ~/.llm-wiki clone
 ```
 
 Then in any project, ask OMP to "initialize the llm wiki", "ingest this doc",
@@ -51,7 +61,6 @@ skill/scripts/       wiki.py CLI + wikicore package + unit tests (stdlib only)
 evals/golden-corpus/ fixture project with planted correction/conflict/scope cases
 evals/deterministic/ PRD §58 release gates: python3 evals/deterministic/run_gates.py
 evals/semantic/      agent-run scenarios + rubrics (PRD §57)
-docs/superpowers/    design spec + implementation plan
 ```
 
 ## Verify
