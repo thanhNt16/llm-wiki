@@ -57,6 +57,26 @@ class TestSkillPackage(unittest.TestCase):
         count = len([n for n in os.listdir(sdir) if n.endswith(".schema.json")])
         self.assertGreaterEqual(count, 8)
 
+    def test_command_skills_present_and_valid(self):
+        skills_root = os.path.join(SKILL_DIR, "..")
+        expected = {"wiki-init", "wiki-ingest", "wiki-compile", "wiki-query",
+                    "wiki-context", "wiki-review", "wiki-doctor"}
+        found = set()
+        for name in sorted(expected):
+            path = os.path.join(skills_root, name, "SKILL.md")
+            self.assertTrue(os.path.isfile(path), "missing skill %s" % name)
+            with open(path) as f:
+                text = f.read()
+            m = re.match(r"^---\nname:\s*(\S+)\ndescription:\s*(.+?)\n---\n", text, re.S)
+            self.assertIsNotNone(m, "%s: frontmatter must have name and description" % name)
+            self.assertEqual(m.group(1), name, "%s: name must match directory" % name)
+            self.assertLessEqual(len(m.group(1) + m.group(2)), 1024)
+            self.assertTrue(m.group(2).strip().startswith("Use when"),
+                            "%s: description must describe triggers" % name)
+            self.assertIn("wiki.py", text, "%s: must point at the wiki.py engine" % name)
+            found.add(name)
+        self.assertEqual(found, expected)
+
 
 if __name__ == "__main__":
     unittest.main()

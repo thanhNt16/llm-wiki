@@ -1,7 +1,7 @@
 # COMMANDS.md — per-command contracts
 
-Run scripts from the project root: `python3 <skill-dir>/scripts/wiki.py <cmd> …`
-(or the path recorded in the skill). All commands print one JSON object.
+Run scripts from the project root via the `WIKI` variable resolved in the
+skill (`python3 "$WIKI" <cmd> …`). All commands print one JSON object.
 
 ## init
 

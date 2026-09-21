@@ -16,12 +16,11 @@ Local-first project memory for coding agents. Two invariants govern everything:
 ## CRITICAL — you never touch `.llm-wiki/` yourself
 
 Every state change goes through the deterministic CLI that ships **next to this
-file** at `scripts/wiki.py`. Resolve this skill's base directory (the folder
-containing this SKILL.md — under OMP typically `~/.omp/agent/skills/llm-wiki`,
-otherwise `~/.agents/skills/llm-wiki`), then:
+file** at `scripts/wiki.py`. Resolve it once per session — no probing needed:
 
 ```bash
-python3 <skill-base-dir>/scripts/wiki.py <command> ...
+WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
+python3 "$WIKI" <command> ...
 ```
 
 **Do NOT create `.llm-wiki/`, `wiki.json`, claims or sources by hand** — a
