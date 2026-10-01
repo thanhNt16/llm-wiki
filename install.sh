@@ -91,17 +91,20 @@ done
 # Optional extractor: markitdown (office/pdf text extraction in wiki-ingest).
 # Try uv tool -> pipx -> pip --user; failure is a warning, not fatal.
 if ! command -v markitdown >/dev/null 2>&1; then
-  if command -v uv >/dev/null 2>&1; then
-    uv tool install markitdown 2>/dev/null || \
-      echo "note: uv install of markitdown failed; pdf/office files ingest as not_extracted" >&2
-  elif command -v pipx >/dev/null 2>&1; then
-    pipx install markitdown 2>/dev/null || \
-      echo "note: pipx install of markitdown failed; pdf/office files ingest as not_extracted" >&2
-  elif command -v pip3 >/dev/null 2>&1; then
-    pip3 install --user markitdown 2>/dev/null || \
-      echo "note: pip install of markitdown failed; pdf/office files ingest as not_extracted" >&2
-  else
-    echo "note: no uv/pipx/pip3 found; pdf/office files ingest as not_extracted" >&2
+  installed=0
+  if command -v uv >/dev/null 2>&1 && uv tool install markitdown 2>/dev/null; then
+    installed=1
+  fi
+  if [[ "$installed" == "0" ]] && command -v pipx >/dev/null 2>&1 && \
+     pipx install markitdown 2>/dev/null; then
+    installed=1
+  fi
+  if [[ "$installed" == "0" ]] && command -v pip3 >/dev/null 2>&1 && \
+     pip3 install --user markitdown 2>/dev/null; then
+    installed=1
+  fi
+  if [[ "$installed" == "0" ]]; then
+    echo "note: could not install markitdown; pdf/office files ingest as not_extracted" >&2
   fi
 fi
 
