@@ -10,7 +10,7 @@ Added the exact markitdown optional-install block to `install.sh` before the fin
 - `bash -n install.sh` — passed; no output, exit 0.
 
 ## Commit
-Pending commit in this worktree.
+`b559db6` — `feat: pre-install markitdown during skill install (uv/pipx/pip fallback)`
 
 ## Concerns
 None.

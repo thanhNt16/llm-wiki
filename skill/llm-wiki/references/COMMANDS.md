@@ -27,6 +27,7 @@ wiki.py ingest --file report.pdf     # preserved; extraction honestly marked not
 wiki.py ingest --dir docs/                        # recursive; batch receipt
 wiki.py ingest --dir docs/ --include-hidden --max-bytes 104857600 --force
 wiki.py ingest --file img.png --normalized-content desc.md --parser-name agent-vision
+wiki.py ingest --file path/to/doc.md --source-id source_...  # pin identity
 ```
 
 Receipt fields: `source_id`, `version`, `sha256`, `deduplicated`, `warnings`,

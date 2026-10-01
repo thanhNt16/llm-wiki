@@ -20,6 +20,7 @@ python3 "$WIKI" ingest --file path/to/doc.md
 python3 "$WIKI" ingest --dir path/to/folder          # recursive, one source per file
 python3 "$WIKI" ingest --url https://example.com/spec
 python3 "$WIKI" ingest --text "user said: use Postgres" --text-ref "chat-2026-09-15"
+python3 "$WIKI" ingest --file path/to/doc.md --source-id source_...  # pin identity
 ```
 
 ## Format routing
@@ -31,7 +32,7 @@ Route every input through this table:
 | UTF-8-decodable text (.md .txt .csv .tsv .json .yaml .html .svg .log, any text ext) | `ingest --file` direct |
 | .docx .xlsx .pptx .doc .xls .ppt | `ingest --file` — markitdown extracts inside the engine. If receipt `coverage.text == not_extracted` → extract text yourself, write to a temp .md, re-ingest with `--normalized-content` |
 | .pdf | markitdown first; on `not_extracted` extract yourself → `--normalized-content` |
-| image (.png .jpg .jpeg .webp .gif .bmp .tiff .heic) | **vision lane** below |
+| image (.png .jpg .jpeg .webp .gif .bmp .tiff .tif .heic .heif) | **vision lane** below |
 | unknown binary | `ingest --file` → surface the `not_extracted` warning; stop unless content matters |
 | directory | `ingest --dir`, then route items with `coverage.text == "not_extracted"` through the lanes above |
 
@@ -60,7 +61,6 @@ over 50MiB (`--max-bytes` to change, `--include-hidden` to include dotfiles),
 and non-evidence binaries. Every skip appears in the batch receipt. Unchanged
 files report `deduplicated: true`; pass `--force` to re-ingest. Route
 `not_extracted` items through office/pdf/vision lanes, then report merged counts.
-```
 
 ## Receipt checks
 
