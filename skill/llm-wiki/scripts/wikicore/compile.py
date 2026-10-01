@@ -250,7 +250,12 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
             raise TxnError(
                 "candidate index %d (%s/%s) needs a classification — "
                 "no auto verdict applies" % (i, cand["subject"], cand["predicate"]))
-        classifications.append({"index": i, "relationship": verdict})
+        entry = {"index": i, "relationship": verdict}
+        if verdict in ("DUPLICATE", "CORROBORATION"):
+            # both branches mutate the matched claim — carry its id or
+            # _append_evidence(target=None) would crash
+            entry["target_claim_id"] = matches[0]["claim_id"]
+        classifications.append(entry)
         auto_counts[verdict.lower()] += 1
 
     txn = Transaction(wiki, "wiki-compile")
@@ -394,6 +399,16 @@ def compile_umbrella(wiki, resume=False):
 
     if not resume:
         plan = compile_plan(wiki)
+        # idempotent phase 1: reuse a run dir already minted for the same
+        # (source_id, source_version) instead of creating a duplicate
+        existing = {}
+        base = wiki.p(".state", "staging")
+        if os.path.isdir(base):
+            for rid in os.listdir(base):
+                pj = os.path.join(base, rid, "pending.json")
+                if os.path.isfile(pj):
+                    m = _load_json(pj)
+                    existing[(m["source_id"], m["source_version"])] = m
         pending = []
         for entry in plan["pending"]:
             sid = entry["source_id"] if isinstance(entry, dict) else entry
@@ -402,6 +417,11 @@ def compile_umbrella(wiki, resume=False):
                 raise TxnError("unknown source: %s" % sid)
             ver = (entry.get("version") if isinstance(entry, dict)
                    else manifest["versions"][-1]["version"])
+            meta = existing.get((sid, ver))
+            if meta is not None:
+                # already staged for this exact source version
+                pending.append(dict(meta, resumed_run=True))
+                continue
             ver_entry = next((v for v in manifest["versions"]
                               if v["version"] == ver), {})
             run_id = ids.new("run")

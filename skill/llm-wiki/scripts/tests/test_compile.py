@@ -433,5 +433,46 @@ class TestUmbrella(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue(json.loads(r.stdout)["verify"]["ok"])
 
+    def test_auto_duplicate_and_corroboration_target_claims(self):
+        # regression: auto-filled DUPLICATE/CORROBORATION carried no
+        # target_claim_id, so reconcile_apply crashed on _append_evidence
+        wiki = fresh()
+        r1 = ingest_text(wiki, "s1", "x")
+        run_compile(wiki, r1, [candidate(wiki, r1)], [])
+
+        # CORROBORATION — same fact, second independent origin
+        r2 = ingest_text(wiki, "s2", "y")
+        rid = wc_compile.stage_candidates(
+            wiki, r2["source_id"], r2["version"], [candidate(wiki, r2)],
+            {"coverage": {"text": "complete"}, "warnings": [], "parser": {}})
+        wc_compile.reconcile_prepare(wiki, rid)
+        receipt = wc_compile.reconcile_apply(wiki, rid, [], wiki.revision())
+        self.assertEqual(receipt["auto"]["corroboration"], 1)
+        self.assertEqual(receipt["changes"]["claims_updated"], 1)
+        cl = [c for c in claims.list_claims(wiki) if len(c["evidence"]) == 2]
+        self.assertEqual(len(cl), 1)
+        self.assertEqual(cl[0]["status"], "accepted")  # 2 origins >= threshold
+
+        # DUPLICATE — same origin restates the fact (new version, --force)
+        r3 = sources.ingest(wiki, "text", "s1", b"x v2", force=True)
+        rid2 = wc_compile.stage_candidates(
+            wiki, r3["source_id"], r3["version"], [candidate(wiki, r3)],
+            {"coverage": {"text": "complete"}, "warnings": [], "parser": {}})
+        wc_compile.reconcile_prepare(wiki, rid2)
+        receipt2 = wc_compile.reconcile_apply(wiki, rid2, [], wiki.revision())
+        self.assertEqual(receipt2["auto"]["duplicate"], 1)
+        self.assertEqual(receipt2["changes"]["claims_updated"], 1)
+
+    def test_compile_twice_reuses_pending_run(self):
+        wiki = fresh()
+        ingest_text(wiki, "doc", "fact: window is 7 days")
+        out1 = wc_compile.compile_umbrella(wiki, resume=False)
+        out2 = wc_compile.compile_umbrella(wiki, resume=False)
+        self.assertEqual(len(out2["pending"]), 1)
+        self.assertEqual(out2["pending"][0]["run_id"],
+                         out1["pending"][0]["run_id"])
+        self.assertTrue(out2["pending"][0]["resumed_run"])
+        self.assertEqual(len(os.listdir(wiki.p(".state", "staging"))), 1)
+
 if __name__ == "__main__":
     unittest.main()
