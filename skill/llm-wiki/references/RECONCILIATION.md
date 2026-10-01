@@ -9,6 +9,9 @@ output (subject+predicate key, `same_scope`, `same_value`, `temporal`, current
 
 ## Decision procedure
 
+Apply the following only to rows in `needs_review`; the engine has already
+handled auto-verdicts and ignores these decisions for auto-classified rows.
+
 1. **No matches** (or nothing sharing the subject/predicate key) → `UNRELATED`.
 2. Matches exist. Compare **scope first**:
    - Same key, different scope (production vs sandbox, different services),

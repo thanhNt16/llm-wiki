@@ -37,7 +37,7 @@ remains valid:
   "proposed_by": "agent",
   "authority": {"type": "explicit_project_decision", "source": "ADR-019"},
   "evidence": [{
-    "source_id": "<from compile-plan entry>",
+    "source_id": "<from compile pending[] entry>",
     "source_version": 1,
     "locator": {"type": "heading", "value": "Attribution Window"}
   }],

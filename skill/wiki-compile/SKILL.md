@@ -5,8 +5,9 @@ description: Use when asked to compile, extract, or reconcile ingested llm-wiki 
 
 # wiki-compile — evidence → claims
 
-Converts pending evidence into accepted knowledge. Four phases; you (the
-agent) do the semantic parts between deterministic script calls.
+Converts pending evidence into accepted knowledge. Three phases; the engine
+handles deterministic transitions while you provide semantic candidate data
+and classifications when needed.
 
 ## Engine
 
