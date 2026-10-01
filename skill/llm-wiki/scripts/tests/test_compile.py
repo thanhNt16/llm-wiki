@@ -380,6 +380,11 @@ class TestUmbrella(unittest.TestCase):
         self.assertEqual(out3["changes"]["claims_created"], 1)
         self.assertEqual(out3["changes"]["claims_superseded"], 1)
         self.assertTrue(out3["verify"]["ok"], out3.get("verify"))
+        out4 = wc_compile.compile_umbrella(wiki, resume=True)
+        self.assertEqual(out4["phase"], "done")
+        self.assertEqual(out4["changes"]["claims_created"], 1)
+        self.assertEqual(out4["changes"]["claims_superseded"], 1)
+        self.assertTrue(out4["verify"]["ok"], out4.get("verify"))
 
     def test_stage_candidates_accepts_jsonl(self):
         wiki = fresh()

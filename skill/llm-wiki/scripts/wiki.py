@@ -254,7 +254,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(fn=cmd_compile_plan)
 
     p = sub.add_parser("stage-candidates")
-    p.add_argument("--file", required=True, help="candidates JSON file")
+    p.add_argument("--file", required=True, help="candidates JSON or JSONL file")
     p.add_argument("--source-id", required=True)
     p.add_argument("--source-version", required=True, type=int)
     p.add_argument("--report", default=None, help="extraction report JSON file")

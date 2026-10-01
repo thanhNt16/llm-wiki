@@ -64,6 +64,10 @@ def _stage_payload(wiki, rundir, source_id, source_version, candidates, report):
 def stage_candidates(wiki, source_id: str, source_version: int,
                      candidates: list, report: dict) -> str:
     """Stage agent-extracted candidates. Staging only — nothing canonical yet."""
+    from . import sources as sources_mod
+
+    if sources_mod.get_manifest(wiki, source_id) is None:
+        raise TxnError("unknown source: %s" % source_id)
     txn = Transaction(wiki, "wiki-stage-candidates")
     _stage_payload(wiki, txn.staging_dir, source_id, source_version,
                    candidates, report)
@@ -441,21 +445,26 @@ def compile_umbrella(wiki, resume=False):
         compile_p = os.path.join(d, "compile.json")
         state = _staging_state(wiki, run_id)
 
+        if state == "prepared" and not os.path.isfile(compile_p):
+            # applied (classified or all-auto) on an earlier resume — replay
+            # the cached receipt instead of re-running reconcile_apply
+            rcpt_p = os.path.join(d, "receipt.json")
+            if not os.path.isfile(rcpt_p):
+                raise TxnError(
+                    "run %s looks applied (compile.json gone) but %s is missing; "
+                    "cannot resume — delete %s to re-stage" % (run_id, rcpt_p, d))
+            receipt = _load_json(rcpt_p)
+            applied.append(receipt)
+            for k, v in receipt.get("auto", {}).items():
+                auto_totals[k] += v
+            continue
+
         if os.path.isfile(cls_p):
             classifications = (parse_candidates_file(cls_p)
                                if cls_p.endswith(".jsonl") else _load_json(cls_p))
             if isinstance(classifications, dict):
                 classifications = classifications.get("classifications", [])
             _apply(run_id, classifications)
-            continue
-
-        if state == "prepared" and not os.path.isfile(compile_p):
-            # applied on an earlier resume — replay the cached receipt
-            if os.path.isfile(os.path.join(d, "receipt.json")):
-                receipt = _load_json(os.path.join(d, "receipt.json"))
-                applied.append(receipt)
-                for k, v in receipt.get("auto", {}).items():
-                    auto_totals[k] += v
             continue
 
         if state not in ("staged", "prepared"):
