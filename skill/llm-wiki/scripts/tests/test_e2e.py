@@ -1,4 +1,4 @@
-import json, math, os, sys, tempfile, unittest
+import json, math, os, subprocess, sys, tempfile, unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -102,6 +102,54 @@ class TestEndToEnd(unittest.TestCase):
         # doctor clean of errors
         doc = json.loads(self._capture_cli(["--root", root, "doctor"]))
         self.assertTrue(doc["ok"], doc["findings"])
+
+    def test_e2e_umbrella_compile(self):
+        """Spec §1: `compile` umbrella via real subprocess CLI — plan,
+        shorthand candidates at candidates_path, two `--resume` runs."""
+        scripts = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        def run_cli(root, *args, expect=0):
+            proc = subprocess.run(
+                [sys.executable, os.path.join(scripts, "wiki.py"),
+                 "--root", root] + list(args),
+                capture_output=True, text=True)
+            self.assertEqual(proc.returncode, expect, proc.stderr + proc.stdout)
+            out = proc.stdout.strip()
+            return json.loads(out) if out else {}
+
+        root = tempfile.mkdtemp()
+        run_cli(root, "init", "--name", "shop")
+
+        src = os.path.join(tempfile.mkdtemp(), "adr-019.md")
+        with open(src, "w") as f:
+            f.write(ADR)
+        run_cli(root, "ingest", "--file", src)
+
+        plan = run_cli(root, "compile")
+        self.assertEqual(plan["phase"], "extract")
+        self.assertEqual(len(plan["pending"]), 1)
+        meta = plan["pending"][0]
+        self.assertEqual(meta["source_version"], 1)
+
+        with open(meta["candidates_path"], "w") as f:
+            f.write(json.dumps({"subject": "analytics", "predicate": "click_lookback_window",
+                                "value": 30, "locator": "h:Decided", "authority": "decision"}) + "\n")
+
+        resume1 = run_cli(root, "compile", "--resume")
+        self.assertEqual(resume1["phase"], "done")
+        self.assertEqual(resume1["auto"]["unrelated"], 1)
+        self.assertEqual(resume1["changes"]["claims_created"], 1)
+        self.assertTrue(resume1["verify"]["ok"], resume1["verify"])
+
+        resume2 = run_cli(root, "compile", "--resume")
+        self.assertEqual(resume2["phase"], "done")
+        self.assertEqual(len(resume2["receipts"]), 1)
+        self.assertTrue(resume2["verify"]["ok"], resume2["verify"])
+
+        claims_dir = os.path.join(root, ".llm-wiki", "claims")
+        created = os.listdir(claims_dir)
+        self.assertTrue(created, "no claim files under .llm-wiki/claims/")
+
 
     def _compile_source(self, wiki, _unused, path, subject, predicate, value,
                         scope, valid_from, rel, target, valid_from_cls=None):

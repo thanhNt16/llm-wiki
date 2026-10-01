@@ -6,8 +6,10 @@ Run each scenario against a **fresh copy** of `evals/golden-corpus/`:
 cp -r evals/golden-corpus /tmp/corpus-run && cd /tmp/corpus-run
 # 1) wiki.py init --name shop-platform
 # 2) wiki.py ingest --file … for every file under docs/ notes/ config/ data/ transcripts/
-# 3) wiki.py compile-plan, then per source: extract candidates (EXTRACTION.md),
-#    stage-candidates, reconcile-prepare, classify (RECONCILIATION.md), reconcile-apply
+# 3) wiki.py compile, then per source: write shorthand candidates
+#    (EXTRACTION.md) at the reported candidates_path; run
+#    wiki.py compile --resume — classify (RECONCILIATION.md) any
+#    needs_review rows, write classifications, resume again
 # 4) build-pages + verify
 # 5) ask the question, answer per COMMANDS.md#query
 ```
