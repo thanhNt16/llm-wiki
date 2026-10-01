@@ -227,6 +227,23 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
     source_id = payload["source_id"]
     source_version = payload["source_version"]
 
+    comparisons_path = os.path.join(rundir, "comparisons.json")
+    comparisons = (_load_json(comparisons_path)["comparisons"]
+                   if os.path.isfile(comparisons_path) else None)
+    classified = {c["index"] for c in classifications}
+    auto_counts = {"unrelated": 0, "duplicate": 0, "corroboration": 0}
+    for i, cand in enumerate(candidates):
+        if i in classified:
+            continue
+        matches = comparisons[i]["matches"] if comparisons else []
+        verdict = auto_verdict(cand, matches)
+        if verdict is None:
+            raise TxnError(
+                "candidate index %d (%s/%s) needs a classification — "
+                "no auto verdict applies" % (i, cand["subject"], cand["predicate"]))
+        classifications.append({"index": i, "relationship": verdict})
+        auto_counts[verdict.lower()] += 1
+
     txn = Transaction(wiki, "wiki-compile")
     changes = {"claims_created": 0, "claims_updated": 0, "claims_superseded": 0,
                "review_items": 0}
@@ -326,6 +343,7 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
     txn.changes = changes
     txn.conflicts = conflicts
     receipt = txn.commit(base_revision)
+    receipt["auto"] = auto_counts
     # staging compile.json is consumed
     compile_leftover = os.path.join(rundir, "compile.json")
     if os.path.isfile(compile_leftover):

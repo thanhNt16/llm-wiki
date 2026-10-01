@@ -3,8 +3,8 @@ import json, os, sys, tempfile, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from wikicore import claims, compile as wc_compile, deps, sources
+from wikicore.transaction import ConflictError, Transaction, TxnError
 from wikicore.store import Wiki, init_wiki
-from wikicore.transaction import ConflictError, Transaction
 
 
 def fresh():
@@ -274,6 +274,38 @@ class TestCompile(unittest.TestCase):
              {"same_scope": False, "same_value": False, "status": "accepted",
               "root_origins": ["o3"]}]
         self.assertIsNone(wc_compile.auto_verdict({"root_origin": "o1"}, m))
+
+    def test_apply_autofills_unrelated(self):
+        wiki = fresh()
+        rcpt = ingest_text(wiki, "doc", "x")
+        c = candidate(wiki, rcpt)
+        run = wc_compile.stage_candidates(wiki, rcpt["source_id"],
+                                          rcpt["version"], [c], {})
+        wc_compile.reconcile_prepare(wiki, run)
+        receipt = wc_compile.reconcile_apply(wiki, run, [], wiki.revision())
+        self.assertEqual(receipt["changes"]["claims_created"], 1)
+        self.assertEqual(receipt["auto"]["unrelated"], 1)
+
+    def test_apply_rejects_undecidable_gap(self):
+        wiki = fresh()
+        rcpt = ingest_text(wiki, "doc", "x")
+        c = candidate(wiki, rcpt)
+        run1 = wc_compile.stage_candidates(wiki, rcpt["source_id"],
+                                           rcpt["version"], [c], {})
+        wc_compile.reconcile_prepare(wiki, run1)
+        wc_compile.reconcile_apply(wiki, run1,
+                                   [{"index": 0, "relationship": "UNRELATED"}],
+                                   wiki.revision())
+        c2 = candidate(wiki, rcpt, value=8)
+        rcpt2 = ingest_text(wiki, "doc2", "y")
+        c2["evidence"] = [{"source_id": rcpt2["source_id"],
+                           "source_version": rcpt2["version"],
+                           "locator": {"type": "heading", "value": "Window"}}]
+        run2 = wc_compile.stage_candidates(wiki, rcpt2["source_id"],
+                                           rcpt2["version"], [c2], {})
+        wc_compile.reconcile_prepare(wiki, run2)
+        with self.assertRaises(TxnError):
+            wc_compile.reconcile_apply(wiki, run2, [], wiki.revision())
 
     def test_reconcile_prepare_compact(self):
         wiki = fresh()
