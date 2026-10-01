@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .DS_Store
 .superpowers/
+node_modules/
+dist/
+tsconfig.tsbuildinfo

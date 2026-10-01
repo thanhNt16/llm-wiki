@@ -1,0 +1,358 @@
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { useGraphData } from "../hooks/useGraphData";
+import { GraphLoader } from "./GraphLoader";
+import { DisplaySettingsMenu } from "./DisplaySettingsMenu";
+import {
+  loadDisplaySettings,
+  saveDisplaySettings,
+  type DisplaySettings,
+} from "../lib/density";
+import {
+  GraphScene,
+  computeCameraTarget,
+  type CameraTarget,
+} from "./GraphScene";
+import { Sidebar } from "./Sidebar";
+import { FilterPanel } from "./FilterPanel";
+import { NodeDetailPanel } from "./NodeDetailPanel";
+import { ResizeHandle } from "./ResizeHandle";
+import { ErrorBoundary } from "./ErrorBoundary";
+import type { GraphNode, GraphData } from "../lib/types";
+
+function loadWidth(key: string, fallback: number): number {
+  try {
+    const v = localStorage.getItem(key);
+    if (v) return Math.max(150, Math.min(600, parseInt(v, 10)));
+  } catch { /* ignore */ }
+  return fallback;
+}
+function saveWidth(key: string, value: number) {
+  try { localStorage.setItem(key, String(Math.round(value))); } catch { /* ignore */ }
+}
+
+interface GraphTabProps {
+  project: string | null;
+}
+
+export function GraphTab({ project }: GraphTabProps) {
+  const { data, loading, error, progress, fetchOverview } = useGraphData();
+  const [highlightedIds, setHighlightedIds] = useState<Set<number> | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [navHistory, setNavHistory] = useState<GraphNode[]>([]);
+  const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null);
+  const [showLabels, setShowLabels] = useState(true);
+  const [display, setDisplay] = useState<DisplaySettings>(() =>
+    loadDisplaySettings(),
+  );
+  const updateDisplay = useCallback((next: DisplaySettings) => {
+    setDisplay(next);
+    saveDisplaySettings(next);
+  }, []);
+  const [leftWidth, setLeftWidth] = useState(() => loadWidth("cbm-left-w", 260));
+  const [rightWidth, setRightWidth] = useState(() => loadWidth("cbm-right-w", 320));
+
+  const [enabledLabels, setEnabledLabels] = useState<Set<string>>(new Set());
+  const [enabledEdgeTypes, setEnabledEdgeTypes] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!data) return;
+    setEnabledLabels(new Set(data.nodes.map((n) => n.label)));
+    setEnabledEdgeTypes(new Set(data.edges.map((e) => e.type)));
+  }, [data]);
+
+  const filteredData: GraphData | null = useMemo(() => {
+    if (!data) return null;
+    const nodes = data.nodes.filter((n) => enabledLabels.has(n.label));
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const edges = data.edges.filter(
+      (e) =>
+        enabledEdgeTypes.has(e.type) &&
+        nodeIds.has(e.source) &&
+        nodeIds.has(e.target),
+    );
+    return { nodes, edges, total_nodes: data.total_nodes };
+  }, [data, enabledLabels, enabledEdgeTypes]);
+
+  useEffect(() => {
+    /* Data is project-scoped at generation time — fetch always. */
+    fetchOverview(project ?? "");
+    setHighlightedIds(null);
+    setSelectedPath(null);
+  }, [project, fetchOverview]);
+
+  /* Frame the whole galaxy on first load */
+  const overviewTarget = useMemo(() => {
+    if (!data) return null;
+    return computeCameraTarget(data.nodes, new Set(data.nodes.map((n) => n.id)));
+  }, [data]);
+  useEffect(() => {
+    if (overviewTarget) setCameraTarget(overviewTarget);
+  }, [overviewTarget]);
+
+  const handleBackgroundClick = useCallback(() => {
+    /* keep selection; upstream uses this for missed-graph return */
+  }, []);
+
+  const selectNode = useCallback(
+    (node: GraphNode) => {
+      if (!filteredData) return;
+      setSelectedNode(node);
+      const connectedIds = new Set([node.id]);
+      for (const edge of filteredData.edges) {
+        if (edge.source === node.id) connectedIds.add(edge.target);
+        if (edge.target === node.id) connectedIds.add(edge.source);
+      }
+      setHighlightedIds(connectedIds);
+      setSelectedPath(node.file_path ?? null);
+      setCameraTarget(computeCameraTarget(filteredData.nodes, connectedIds));
+    },
+    [filteredData],
+  );
+
+  const handleNodeClick = useCallback(
+    (node: GraphNode) => {
+      setNavHistory([]); // fresh canvas pick resets the trail
+      selectNode(node);
+    },
+    [selectNode],
+  );
+
+  const handleNavigateToNode = useCallback(
+    (node: GraphNode) => {
+      if (selectedNode && node.id !== selectedNode.id) {
+        setNavHistory((h) => [...h, selectedNode]);
+      }
+      selectNode(node);
+    },
+    [selectNode, selectedNode],
+  );
+
+  const handleGoBack = useCallback(() => {
+    const prev = navHistory[navHistory.length - 1];
+    if (!prev) return;
+    setNavHistory((h) => h.slice(0, -1));
+    selectNode(prev);
+  }, [navHistory, selectNode]);
+
+
+  const handleSelectPath = useCallback(
+    (path: string, nodeIds: Set<number>, node?: GraphNode) => {
+      if (node) {
+        handleNodeClick(node);
+        return;
+      }
+      if (!filteredData || !path || nodeIds.size === 0) {
+        setHighlightedIds(null);
+        setSelectedPath(null);
+        setSelectedNode(null);
+        setCameraTarget(null);
+        return;
+      }
+      setSelectedNode(null);
+      setSelectedPath(path);
+      setHighlightedIds(nodeIds);
+      setCameraTarget(computeCameraTarget(filteredData.nodes, nodeIds));
+    },
+    [filteredData, handleNodeClick],
+  );
+
+  const toggleLabel = useCallback((label: string) => {
+    setEnabledLabels((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label); else next.add(label);
+      return next;
+    });
+  }, []);
+  const toggleEdgeType = useCallback((type: string) => {
+    setEnabledEdgeTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type); else next.add(type);
+      return next;
+    });
+  }, []);
+  const enableAll = useCallback(() => {
+    if (!data) return;
+    setEnabledLabels(new Set(data.nodes.map((n) => n.label)));
+    setEnabledEdgeTypes(new Set(data.edges.map((e) => e.type)));
+  }, [data]);
+  const disableAll = useCallback(() => {
+    setEnabledLabels(new Set());
+    setEnabledEdgeTypes(new Set());
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <GraphLoader nodeBudget={295} progress={progress} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-red-400/80 text-sm mb-3">{error}</p>
+          <Button variant="outline" size="sm" onClick={() => fetchOverview(project ?? "")}>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data || !filteredData || data.nodes.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-white/30 text-sm">No nodes in this project</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex">
+      <div
+        className="border-r border-border/30 flex flex-col h-full bg-[#0b1920]/90 backdrop-blur-md shrink-0"
+        style={{ width: leftWidth }}
+      >
+        <FilterPanel
+          data={data}
+          enabledLabels={enabledLabels}
+          enabledEdgeTypes={enabledEdgeTypes}
+          showLabels={showLabels}
+          onToggleLabel={toggleLabel}
+          onToggleEdgeType={toggleEdgeType}
+          onToggleShowLabels={() => setShowLabels((v) => !v)}
+          onEnableAll={enableAll}
+          onDisableAll={disableAll}
+        />
+        <Sidebar
+          nodes={filteredData.nodes}
+          onSelectPath={handleSelectPath}
+          selectedPath={selectedPath}
+        />
+      </div>
+      <ResizeHandle
+        side="left"
+        onResize={(d) => {
+          setLeftWidth((w) => {
+            const nw = Math.max(150, Math.min(500, w + d));
+            saveWidth("cbm-left-w", nw);
+            return nw;
+          });
+        }}
+      />
+
+      <div className="flex-1 relative overflow-hidden">
+        {filteredData.nodes.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <p className="text-white/30 text-sm mb-3">All nodes filtered out</p>
+              <Button size="sm" onClick={enableAll}>
+                Reset Filters
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <ErrorBoundary>
+              <GraphScene
+                data={filteredData}
+                missed={null}
+                highlightedIds={highlightedIds}
+                cameraTarget={cameraTarget}
+                showLabels={showLabels}
+                display={display}
+                onNodeClick={handleNodeClick}
+                onBackgroundClick={handleBackgroundClick}
+              />
+            </ErrorBoundary>
+
+            <div className="absolute top-4 left-4 text-[11px] text-white/30 pointer-events-none font-mono">
+              <p>
+                {filteredData.nodes.length.toLocaleString()} nodes /{" "}
+                {filteredData.edges.length.toLocaleString()} edges
+              </p>
+              {data.nodes.length > filteredData.nodes.length && (
+                <p className="text-white/25 mt-0.5">
+                  filtered from {data.nodes.length.toLocaleString()}
+                </p>
+              )}
+              {highlightedIds && highlightedIds.size > 0 && (
+                <p className="text-cyan-400/50 mt-0.5">
+                  {highlightedIds.size} selected
+                </p>
+              )}
+            </div>
+
+            <div className="absolute top-4 right-4 flex gap-2 items-center">
+              {highlightedIds && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setHighlightedIds(null);
+                    setSelectedPath(null);
+                    setSelectedNode(null);
+                    setCameraTarget(null);
+                  }}
+                >
+                  Clear selection
+                </Button>
+              )}
+              <DisplaySettingsMenu settings={display} onChange={updateDisplay} />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setHighlightedIds(null);
+                  setSelectedPath(null);
+                  setSelectedNode(null);
+                  setCameraTarget(overviewTarget);
+                }}
+              >
+                Overview
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {selectedNode && filteredData && (
+        <>
+          <ResizeHandle
+            side="right"
+            onResize={(d) => {
+              setRightWidth((w) => {
+                const nw = Math.max(200, Math.min(560, w + d));
+                saveWidth("cbm-right-w", nw);
+                return nw;
+              });
+            }}
+          />
+          <div
+            className="border-l border-border shrink-0 h-full overflow-hidden"
+            style={{ width: rightWidth, maxHeight: "100%" }}
+          >
+            <NodeDetailPanel
+              node={selectedNode}
+              allNodes={filteredData.nodes}
+              allEdges={filteredData.edges}
+              project={project}
+              repoInfo={null}
+              canGoBack={navHistory.length > 0}
+              onBack={handleGoBack}
+              onClose={() => {
+                setSelectedNode(null);
+                setNavHistory([]);
+                setHighlightedIds(null);
+                setSelectedPath(null);
+              }}
+              onNavigate={handleNavigateToNode}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

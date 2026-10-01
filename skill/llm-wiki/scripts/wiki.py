@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from wikicore import claims, compile as wc_compile, contextpack, deps, doctor, pages, dirs  # noqa: E402
+from wikicore import claims, compile as wc_compile, contextpack, deps, doctor, graphdata, pages, dirs  # noqa: E402
 from wikicore import query, review, sources  # noqa: E402
 from wikicore.store import Wiki, SKILL_VERSION, init_wiki  # noqa: E402
 from wikicore.transaction import ConflictError, LockedError, TxnError  # noqa: E402
@@ -192,6 +192,20 @@ def cmd_doctor(args) -> int:
     return 0 if result["ok"] else 3
 
 
+def cmd_graph_data(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    payload = graphdata.graph_payload(wiki)
+    text = json.dumps(payload, ensure_ascii=False)
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(text + "\n")
+        _emit({"written": args.output, "nodes": len(payload["nodes"]),
+               "links": len(payload["links"])})
+    else:
+        print(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="wiki.py", description="llm-wiki deterministic core")
     ap.add_argument("--root", default=None, help="project root (default: cwd)")
@@ -272,6 +286,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("doctor")
     p.set_defaults(fn=cmd_doctor)
+
+    p = sub.add_parser("graph-data")
+    p.add_argument("--output", default=None, help="write JSON to file instead of stdout")
+    p.set_defaults(fn=cmd_graph_data)
 
     return ap
 

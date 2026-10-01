@@ -16,7 +16,7 @@ decisions (what the project chose) → derived views (wiki pages, context packs)
 with correction propagation: when new evidence corrects old knowledge, every
 dependent artifact is invalidated and rebuilt — history stays queryable.
 
-## The seven commands
+## The eight commands
 
 Each command is its own skill — say the name (or describe the intent) and OMP
 loads it:
@@ -30,8 +30,9 @@ loads it:
 | `wiki-context` | bounded, budgeted context pack + receipt; `--resume` briefing |
 | `wiki-review` | human review of contradictions/candidates (transactional actions) |
 | `wiki-doctor` | static + semantic diagnostics |
+| `wiki-visualize` | 3D knowledge-graph explorer UI (React/Three.js, `graph-data` payload) |
 
-All seven are thin facades over the shared `llm-wiki` skill, which ships the
+All eight are thin facades over the shared `llm-wiki` skill, which ships the
 `wiki.py` engine, schemas, and references. The agent does semantic work
 (extraction, classification, prose) between deterministic script calls; every
 canonical mutation is a staged, locked, revision-checked transaction — failed
@@ -62,7 +63,7 @@ Then in any project, say `wiki-init`, "ingest this doc", "compile the wiki",
 
 ```
 skill/llm-wiki/      shared engine skill: wiki.py CLI + wikicore + schemas + references + tests
-skill/wiki-*/        seven thin command skills (init, ingest, compile, query, context, review, doctor)
+skill/wiki-*/        eight thin command skills (init, ingest, compile, query, context, review, doctor, visualize)
 evals/golden-corpus/ fixture project with planted correction/conflict/scope cases
 evals/deterministic/ PRD §58 release gates: python3 evals/deterministic/run_gates.py
 evals/semantic/      agent-run scenarios + rubrics (PRD §57)

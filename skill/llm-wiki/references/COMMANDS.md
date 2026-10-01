@@ -156,3 +156,32 @@ Findings have `severity` (error/warn/info), `code`, `detail`, `fix`. Fix errors
 first (usually broken references from out-of-band edits). `staging_leftover`
 entries can be deleted after inspection. Report unresolved semantic debt
 (unsupported claims, contradictions) to the user — do not auto-resolve.
+
+## graph-data
+
+Read-only. Emits the knowledge-graph payload consumed by the `wiki-visualize`
+skill (React/Three.js explorer). Never mutates the wiki.
+
+```bash
+wiki.py graph-data                    # JSON to stdout
+wiki.py graph-data --output out.json  # write file instead
+```
+
+Output shape: `{project, nodes, links, claim_count, source_count,
+decision_count, generated_at, warnings}`.
+
+- `nodes[]`: `{id, kind: entity|source|decision, key, label, wtype,
+  claim_count, size, summary, claims, sources}`; source nodes also carry
+  `title`/`origin`. Entity nodes group claims by two-segment subject prefix;
+  `label` strips the project prefix.
+- `links[]`: `{source, target, type, w}` — `evidence` (entity→source),
+  `contains` (subject hierarchy), `mentions` (alias co-reference), `decision`
+  (decision→entity via `decision.claims`).
+- Edges derive from non-superseded claims only; superseded claims remain in
+  `claims[]` with their `status` for the detail panel.
+- Optional `.llm-wiki/graph-types.json` maps the second subject segment to a
+  `wtype` (`{"pm97": "ticket", "sql": "migration"}`); otherwise
+  `pm-\d+/stc-\d+` → `ticket`, else `domain`. A malformed file produces a
+  `warnings` entry, not an error.
+- Deterministic: identical wiki state → identical output except
+  `generated_at`. Exit 3 if the wiki is not initialized.

@@ -16,7 +16,7 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/thanhNt16/llm-wiki.git"
-SKILLS=(llm-wiki wiki-init wiki-ingest wiki-compile wiki-query wiki-context wiki-review wiki-doctor)
+SKILLS=(llm-wiki wiki-init wiki-ingest wiki-compile wiki-query wiki-context wiki-review wiki-doctor wiki-visualize)
 CLONE_HOME="$HOME/.llm-wiki"
 
 TARGET_DIR="$HOME/.omp/agent/skills"
