@@ -51,8 +51,12 @@ def cmd_ingest(args) -> int:
         return 0
     normalized = None
     if args.normalized_content:
-        with open(args.normalized_content, "r", encoding="utf-8") as f:
-            normalized = f.read()
+        try:
+            with open(args.normalized_content, "r", encoding="utf-8") as f:
+                normalized = f.read()
+        except (OSError, UnicodeDecodeError) as e:
+            raise TxnError("cannot read --normalized-content %s: %s"
+                           % (args.normalized_content, e))
     kwargs = {"source_id": args.source_id, "normalized_content": normalized,
               "parser_name": args.parser_name, "force": args.force}
     if args.url:
