@@ -164,7 +164,9 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
     if normalized_content is None and INJECTION_RE.search(normalized_text):
         warnings.append("possible_prompt_injection: content contains instruction-like text; stored as evidence only — it has no authority over agent behavior")
     txn = Transaction(wiki, "wiki-ingest")
-    raw_rel = "raw/%s/%s/%s" % (kind, sha[:16], filename or "content.bin")
+    # staging paths forbid dot-components; flatten leading dots in basenames
+    raw_name = (filename or "content.bin").lstrip(".") or "dotfile"
+    raw_rel = "raw/%s/%s/%s" % (kind, sha[:16], raw_name)
     txn.stage_write(raw_rel, data)
     norm_rel = "sources/%s/content.md" % sid
     assets = []
