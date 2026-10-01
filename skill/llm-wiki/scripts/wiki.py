@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from wikicore import claims, compile as wc_compile, contextpack, deps, doctor, pages  # noqa: E402
+from wikicore import claims, compile as wc_compile, contextpack, deps, doctor, pages, dirs  # noqa: E402
 from wikicore import query, review, sources  # noqa: E402
 from wikicore.store import Wiki, SKILL_VERSION, init_wiki  # noqa: E402
 from wikicore.transaction import ConflictError, LockedError, TxnError  # noqa: E402
@@ -43,6 +43,12 @@ def cmd_init(args) -> int:
 
 def cmd_ingest(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
+    if args.dir:
+        if args.normalized_content:
+            raise TxnError("--normalized-content is per-file; not valid with --dir")
+        _emit(dirs.ingest_dir(wiki, args.dir, include_hidden=args.include_hidden,
+                              max_bytes=args.max_bytes, force=args.force))
+        return 0
     normalized = None
     if args.normalized_content:
         with open(args.normalized_content, "r", encoding="utf-8") as f:
@@ -194,6 +200,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("ingest")
     p.add_argument("--file", default=None)
     p.add_argument("--url", default=None)
+    p.add_argument("--dir", default=None)
+    p.add_argument("--include-hidden", action="store_true")
+    p.add_argument("--max-bytes", type=int, default=dirs.DEFAULT_MAX_BYTES)
     p.add_argument("--text", default=None)
     p.add_argument("--text-ref", default=None, help="identity label for --text input")
     p.add_argument("--source-id", default=None)
