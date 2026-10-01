@@ -253,10 +253,14 @@ def _briefing(wiki, changes_since: Optional[str]) -> tuple:
         return ref, {"lines": lines, "claim_ids": []}
 
     all_claims = claims.list_claims(wiki)
-    changed = [c for c in all_claims
-               if c.get("updated_at", c["recorded_at"]) >= ref["generated_at"]]
+    # commit-time (wall clock), not semantic recorded_at: fixtures pin recorded_at
+    # to content dates, so use updated_at / acceptance.accepted_at as commit signal
+    def commit_ts(c):
+        return (c.get("updated_at") or (c.get("acceptance") or {}).get("accepted_at")
+                or c["recorded_at"])
+    changed = [c for c in all_claims if commit_ts(c) >= ref["generated_at"]]
     superseded = [c for c in all_claims if c["status"] == "superseded"
-                  and c.get("updated_at", c["recorded_at"]) >= ref["generated_at"]]
+                  and commit_ts(c) >= ref["generated_at"]]
     current_by_subject = {}
     for c in all_claims:
         if c["status"] in ("accepted", "provisional"):
