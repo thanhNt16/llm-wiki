@@ -70,8 +70,10 @@ def _is_text_like(kind: str, ref: str, data: bytes) -> bool:
     if kind in ("text", "url", "session"):
         return True
     if kind == "file":
-        if _ext(ref) in OFFICE_EXTS or _ext(ref) in IMAGE_EXTS:
-            return False  # office/image binary paths
+        if _ext(ref) in OFFICE_EXTS:
+            return False
+        if b"\x00" in data:
+            return False
         try:
             data.decode("utf-8")
             return True
@@ -247,6 +249,7 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
         "coverage": coverage,
         "parser": parser,
         "warnings": warnings,
+        "secrets": secret_summary,
         "run_id": txn.run_id,
     }
 
