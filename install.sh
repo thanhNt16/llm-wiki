@@ -88,6 +88,23 @@ for name in "${SKILLS[@]}"; do
   echo "installed ($MODE): $TARGET -> $SKILL_SRC"
 done
 
+# Optional extractor: markitdown (office/pdf text extraction in wiki-ingest).
+# Try uv tool -> pipx -> pip --user; failure is a warning, not fatal.
+if ! command -v markitdown >/dev/null 2>&1; then
+  if command -v uv >/dev/null 2>&1; then
+    uv tool install markitdown 2>/dev/null || \
+      echo "note: uv install of markitdown failed; pdf/office files ingest as not_extracted" >&2
+  elif command -v pipx >/dev/null 2>&1; then
+    pipx install markitdown 2>/dev/null || \
+      echo "note: pipx install of markitdown failed; pdf/office files ingest as not_extracted" >&2
+  elif command -v pip3 >/dev/null 2>&1; then
+    pip3 install --user markitdown 2>/dev/null || \
+      echo "note: pip install of markitdown failed; pdf/office files ingest as not_extracted" >&2
+  else
+    echo "note: no uv/pipx/pip3 found; pdf/office files ingest as not_extracted" >&2
+  fi
+fi
+
 echo
 echo "verify with:"
 echo "  omp -p --no-session 'Do you have skills named llm-wiki and wiki-init? Answer yes/no.'"
