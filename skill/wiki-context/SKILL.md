@@ -14,7 +14,7 @@ Packs go through the deterministic CLI shipped with the `llm-wiki` skill
 root:
 
 ```bash
-WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
+WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
 python3 "$WIKI" context-pack --task "implement order attribution fix" --budget 6000
 python3 "$WIKI" context-pack --resume
 python3 "$WIKI" context-pack --changes-since <context_id>

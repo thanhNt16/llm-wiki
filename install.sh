@@ -7,7 +7,8 @@
 # From a git checkout of this repo:
 #   ./install.sh              # symlink into OMP's native user skills dir
 #   ./install.sh --agents     # symlink into ~/.agents/skills (cross-runtime)
-#   ./install.sh --uninstall  # remove the symlinks
+#   ./install.sh --cellockai  # copy skills into ~/.cellockai/skills (CellockAI
+#                             # extension reads real skill dirs, not symlinks)
 #   ./install.sh --purge      # uninstall + delete the ~/.llm-wiki clone
 #
 # Curl mode clones this repo (shallow) to ~/.llm-wiki and symlinks the skills
@@ -20,17 +21,26 @@ SKILLS=(llm-wiki wiki-init wiki-ingest wiki-compile wiki-query wiki-context wiki
 CLONE_HOME="$HOME/.llm-wiki"
 
 TARGET_DIR="$HOME/.omp/agent/skills"
+INSTALL_MODE="symlink"
 if [[ "${1:-}" == "--agents" ]]; then
   TARGET_DIR="$HOME/.agents/skills"
+fi
+if [[ "${1:-}" == "--cellockai" ]]; then
+  TARGET_DIR="$HOME/.cellockai/skills"
+  INSTALL_MODE="copy"
 fi
 
 uninstall() {
   local removed=0
-  for dir in "$HOME/.omp/agent/skills" "$HOME/.agents/skills"; do
+  for dir in "$HOME/.omp/agent/skills" "$HOME/.agents/skills" "$HOME/.cellockai/skills"; do
     for name in "${SKILLS[@]}"; do
       if [[ -L "$dir/$name" ]]; then
         rm "$dir/$name"
         echo "removed $dir/$name"
+        removed=1
+      elif [[ -d "$dir/$name" && -f "$dir/$name/SKILL.md" ]]; then
+        rm -rf "$dir/$name"
+        echo "removed $dir/$name (copied dir)"
         removed=1
       fi
     done
@@ -80,12 +90,26 @@ for name in "${SKILLS[@]}"; do
     echo "error: $SKILL_SRC/SKILL.md not found" >&2
     exit 1
   fi
-  if [[ -e "$TARGET" && ! -L "$TARGET" ]]; then
-    echo "error: $TARGET exists and is not a symlink; remove it first" >&2
-    exit 1
+
+  if [[ "$INSTALL_MODE" == "copy" ]]; then
+    # CellockAI reads real dirs; existing skill dirs are backed up first.
+    if [[ -d "$TARGET" || -L "$TARGET" ]]; then
+      mv "$TARGET" "${TARGET}.bak.$(date +%Y%m%d%H%M%S)"
+    fi
+    cp -R "$SKILL_SRC" "$TARGET"
+    find "$TARGET" -name '.DS_Store' -delete 2>/dev/null || true
+    find "$TARGET" -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
+    find "$TARGET" -type d -name 'node_modules' -exec rm -rf {} + 2>/dev/null || true
+    find "$TARGET" -type d -name 'dist' -exec rm -rf {} + 2>/dev/null || true
+    echo "installed (copy): $TARGET"
+  else
+    if [[ -e "$TARGET" && ! -L "$TARGET" ]]; then
+      echo "error: $TARGET exists and is not a symlink; remove it first" >&2
+      exit 1
+    fi
+    ln -sfn "$SKILL_SRC" "$TARGET"
+    echo "installed ($MODE): $TARGET -> $SKILL_SRC"
   fi
-  ln -sfn "$SKILL_SRC" "$TARGET"
-  echo "installed ($MODE): $TARGET -> $SKILL_SRC"
 done
 
 # Optional extractor: markitdown (office/pdf text extraction in wiki-ingest).

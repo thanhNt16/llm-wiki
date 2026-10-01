@@ -15,7 +15,7 @@ skill (installed alongside this one). Resolve it once, then run from the
 project root:
 
 ```bash
-WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
+WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
 python3 "$WIKI" compile-plan
 ```
 

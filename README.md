@@ -52,6 +52,7 @@ From a checkout of this repo instead:
 ```bash
 ./install.sh              # OMP native: ~/.omp/agent/skills/{llm-wiki,wiki-*}
 ./install.sh --agents     # cross-runtime: ~/.agents/skills/{llm-wiki,wiki-*}
+./install.sh --cellockai  # CellockAI extension: copies into ~/.cellockai/skills/{llm-wiki,wiki-*}
 ./install.sh --uninstall  # remove the symlinks
 ./install.sh --purge      # uninstall + delete the ~/.llm-wiki clone
 ```
