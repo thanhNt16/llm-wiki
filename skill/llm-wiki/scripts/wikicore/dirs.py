@@ -74,8 +74,14 @@ def _walk(root: str, include_hidden: bool, max_bytes: int) -> list:
             os.sep + ".llm-wiki" + os.sep in dr or \
             dr.endswith(os.sep + ".llm-wiki")
         for d in list(dirnames):
+            if omit_children:
+                continue  # inside .llm-wiki: omit descendants entirely
             p = os.path.join(dirpath, d)
             rel = os.path.relpath(p, root)
+            if os.path.islink(p):
+                items.append((rel, "skipped", "symlink"))
+                dirnames.remove(d)
+                continue
             reason = inherited or _classify_skip(
                 p, d, True, include_hidden, max_bytes)
             if reason:
@@ -106,7 +112,8 @@ def ingest_dir(wiki, path: str, *, include_hidden: bool = False,
     root_origin = "dir:" + root
     batch_id = ids.new("batch")
     items = []
-    counts = {"ingested": 0, "deduplicated": 0, "skipped": 0, "errors": 0}
+    counts = {"ingested": 0, "deduplicated": 0, "updated_normalized": 0,
+              "skipped": 0, "errors": 0}
     for rel, action, reason in _walk(root, include_hidden, max_bytes):
         if action == "skipped":
             items.append({"path": rel, "status": "skipped", "reason": reason})
@@ -128,7 +135,7 @@ def ingest_dir(wiki, path: str, *, include_hidden: bool = False,
             status = "updated_normalized"
         else:
             status = "ingested"
-        counts["ingested" if status != "deduplicated" else "deduplicated"] += 1
+        counts[status] += 1
         item = {"path": rel, "status": status,
                 "source_id": r["source_id"], "version": r["version"]}
         if r.get("coverage"):
