@@ -24,6 +24,9 @@ wiki.py ingest --file path/to/doc.md
 wiki.py ingest --url https://example.com/spec
 wiki.py ingest --text "user said: use Postgres" --text-ref "chat-2026-09-15"
 wiki.py ingest --file report.pdf     # preserved; extraction honestly marked not_extracted
+wiki.py ingest --dir docs/                        # recursive; batch receipt
+wiki.py ingest --dir docs/ --include-hidden --max-bytes 104857600 --force
+wiki.py ingest --file img.png --normalized-content desc.md --parser-name agent-vision
 ```
 
 Receipt fields: `source_id`, `version`, `sha256`, `deduplicated`, `warnings`,
@@ -35,6 +38,13 @@ Receipt fields: `source_id`, `version`, `sha256`, `deduplicated`, `warnings`,
 - `secrets.findings` non-empty → surface to the user; policy `deny` aborts.
 - Binary coverage `not_extracted` → extraction did not silently fail; if the
   content matters, extract it with a document tool and re-ingest as text.
+- `normalized_source: "agent"` → content.md came from `--normalized-content`;
+  `parser.name` reflects `--parser-name`.
+- `updated_normalized: true` → identical bytes, prior version was
+  `not_extracted`; content.md + extraction.json updated in place and the
+  version was un-compiled so compile-plan sees the new text.
+- `--force` bypasses sha256 dedup and always appends a version — use when the
+  extractor improved (markitdown installed, better vision pass).
 
 ## compile
 
