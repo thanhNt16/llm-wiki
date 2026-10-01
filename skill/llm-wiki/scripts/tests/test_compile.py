@@ -1,4 +1,4 @@
-import json, os, sys, tempfile, unittest
+import json, os, subprocess, sys, tempfile, unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -319,6 +319,114 @@ class TestCompile(unittest.TestCase):
         self.assertEqual(row["key"], "project.analytics.attribution/click_lookback_window")
         self.assertNotIn("candidate", row)   # no full echo
         self.assertIn("candidate_value", row)
+
+class TestUmbrella(unittest.TestCase):
+    def test_umbrella_full_flow(self):
+        wiki = fresh()
+        ingest_text(wiki, "doc", "fact: window is 7 days")
+
+        out1 = wc_compile.compile_umbrella(wiki, resume=False)
+        self.assertEqual(len(out1["pending"]), 1)
+        p = out1["pending"][0]
+        self.assertTrue(os.path.isfile(p["content_path"]))
+        with open(p["candidates_path"], "w") as f:
+            f.write(json.dumps({
+                "subject": "project.window", "predicate": "days", "value": 7,
+                "locator": "h:Window", "authority": "manual"}) + "\n")
+
+        out2 = wc_compile.compile_umbrella(wiki, resume=True)
+        self.assertEqual(out2["auto"]["unrelated"], 1)
+        self.assertEqual(out2["needs_review"], [])
+        self.assertFalse(out2["needs_classifications"])
+
+        out3 = wc_compile.compile_umbrella(wiki, resume=True)
+        self.assertTrue(out3["verify"]["ok"])
+        self.assertEqual(out3["changes"]["claims_created"], 1)
+
+    def test_umbrella_resume_waits_for_classifications(self):
+        wiki = fresh()
+        ingest_text(wiki, "a", "x")
+        out = wc_compile.compile_umbrella(wiki, resume=False)
+        p = out["pending"][0]
+        with open(p["candidates_path"], "w") as f:
+            f.write(json.dumps({"subject": "s", "predicate": "p",
+                                "value": 1, "locator": "h:H"}) + "\n")
+        out = wc_compile.compile_umbrella(wiki, resume=True)
+        self.assertFalse(out["needs_classifications"])
+
+    def test_umbrella_needs_review_round_trip(self):
+        wiki = fresh()
+        rcpt1 = ingest_text(wiki, "s1", "first source")
+        run_compile(wiki, rcpt1, [candidate(wiki, rcpt1)], [])
+
+        ingest_text(wiki, "s2", "second source")
+        out1 = wc_compile.compile_umbrella(wiki, resume=False)
+        p = out1["pending"][0]
+        with open(p["candidates_path"], "w") as f:
+            f.write(json.dumps({
+                "subject": "project.analytics.attribution",
+                "predicate": "click_lookback_window", "value": 30,
+                "locator": "h:Other", "authority": "doc"}) + "\n")
+        out2 = wc_compile.compile_umbrella(wiki, resume=True)
+        self.assertTrue(out2["needs_classifications"])
+        row = out2["needs_review"][0]
+        self.assertEqual(row["source_id"], p["source_id"])
+        target = row["matches"][0]["claim_id"]
+        with open(p["classifications_path"], "w") as f:
+            json.dump([{"index": 0, "relationship": "CORRECTION",
+                        "target_claim_id": target}], f)
+        out3 = wc_compile.compile_umbrella(wiki, resume=True)
+        self.assertFalse(out3["needs_classifications"])
+        self.assertEqual(out3["changes"]["claims_created"], 1)
+        self.assertEqual(out3["changes"]["claims_superseded"], 1)
+        self.assertTrue(out3["verify"]["ok"], out3.get("verify"))
+
+    def test_stage_candidates_accepts_jsonl(self):
+        wiki = fresh()
+        rcpt = ingest_text(wiki, "doc", "fact: window is 7 days")
+        path = os.path.join(wiki.root, "cands.jsonl")
+        with open(path, "w") as f:
+            f.write(json.dumps({"subject": "s", "predicate": "p", "value": 1,
+                                "locator": "h:H"}) + "\n")
+            f.write(json.dumps({"subject": "s2", "predicate": "p2", "value": 2,
+                                "locator": "h:H2"}) + "\n")
+        script = os.path.join(os.path.dirname(__file__), "..", "wiki.py")
+        out = subprocess.run(
+            [sys.executable, script, "--root", wiki.root,
+             "stage-candidates", "--file", path,
+             "--source-id", rcpt["source_id"], "--source-version", "1"],
+            capture_output=True, text=True,
+            cwd=os.path.join(os.path.dirname(__file__), ".."))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        payload = json.loads(out.stdout)
+        self.assertEqual(payload["staged"], 2)
+        rundir = wiki.p(".state", "staging", payload["run_id"])
+        with open(os.path.join(rundir, "compile.json")) as f:
+            staged = json.load(f)
+        self.assertEqual(len(staged["candidates"]), 2)
+        self.assertTrue(all(c.get("id", "").startswith("claim_")
+                            for c in staged["candidates"]))
+        self.assertEqual(staged["candidates"][0]["authority"]["type"],
+                         "authoritative_source")
+
+    def test_compile_cli_end_to_end(self):
+        wiki = fresh()
+        ingest_text(wiki, "doc", "fact: window is 7 days")
+        script = os.path.join(os.path.dirname(__file__), "..", "wiki.py")
+        cwd = os.path.join(os.path.dirname(__file__), "..")
+        r = subprocess.run([sys.executable, script, "--root", wiki.root, "compile"],
+                           capture_output=True, text=True, cwd=cwd)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        pending = json.loads(r.stdout)["pending"]
+        self.assertEqual(len(pending), 1)
+        with open(pending[0]["candidates_path"], "w") as f:
+            f.write(json.dumps({"subject": "project.window", "predicate": "days",
+                                "value": 7, "locator": "h:Window"}) + "\n")
+        r = subprocess.run([sys.executable, script, "--root", wiki.root,
+                            "compile", "--resume"],
+                           capture_output=True, text=True, cwd=cwd)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(json.loads(r.stdout)["verify"]["ok"])
 
 if __name__ == "__main__":
     unittest.main()

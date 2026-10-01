@@ -35,15 +35,13 @@ def _load_json(path):
         return json.load(f)
 
 
-def stage_candidates(wiki, source_id: str, source_version: int,
-                     candidates: list, report: dict) -> str:
-    """Stage agent-extracted candidates. Staging only — nothing canonical yet."""
+def _stage_payload(wiki, rundir, source_id, source_version, candidates, report):
+    """Assign ids + root_origin, write compile.json into rundir."""
     from . import sources as sources_mod
 
     src_manifest = sources_mod.get_manifest(wiki, source_id)
     if src_manifest is None:
         raise TxnError("unknown source: %s" % source_id)
-    txn = Transaction(wiki, "wiki-stage-candidates")
     assigned = []
     for c in candidates:
         if not ids.validate(c.get("id", "")) or c.get("id") == "auto":
@@ -59,9 +57,16 @@ def stage_candidates(wiki, source_id: str, source_version: int,
         "candidates": assigned,
         "report": report,
     }
-    path = os.path.join(txn.staging_dir, "compile.json")
-    with open(path, "w") as f:
+    with open(os.path.join(rundir, "compile.json"), "w") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
+
+
+def stage_candidates(wiki, source_id: str, source_version: int,
+                     candidates: list, report: dict) -> str:
+    """Stage agent-extracted candidates. Staging only — nothing canonical yet."""
+    txn = Transaction(wiki, "wiki-stage-candidates")
+    _stage_payload(wiki, txn.staging_dir, source_id, source_version,
+                   candidates, report)
     # keep staging dir for the next phase instead of committing
     return txn.run_id
 
@@ -355,3 +360,160 @@ def _now() -> str:
     import time
 
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _staging_runs(wiki):
+    base = wiki.p(".state", "staging")
+    if not os.path.isdir(base):
+        return []
+    return sorted(d for d in os.listdir(base)
+                  if os.path.isdir(os.path.join(base, d)))
+
+
+def _staging_state(wiki, run_id):
+    """None=no files yet; 'staged'=compile.json; 'prepared'=comparisons.json."""
+    d = wiki.p(".state", "staging", run_id)
+    if os.path.isfile(os.path.join(d, "comparisons.json")):
+        return "prepared"
+    if os.path.isfile(os.path.join(d, "compile.json")):
+        return "staged"
+    if os.path.isfile(os.path.join(d, "candidates.jsonl")):
+        return "candidates_ready"
+    return None
+
+
+def compile_umbrella(wiki, resume=False):
+    """Spec §1: 3-phase state machine over staging dirs (extract -> classify
+    -> apply), resumable across CLI invocations."""
+    from . import pages as pages_mod, sources as sources_mod
+    from .shorthand import normalize_candidate, parse_candidates_file
+
+    if not resume:
+        plan = compile_plan(wiki)
+        pending = []
+        for entry in plan["pending"]:
+            sid = entry["source_id"] if isinstance(entry, dict) else entry
+            manifest = sources_mod.get_manifest(wiki, sid)
+            if manifest is None:
+                raise TxnError("unknown source: %s" % sid)
+            ver = (entry.get("version") if isinstance(entry, dict)
+                   else manifest["versions"][-1]["version"])
+            ver_entry = next((v for v in manifest["versions"]
+                              if v["version"] == ver), {})
+            run_id = ids.new("run")
+            d = wiki.p(".state", "staging", run_id)
+            os.makedirs(d, exist_ok=True)
+            rel = ver_entry.get("normalized_path") or "sources/%s/content.md" % sid
+            meta = {
+                "source_id": sid, "source_version": ver, "run_id": run_id,
+                "content_path": wiki.p(*rel.split("/")),
+                "candidates_path": os.path.join(d, "candidates.jsonl"),
+                "classifications_path": os.path.join(d, "classifications.json"),
+            }
+            with open(os.path.join(d, "pending.json"), "w") as f:
+                json.dump(meta, f)
+            pending.append(meta)
+        return {"phase": "extract", "pending": pending}
+
+    # resume: advance every run dir one phase
+    runs = _staging_runs(wiki)
+    needs_review_rows = []
+    applied = []
+    auto_totals = {"unrelated": 0, "duplicate": 0, "corroboration": 0}
+
+    def _apply(run_id, classifications):
+        receipt = reconcile_apply(wiki, run_id, classifications, wiki.revision())
+        with open(os.path.join(wiki.p(".state", "staging", run_id),
+                               "receipt.json"), "w") as f:
+            json.dump(receipt, f, indent=2, ensure_ascii=False)
+        applied.append(receipt)
+        for k, v in receipt.get("auto", {}).items():
+            auto_totals[k] += v
+
+    for run_id in runs:
+        d = wiki.p(".state", "staging", run_id)
+        meta_p = os.path.join(d, "pending.json")
+        if not os.path.isfile(meta_p):
+            continue
+        meta = _load_json(meta_p)
+        cls_p = meta["classifications_path"]
+        cand_p = meta["candidates_path"]
+        compile_p = os.path.join(d, "compile.json")
+        state = _staging_state(wiki, run_id)
+
+        if os.path.isfile(cls_p):
+            classifications = (parse_candidates_file(cls_p)
+                               if cls_p.endswith(".jsonl") else _load_json(cls_p))
+            if isinstance(classifications, dict):
+                classifications = classifications.get("classifications", [])
+            _apply(run_id, classifications)
+            continue
+
+        if state == "prepared" and not os.path.isfile(compile_p):
+            # applied on an earlier resume — replay the cached receipt
+            if os.path.isfile(os.path.join(d, "receipt.json")):
+                receipt = _load_json(os.path.join(d, "receipt.json"))
+                applied.append(receipt)
+                for k, v in receipt.get("auto", {}).items():
+                    auto_totals[k] += v
+            continue
+
+        if state not in ("staged", "prepared"):
+            if not os.path.isfile(cand_p):
+                raise TxnError("run %s: expected %s (write shorthand candidates there)"
+                               % (run_id, cand_p))
+            raw = parse_candidates_file(cand_p)
+            manifest = sources_mod.get_manifest(wiki, meta["source_id"]) or {}
+            root_origin = manifest.get("root_origin") or meta["source_id"]
+            cands = [normalize_candidate(c, meta["source_id"],
+                                         meta["source_version"], root_origin)
+                     for c in raw]
+            report_p = os.path.join(d, "report.json")
+            report = _load_json(report_p) if os.path.isfile(report_p) else {
+                "source_id": meta["source_id"],
+                "source_version": meta["source_version"],
+                "coverage": {"text": "complete"},
+                "warnings": [],
+                "parser": {"name": "agent", "version": "shorthand-jsonl"},
+            }
+            # stage into THIS run dir (not stage_candidates — it would mint a
+            # new run id). _stage_payload is the shared writer.
+            _stage_payload(wiki, d, meta["source_id"], meta["source_version"],
+                           cands, report)
+
+        if not os.path.isfile(os.path.join(d, "comparisons.json")):
+            reconcile_prepare(wiki, run_id)
+        cmp_ = _load_json(os.path.join(d, "comparisons.json"))["comparisons"]
+        rows = [r for r in cmp_ if r["auto"] is None]
+        for r in rows:
+            r["run_id"] = run_id
+            r["source_id"] = meta["source_id"]
+        needs_review_rows.extend(rows)
+        if not rows:
+            # all auto — apply immediately with empty classifications
+            _apply(run_id, [])
+
+    if needs_review_rows:
+        return {"phase": "classify", "needs_classifications": True,
+                "needs_review": needs_review_rows,
+                "auto": auto_totals}
+
+    if applied:
+        pages_mod.build_pages(wiki, wiki.revision())
+        verify = pages_mod.verify(wiki)
+        total = {"claims_created": 0, "claims_updated": 0,
+                 "claims_superseded": 0, "review_items": 0}
+        conflicts = []
+        for r in applied:
+            for k in total:
+                total[k] += r.get("changes", {}).get(k, 0)
+            conflicts.extend(r.get("conflicts", []))
+        return {"phase": "done", "needs_classifications": False,
+                "needs_review": needs_review_rows,
+                "auto": auto_totals, "changes": total,
+                "conflicts": conflicts, "verify": verify,
+                "receipts": applied}
+
+    return {"phase": "waiting", "needs_classifications": False,
+            "auto": auto_totals,
+            "message": "no staged runs — run `compile` first or write candidates.jsonl"}

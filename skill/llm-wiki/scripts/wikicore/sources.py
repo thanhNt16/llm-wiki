@@ -244,6 +244,9 @@ def load_content(wiki, source_id: str, version: int) -> str:
 
 
 def get_manifest(wiki, source_id: str) -> dict:
+    path = wiki.p("sources/%s/manifest.json" % source_id)
+    if not os.path.isfile(path):
+        return None
     return wiki.load_json("sources/%s/manifest.json" % source_id)
 
 

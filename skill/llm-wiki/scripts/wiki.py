@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from wikicore import claims, compile as wc_compile, contextpack, deps, doctor, graphdata, pages, dirs  # noqa: E402
 from wikicore import query, review, sources  # noqa: E402
+from wikicore.shorthand import normalize_candidate, parse_candidates_file  # noqa: E402
 from wikicore.store import Wiki, SKILL_VERSION, init_wiki  # noqa: E402
 from wikicore.transaction import ConflictError, LockedError, TxnError  # noqa: E402
 
@@ -100,11 +101,24 @@ def cmd_compile_plan(args) -> int:
     return 0
 
 
+def cmd_compile(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    _emit(wc_compile.compile_umbrella(wiki, resume=args.resume))
+    return 0
+
+
 def cmd_stage_candidates(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
-    candidates = _load_json_file(args.file)
-    if isinstance(candidates, dict):
-        candidates = candidates.get("candidates", [])
+    if args.file.endswith(".jsonl"):
+        manifest = sources.get_manifest(wiki, args.source_id) or {}
+        root_origin = manifest.get("root_origin") or args.source_id
+        candidates = [normalize_candidate(c, args.source_id, args.source_version,
+                                          root_origin)
+                      for c in parse_candidates_file(args.file)]
+    else:
+        candidates = _load_json_file(args.file)
+        if isinstance(candidates, dict):
+            candidates = candidates.get("candidates", [])
     report = _load_json_file(args.report) if args.report else {
         "source_id": args.source_id,
         "source_version": args.source_version,
@@ -231,6 +245,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("status")
     p.set_defaults(fn=cmd_status)
+
+    p = sub.add_parser("compile")
+    p.add_argument("--resume", action="store_true")
+    p.set_defaults(fn=cmd_compile)
 
     p = sub.add_parser("compile-plan")
     p.set_defaults(fn=cmd_compile_plan)
