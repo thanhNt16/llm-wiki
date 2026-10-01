@@ -16,11 +16,13 @@ from typing import Optional
 from . import ids, secrets as secrets_mod
 from .transaction import Transaction, TxnError
 
-TEXT_EXTS = {
-    ".md", ".markdown", ".txt", ".csv", ".tsv", ".json", ".yaml", ".yml",
-    ".html", ".rst", ".xml", ".toml", ".ini", ".cfg", ".py", ".js", ".ts", ".sh",
-}
-BINARY_EXTS = {".pdf", ".docx", ".xlsx", ".pptx", ".png", ".jpg", ".jpeg", ".gif", ".zip"}
+OFFICE_EXTS = {".pdf", ".docx", ".xlsx", ".pptx", ".doc", ".xls", ".ppt"}
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp",
+              ".tiff", ".tif", ".heic", ".heif"}
+SKIP_EXTS = {".zip", ".tar", ".tgz", ".gz", ".bz2", ".xz", ".7z", ".rar",
+             ".exe", ".dll", ".dylib", ".so", ".o", ".a", ".class",
+             ".wasm", ".pyc", ".mp3", ".mp4", ".wav", ".mov"}
+SKIP_NAMES = {".DS_Store", "Thumbs.db"}
 
 INJECTION_RE = re.compile(
     r"(?i)ignore\s+(all\s+)?previous\s+instructions|disregard\s+\S+\s+instructions"
@@ -56,11 +58,25 @@ def _ext(ref: str) -> str:
     return os.path.splitext(ref)[1].lower()
 
 
-def _is_text_like(kind: str, ref: str) -> bool:
+def _is_office(ref: str) -> bool:
+    return _ext(ref) in OFFICE_EXTS
+
+
+def _is_image(ref: str) -> bool:
+    return _ext(ref) in IMAGE_EXTS
+
+
+def _is_text_like(kind: str, ref: str, data: bytes) -> bool:
     if kind in ("text", "url", "session"):
         return True
     if kind == "file":
-        return _ext(ref) in TEXT_EXTS
+        if _ext(ref) in OFFICE_EXTS or _ext(ref) in IMAGE_EXTS:
+            return False  # office/image binary paths
+        try:
+            data.decode("utf-8")
+            return True
+        except UnicodeDecodeError:
+            return False
     return False  # directory/repo handled as binary-ish bundle
 
 
@@ -114,7 +130,7 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
     sha = _sha256(data)
     warnings = []
 
-    text_like = _is_text_like(kind, ref)
+    text_like = _is_text_like(kind, ref, data)
     filename = os.path.basename(ref) if kind in ("file", "directory") else None
 
     normalized_text = ""
@@ -167,8 +183,11 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
     norm_rel = "sources/%s/content.md" % sid
     assets = []
     coverage = {
-        "text": "complete", "tables": "skipped", "images": "skipped",
-        "diagrams": "skipped", "formulas": "skipped",
+        "text": "complete",
+        "tables": "skipped",
+        "images": "not_extracted" if _is_image(ref) else "skipped",
+        "diagrams": "skipped",
+        "formulas": "skipped",
     }
     if text_like:
         txn.stage_write(norm_rel, normalized_text)
@@ -226,8 +245,8 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
         "raw_path": raw_rel,
         "normalized_path": norm_rel,
         "coverage": coverage,
+        "parser": parser,
         "warnings": warnings,
-        "secrets": secret_summary,
         "run_id": txn.run_id,
     }
 

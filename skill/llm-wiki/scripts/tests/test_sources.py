@@ -114,6 +114,49 @@ class TestIngest(unittest.TestCase):
         self.assertEqual(r2["version"], 2)
 
 
+    def test_unknown_ext_utf8_routes_text(self):
+        wiki = fresh()
+        p = os.path.join(tempfile.mkdtemp(), "notes.weird")
+        with open(p, "w") as f:
+            f.write("decide: use sqlite\n")
+        r = sources.ingest(wiki, "file", p, open(p, "rb").read())
+        self.assertEqual(r["coverage"]["text"], "complete")
+        self.assertIn("sqlite", sources.load_content(wiki, r["source_id"], 1))
+
+    def test_webp_binary_not_extracted(self):
+        wiki = fresh()
+        p = os.path.join(tempfile.mkdtemp(), "pic.webp")
+        data = b"RIFF\x00\x00\x00\x00WEBPVP8 " + bytes(range(64))
+        with open(p, "wb") as f:
+            f.write(data)
+        with mock.patch.object(sources, "_parser_for_binary", return_value=(None, None)):
+            r = sources.ingest(wiki, "file", p, data)
+        self.assertEqual(r["coverage"]["text"], "not_extracted")
+        self.assertEqual(r["coverage"]["images"], "not_extracted")
+
+    def test_svg_routes_text(self):
+        wiki = fresh()
+        p = os.path.join(tempfile.mkdtemp(), "icon.svg")
+        svg = b'<svg xmlns="http://www.w3.org/2000/svg"><text>Hi</text></svg>'
+        with open(p, "wb") as f:
+            f.write(svg)
+        r = sources.ingest(wiki, "file", p, svg)
+        self.assertEqual(r["coverage"]["text"], "complete")
+
+    def test_office_ext_calls_parser(self):
+        wiki = fresh()
+        p = os.path.join(tempfile.mkdtemp(), "spec.docx")
+        data = b"PK\x03\x04" + b"\x00" * 100
+        with open(p, "wb") as f:
+            f.write(data)
+        with mock.patch.object(sources, "_parser_for_binary",
+                               return_value=("extracted text", "markitdown")) as m:
+            r = sources.ingest(wiki, "file", p, data)
+        m.assert_called_once()
+        self.assertEqual(r["parser"], {"name": "markitdown", "version": "?"})
+        self.assertEqual(r["coverage"]["text"], "partial")
+
+ 
 class TestSecrets(unittest.TestCase):
     def test_findings_kinds(self):
         from wikicore import secrets
