@@ -16,45 +16,29 @@ project root:
 
 ```bash
 WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
-python3 "$WIKI" compile-plan
+python3 "$WIKI" compile        # → pending[] with content_path + candidates_path
+# read each content_path, write shorthand JSONL to candidates_path:
+#   {"subject":"a.b","predicate":"p","value":7,"locator":"h:Heading","authority":"manual"}
+python3 "$WIKI" compile --resume   # → auto counts + needs_review rows (usually empty)
+# if needs_review: write classifications.json (only those rows), then:
+python3 "$WIKI" compile --resume   # → receipt + verify.ok
 ```
 
-For each pending entry, read the normalized content
-(`.llm-wiki/sources/<id>/content.md`) — **one source at a time, never load the
-whole wiki** — extract candidate claims per `references/EXTRACTION.md`, write
-them to a JSON file, then:
+### Shorthand
 
-```bash
-python3 "$WIKI" stage-candidates --file candidates.json --source-id <id> --source-version <n> --report report.json
-# → {"run_id": "run_..."}
-python3 "$WIKI" reconcile-prepare --run <run_id>
-```
+Agent fields: `subject`, `predicate`, `value`, `locator`, `authority`, and
+optional `scope`, `valid_from`, `supersedes`, `evidence`. Engine-stamped fields:
+`id`, `root_origin`, source identity/version, normalized locator and authority,
+and candidate status/timestamps. Locator prefixes: `h:` (heading), `l:` (line
+range), `s:` (section). Authority names:
+`manual|doc|config|decision|adr|code|verified|inferred`; `name:source` provides
+an explicit authority source.
 
-For every comparison in the output, classify per
-`references/RECONCILIATION.md` into UNRELATED / DUPLICATE / CORROBORATION /
-CORRECTION / POLICY_CHANGE / SCOPE_DIFFERENCE / CONTRADICTION, write
-classifications JSON:
-
-```json
-[{"index": 0, "relationship": "CORRECTION", "target_claim_id": "claim_...",
-  "valid_from": "2026-09-01", "valid_to": null,
-  "authority": {"type": "explicit_project_decision", "source": "ADR-019"}}]
-```
-
-```bash
-python3 "$WIKI" reconcile-apply --run <run_id> --classifications classifications.json
-```
-
-The apply is a single atomic transaction: claims created/superseded, review
-items appended, dependents invalidated, source marked compiled. Then:
-
-1. Regenerate invalidated concept/procedure pages you authored (keep their
-   frontmatter `deps` updated to the current claim versions).
-2. `python3 "$WIKI" build-pages` — rebuilds index/decision stubs and clears stale flags.
-3. `python3 "$WIKI" verify` — must report `"ok": true` before you finish. Fix every
-   error (unresolved links, stale pages) and re-verify.
-
-Report the run receipt: changes counts, conflicts (new review items).
+Runs live under `.llm-wiki/.state/staging/<run_id>/`, with
+`candidates.jsonl`, `classifications.json`, and optional `report.json`. The
+engine auto-classifies UNRELATED, DUPLICATE, and CORROBORATION; only
+`needs_review` rows require agent classifications. Low-level commands remain
+available when needed.
 
 ## Hard rules
 

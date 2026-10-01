@@ -1,8 +1,11 @@
 # RECONCILIATION.md — classifying new evidence against existing knowledge
 
-Decide exactly one relationship per candidate-vs-existing match. Work from the
-`reconcile-prepare` comparison output (subject+predicate key, `same_scope`,
-`same_value`, `temporal`, current `status` and `value`).
+The compile engine auto-classifies `UNRELATED` (no matches), `DUPLICATE`, and
+`CORROBORATION` (same scope and value, differing only by `root_origin`). You
+only classify rows appearing in `needs_review`. For those rows, decide exactly
+one relationship per candidate-vs-existing match. Work from the comparison
+output (subject+predicate key, `same_scope`, `same_value`, `temporal`, current
+`status` and `value`).
 
 ## Decision procedure
 

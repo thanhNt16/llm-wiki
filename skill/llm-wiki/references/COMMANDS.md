@@ -49,47 +49,28 @@ Receipt fields: `source_id`, `version`, `sha256`, `deduplicated`, `warnings`,
 
 ## compile
 
-Converts pending evidence into accepted knowledge. Four phases; you (the agent)
-do the semantic parts between script calls.
+Three resumable phases: extract → classify → apply. The first call creates one
+staging run per pending source and returns `pending[]` entries with
+`content_path`, `candidates_path`, and `classifications_path`:
 
 ```bash
-wiki.py compile-plan
+wiki.py compile
+# write one shorthand JSON object per line to each candidates_path
+wiki.py compile --resume
+# if needs_review rows remain, write classifications.json, then:
+wiki.py compile --resume
 ```
 
-For each pending entry, read the normalized content
-(`.llm-wiki/sources/<id>/content.md`), extract candidate claims per
-references/EXTRACTION.md, write them to a JSON file, then:
+Runs are stored in `.llm-wiki/.state/staging/<run_id>/` with
+`candidates.jsonl`, `classifications.json`, and optional `report.json`.
+`--resume` advances staged runs: it returns auto verdict counts plus
+`needs_review` rows, then applies the supplied classifications and returns the
+receipt, changes, conflicts, and `verify` result. UNRELATED, DUPLICATE, and
+CORROBORATION are auto-classified; the agent classifies only `needs_review`.
 
-```bash
-wiki.py stage-candidates --file candidates.json --source-id <id> --source-version <n> --report report.json
-# → {"run_id": "run_..."}
-wiki.py reconcile-prepare --run <run_id>
-```
-
-For every comparison in the output, classify per references/RECONCILIATION.md
-into UNRELATED / DUPLICATE / CORROBORATION / CORRECTION / POLICY_CHANGE /
-SCOPE_DIFFERENCE / CONTRADICTION, write classifications JSON:
-
-```json
-[{"index": 0, "relationship": "CORRECTION", "target_claim_id": "claim_...",
-  "valid_from": "2026-09-01", "valid_to": null,
-  "authority": {"type": "explicit_project_decision", "source": "ADR-019"}}]
-```
-
-```bash
-wiki.py reconcile-apply --run <run_id> --classifications classifications.json
-```
-
-The apply is a single atomic transaction: claims created/superseded, review
-items appended, dependents invalidated, source marked compiled. Then:
-
-1. Regenerate invalidated concept/procedure pages you authored (keep their
-   frontmatter `deps` updated to the current claim versions).
-2. `wiki.py build-pages` — rebuilds index/decision stubs and clears stale flags.
-3. `wiki.py verify` — must report `"ok": true` before you finish. Fix every
-   error (unresolved links, stale pages) and re-verify.
-
-Report the run receipt: changes counts, conflicts (new review items).
+The low-level `compile-plan`, `stage-candidates`, `reconcile-prepare`, and
+`reconcile-apply` commands remain available. `stage-candidates --file` accepts
+`.json` arrays/objects and `.jsonl` shorthand files.
 
 ## query
 

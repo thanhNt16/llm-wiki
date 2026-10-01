@@ -1,9 +1,26 @@
 # EXTRACTION.md — candidate claims and extraction reports
 
-Extraction happens during `wiki-compile` phase 2. You read normalized source
-content and emit a candidates JSON file (array or `{"candidates": [...]}`).
+Extraction happens during the `extract` phase of the `wiki-compile` umbrella.
+Read normalized source content and write one shorthand JSON object per line to
+the run's `candidates_path` (a `.jsonl` file):
 
-## Candidate shape
+```json
+{"subject":"a.b","predicate":"p","value":7,"locator":"h:Heading","authority":"manual"}
+```
+
+## Shorthand fields
+
+You supply `subject`, `predicate`, `value`, `locator`, `authority`, and
+optionally `scope`, `valid_from`, `supersedes`, `evidence`. The engine stamps
+`id`, `root_origin`, source identity/version, and status. Locator prefixes are
+`h:` (heading), `l:` (line range), and `s:` (section). Authority names are
+`manual|doc|config|decision|adr|code|verified|inferred`; `name:source` provides
+an explicit authority source.
+
+## Verbose form
+
+The verbose array form (a `.json` file with full candidate objects, as below)
+remains valid:
 
 ```json
 {
