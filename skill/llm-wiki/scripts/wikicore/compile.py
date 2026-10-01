@@ -80,6 +80,41 @@ def _temporal(old, new) -> str:
     return "overlapping"
 
 
+def _root_origins_of(claim) -> set:
+    out = set()
+    for ev in claim.get("evidence", []):
+        out.add(ev.get("root_origin") or ev.get("source_id"))
+    return out
+
+
+def auto_verdict(cand, matches):
+    """Deterministic reconciliation verdicts (spec §2). None = needs agent."""
+    if not matches:
+        return "UNRELATED"
+    if len(matches) > 1:
+        return None
+    m = matches[0]
+    if m["same_scope"] and m["same_value"]:
+        my_origin = cand.get("root_origin")
+        if my_origin and my_origin in set(m.get("root_origins") or []):
+            return "DUPLICATE"
+        return "CORROBORATION"
+    return None
+
+
+def _hint(matches):
+    if not matches:
+        return "UNRELATED"
+    if len(matches) > 1:
+        return "CONTRADICTION?"
+    m = matches[0]
+    if m["same_scope"] and m["same_value"]:
+        return "DUPLICATE/CORROBORATION"
+    if not m["same_scope"]:
+        return "SCOPE_DIFFERENCE?"
+    return "CONTRADICTION?"
+
+
 def reconcile_prepare(wiki, run_id: str) -> dict:
     payload = _load_json(os.path.join(_run_dir(wiki, run_id), "compile.json"))
     existing = [c for c in claims.list_claims(wiki) if c["status"] not in ("rejected", "superseded")]
@@ -98,8 +133,18 @@ def reconcile_prepare(wiki, run_id: str) -> dict:
                 "temporal": _temporal(ex, cand),
                 "status": ex["status"],
                 "current_value": ex.get("value"),
+                "root_origins": sorted(_root_origins_of(ex)),
             })
-        comparisons.append({"index": i, "candidate": cand, "matches": matches})
+        comparisons.append({
+            "index": i, "key": key,
+            "candidate_value": cand.get("value"),
+            "scope": cand.get("scope") or {},
+            "authority": cand.get("authority"),
+            "valid_from": cand.get("valid_from"),
+            "matches": matches,
+            "auto": auto_verdict(cand, matches),
+            "hint": _hint(matches),
+        })
     result = {"run_id": run_id, "comparisons": comparisons}
     with open(os.path.join(_run_dir(wiki, run_id), "comparisons.json"), "w") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)

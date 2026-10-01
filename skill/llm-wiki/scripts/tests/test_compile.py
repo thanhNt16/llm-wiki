@@ -247,5 +247,46 @@ class TestCompile(unittest.TestCase):
         self.assertTrue(prep["comparisons"][0]["matches"][0]["same_scope"])
 
 
+    def test_auto_verdict_unrelated(self):
+        self.assertEqual(wc_compile.auto_verdict({"root_origin": "o1"}, []),
+                         "UNRELATED")
+
+    def test_auto_verdict_duplicate_same_origin(self):
+        m = [{"same_scope": True, "same_value": True, "status": "accepted",
+              "root_origins": ["o1"]}]
+        self.assertEqual(wc_compile.auto_verdict({"root_origin": "o1"}, m),
+                         "DUPLICATE")
+
+    def test_auto_verdict_corroboration_diff_origin(self):
+        m = [{"same_scope": True, "same_value": True, "status": "accepted",
+              "root_origins": ["o2"]}]
+        self.assertEqual(wc_compile.auto_verdict({"root_origin": "o1"}, m),
+                         "CORROBORATION")
+
+    def test_auto_verdict_needs_review_on_value_diff(self):
+        m = [{"same_scope": True, "same_value": False, "status": "accepted",
+              "root_origins": ["o2"]}]
+        self.assertIsNone(wc_compile.auto_verdict({"root_origin": "o1"}, m))
+
+    def test_auto_verdict_needs_review_multi_match(self):
+        m = [{"same_scope": True, "same_value": True, "status": "accepted",
+              "root_origins": ["o2"]},
+             {"same_scope": False, "same_value": False, "status": "accepted",
+              "root_origins": ["o3"]}]
+        self.assertIsNone(wc_compile.auto_verdict({"root_origin": "o1"}, m))
+
+    def test_reconcile_prepare_compact(self):
+        wiki = fresh()
+        rcpt = ingest_text(wiki, "doc", "x")
+        c = candidate(wiki, rcpt)
+        run = wc_compile.stage_candidates(wiki, rcpt["source_id"],
+                                          rcpt["version"], [c], {})
+        out = wc_compile.reconcile_prepare(wiki, run)
+        row = out["comparisons"][0]
+        self.assertEqual(row["auto"], "UNRELATED")
+        self.assertEqual(row["key"], "project.analytics.attribution/click_lookback_window")
+        self.assertNotIn("candidate", row)   # no full echo
+        self.assertIn("candidate_value", row)
+
 if __name__ == "__main__":
     unittest.main()
