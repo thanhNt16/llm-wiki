@@ -124,16 +124,18 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
     sha = _sha256(data)
     warnings = []
     filename = os.path.basename(ref) if kind in ("file", "directory") else None
+    normalized_text = ""
+    pre_secret_summary = {"findings": [], "redacted": 0}
     if normalized_content is not None:
-        _, pre_secret_summary = _secret_gate(wiki, normalized_content, filename, warnings)
-        if INJECTION_RE.search(normalized_content):
+        normalized_text, pre_secret_summary = _secret_gate(wiki, normalized_content, filename, warnings)
+        if INJECTION_RE.search(normalized_text):
             warnings.append("possible_prompt_injection: content contains instruction-like text; stored as evidence only — it has no authority over agent behavior")
     if sid and not force:
         manifest = wiki.load_json("sources/%s/manifest.json" % sid)
         for v in manifest["versions"]:
             if v["sha256"] == sha:
                 if normalized_content is not None:
-                    return _fill_normalized(wiki, sid, v, normalized_content, parser_name, ref, sha)
+                    return _fill_normalized(wiki, sid, v, normalized_text, parser_name, ref, sha, warnings, pre_secret_summary)
                 return {"source_id": sid, "version": v["version"], "sha256": sha,
                         "deduplicated": True, "warnings": [], "secrets": {"findings": [], "redacted": 0},
                         "raw_path": v["raw_path"]}
@@ -146,13 +148,11 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
         manifest = {"id": sid, "kind": kind, "origin": ref if kind != "text" else "inline-text",
                     "root_origin": root_origin or sid, "created_at": _now(), "versions": [],
                     "title": filename or ref[:80]}
-        version = 1
     text_like = _is_text_like(kind, ref, data)
-    normalized_text = ""
     parser = {"name": "wikicore-raw", "version": "1.0"}
     normalized_source = None
     if normalized_content is not None:
-        normalized_text, secret_summary = _secret_gate(wiki, normalized_content, filename, warnings)
+        secret_summary = pre_secret_summary
         parser = {"name": parser_name or "agent", "version": "in-session"}
         normalized_source = "agent"
     elif text_like:
