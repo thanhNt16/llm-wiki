@@ -191,5 +191,81 @@ class TestSecrets(unittest.TestCase):
         self.assertGreaterEqual(n, 2)
 
 
+def _png_bytes():
+    return (b"\x89PNG\r\n\x1a\n" + bytes(range(64)))
+
+class TestNormalizedContent(unittest.TestCase):
+    def test_normalized_content_stored(self):
+        wiki = fresh()
+        p = os.path.join(tempfile.mkdtemp(), "chart.png")
+        data = _png_bytes()
+        with open(p, "wb") as f:
+            f.write(data)
+        r = sources.ingest(wiki, "file", p, data,
+                           normalized_content="# chart.png\n\n## Text content\n(none)\n",
+                           parser_name="agent-vision")
+        self.assertEqual(r["normalized_source"], "agent")
+        self.assertEqual(r["coverage"]["text"], "complete")
+        self.assertEqual(r["coverage"]["images"], "complete")
+        self.assertIn("chart.png", sources.load_content(wiki, r["source_id"], 1))
+
+    def test_normalized_content_secret_gated(self):
+        wiki = fresh(policy="deny")
+        p = os.path.join(tempfile.mkdtemp(), "x.png")
+        with open(p, "wb") as f:
+            f.write(_png_bytes())
+        with self.assertRaises(TxnError):
+            sources.ingest(wiki, "file", p, _png_bytes(), normalized_content="key sk-live-abcdef1234567890")
+
+    def test_normalized_fill_in_updates_raw_version(self):
+        wiki = fresh()
+        p = os.path.join(tempfile.mkdtemp(), "d.png")
+        data = _png_bytes()
+        with open(p, "wb") as f:
+            f.write(data)
+        with mock.patch.object(sources, "_parser_for_binary", return_value=(None, None)):
+            r1 = sources.ingest(wiki, "file", p, data)
+        self.assertEqual(r1["coverage"]["text"], "not_extracted")
+        r2 = sources.ingest(wiki, "file", p, data, normalized_content="# d.png\n\nflowchart A->B\n", parser_name="agent-vision")
+        self.assertTrue(r2.get("updated_normalized"))
+        self.assertEqual(r2["version"], 1)
+        self.assertIn("flowchart", sources.load_content(wiki, r1["source_id"], 1))
+
+    def test_force_mints_new_version_same_sha(self):
+        wiki = fresh()
+        p = os.path.join(tempfile.mkdtemp(), "a.md")
+        with open(p, "w") as f:
+            f.write("v1 text\n")
+        r1 = sources.ingest(wiki, "file", p, open(p, "rb").read())
+        r2 = sources.ingest(wiki, "file", p, open(p, "rb").read(), force=True)
+        self.assertEqual(r1["source_id"], r2["source_id"])
+        self.assertEqual(r2["version"], 2)
+        self.assertFalse(r2["deduplicated"])
+
+    def test_root_origin_recorded(self):
+        wiki = fresh()
+        p = os.path.join(tempfile.mkdtemp(), "a.md")
+        with open(p, "w") as f:
+            f.write("x\n")
+        r = sources.ingest(wiki, "file", p, open(p, "rb").read(), root_origin="dir:/tmp/somedir")
+        m = sources.get_manifest(wiki, r["source_id"])
+        self.assertEqual(m["root_origin"], "dir:/tmp/somedir")
+
+    def test_fill_in_uncompiles_version(self):
+        wiki = fresh()
+        p = os.path.join(tempfile.mkdtemp(), "img.png")
+        data = _png_bytes()
+        with open(p, "wb") as f:
+            f.write(data)
+        with mock.patch.object(sources, "_parser_for_binary", return_value=(None, None)):
+            r = sources.ingest(wiki, "file", p, data)
+        sources.mark_compiled(wiki, r["source_id"], 1)
+        self.assertEqual(sources.pending_versions(wiki), [])
+        sources.ingest(wiki, "file", p, data, normalized_content="# img.png\ntext\n", parser_name="agent-vision")
+        pending = sources.pending_versions(wiki)
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["version"], 1)
+
 if __name__ == "__main__":
+    unittest.main()
     unittest.main()

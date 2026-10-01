@@ -43,17 +43,22 @@ def cmd_init(args) -> int:
 
 def cmd_ingest(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
+    normalized = None
+    if args.normalized_content:
+        with open(args.normalized_content, "r", encoding="utf-8") as f:
+            normalized = f.read()
+    kwargs = {"source_id": args.source_id, "normalized_content": normalized,
+              "parser_name": args.parser_name, "force": args.force}
     if args.url:
         import urllib.request
-
         with urllib.request.urlopen(args.url, timeout=60) as resp:
             data = resp.read()
-        _emit(sources.ingest(wiki, "url", args.url, data, source_id=args.source_id))
+        _emit(sources.ingest(wiki, "url", args.url, data, **kwargs))
     else:
         data = _read_bytes(args)
         ref = args.file or args.text_ref or "inline"
         kind = "text" if args.text is not None else "file"
-        _emit(sources.ingest(wiki, kind, ref, data, source_id=args.source_id))
+        _emit(sources.ingest(wiki, kind, ref, data, **kwargs))
     return 0
 
 
@@ -192,6 +197,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--text", default=None)
     p.add_argument("--text-ref", default=None, help="identity label for --text input")
     p.add_argument("--source-id", default=None)
+    p.add_argument("--normalized-content", default=None, help="agent-produced extraction markdown file")
+    p.add_argument("--parser-name", default=None, help="parser label for --normalized-content, e.g. agent-vision")
+    p.add_argument("--force", action="store_true", help="bypass sha256 dedup and append a new version")
     p.set_defaults(fn=cmd_ingest)
 
     p = sub.add_parser("status")
