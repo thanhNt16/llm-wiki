@@ -1,8 +1,10 @@
 """Human review: semantic uncertainty lands here instead of being hidden
 (PRD §25-26). Actions are ordinary transactions — nothing special-cased.
 """
+import calendar
 import json
 import os
+import time
 from typing import Optional
 
 from . import claims, ids
@@ -12,7 +14,7 @@ QUEUE = ".state/review-queue.jsonl"
 
 ACTIONS = (
     "accept", "reject", "merge", "mark_duplicate", "mark_authoritative",
-    "mark_superseded", "set_scope", "set_validity", "defer",
+    "mark_superseded", "set_scope", "set_validity", "defer", "reopen",
 )
 
 
@@ -66,7 +68,7 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
 
     txn = Transaction(wiki, "wiki-review")
     claim = None
-    if action != "defer":
+    if action not in ("defer", "reopen"):
         cid = params.get("claim_id")
         if not cid:
             raise TxnError("action %r requires claim_id" % action)
@@ -120,10 +122,26 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
         claims.save_claim(txn, claim)
     elif action == "defer":
         pass
+    elif action == "reopen":
+        if item["status"] != "deferred":
+            raise TxnError("reopen requires a deferred item (status=%s)" % item["status"])
 
-    item["status"] = "deferred" if action == "defer" else "resolved"
-    item["resolution"] = "%s%s" % (action, (": " + note) if note else "")
-    item["resolved_at"] = _now()
+    entry = {"action": action, "at": _now()}
+    if note:
+        entry["note"] = note
+    item.setdefault("history", []).append(entry)
+    if action == "defer":
+        item["status"] = "deferred"
+        item["deferred_at"] = _now()
+        item.pop("resolved_at", None)
+    elif action == "reopen":
+        item["status"] = "open"
+        item.pop("deferred_at", None)
+        item.pop("resolved_at", None)
+        item["resolution"] = ""
+    else:
+        item["status"] = "resolved"
+        item["resolved_at"] = _now()
     queue = wiki.read_jsonl(QUEUE)
     for i, existing in enumerate(queue):
         if existing["id"] == item_id:
@@ -143,7 +161,22 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
     return receipt
 
 
-def _now() -> str:
-    import time
+def summary(wiki) -> dict:
+    """Queue counts: open, deferred, total (consumed by overview/graph views)."""
+    items = wiki.read_jsonl(QUEUE)
+    return {"open": sum(1 for i in items if i.get("status") == "open"),
+            "deferred": sum(1 for i in items if i.get("status") == "deferred"),
+            "total": len(items)}
 
+
+def age_days(ts) -> int:
+    """Whole days since an ISO timestamp; 0 when missing/unparseable."""
+    try:
+        then = calendar.timegm(time.strptime(ts, "%Y-%m-%dT%H:%M:%SZ"))
+    except (TypeError, ValueError):
+        return 0
+    return max(0, int(time.time() - then) // 86400)
+
+
+def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())

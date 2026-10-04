@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from wikicore import claims, compile as wc_compile, review, sources
 from wikicore.store import Wiki, init_wiki
-from wikicore.transaction import ConflictError, Transaction
+from wikicore.transaction import ConflictError, Transaction, TxnError
 
 
 def fresh():
@@ -119,6 +119,57 @@ class TestReview(unittest.TestCase):
         item_id, target, disputed = seed_disputed(wiki)
         self.assertEqual(len(review.list_items(wiki, kind="possible_contradiction")), 1)
         self.assertEqual(review.list_items(wiki, kind="authority_conflict"), [])
+
+    def test_defer_never_sets_resolved_at(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        receipt = review.act(wiki, item_id, "defer", {"note": "ask team"},
+                             wiki.revision())
+        item = receipt["item"]
+        self.assertEqual(item["status"], "deferred")
+        self.assertTrue(item.get("deferred_at"))
+        self.assertNotIn("resolved_at", item)
+        self.assertEqual(item["history"][-1]["action"], "defer")
+        self.assertEqual(item["history"][-1]["note"], "ask team")
+
+    def test_reopen_round_trip_preserves_history(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        review.act(wiki, item_id, "defer", {"note": "wait"}, wiki.revision())
+        receipt = review.act(wiki, item_id, "reopen", {}, wiki.revision())
+        item = receipt["item"]
+        self.assertEqual(item["status"], "open")
+        self.assertNotIn("deferred_at", item)
+        self.assertNotIn("resolved_at", item)
+        self.assertEqual([h["action"] for h in item["history"]],
+                         ["defer", "reopen"])
+        self.assertEqual(item["history"][0]["note"], "wait")
+        self.assertEqual(len(review.list_items(wiki)), 1)
+        self.assertEqual(claims.load_claim(wiki, disputed["id"])["status"],
+                         "disputed")
+
+    def test_reopen_requires_deferred(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        with self.assertRaises(TxnError):
+            review.act(wiki, item_id, "reopen", {}, wiki.revision())
+
+    def test_list_default_hides_deferred_all_shows(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        review.act(wiki, item_id, "defer", {}, wiki.revision())
+        self.assertEqual(review.list_items(wiki), [])
+        self.assertEqual(len(review.list_items(wiki, status=None)), 1)
+        self.assertEqual(len(review.list_items(wiki, status="deferred")), 1)
+
+    def test_summary_counts(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        self.assertEqual(review.summary(wiki),
+                         {"open": 1, "deferred": 0, "total": 1})
+        review.act(wiki, item_id, "defer", {}, wiki.revision())
+        self.assertEqual(review.summary(wiki),
+                         {"open": 0, "deferred": 1, "total": 1})
 
 
 if __name__ == "__main__":

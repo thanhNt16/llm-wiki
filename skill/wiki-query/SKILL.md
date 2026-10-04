@@ -32,6 +32,21 @@ python3 "$WIKI" query-prepare --question "what was it in August?" --as-of 2026-0
    "I don't have enough project evidence to answer this reliably," then state
    what is known, what is missing, and what evidence would resolve it.
 
+
+## Optional post-answer step — record the gap as a question page
+
+When `gaps` covers the core of the question (the "I don't have enough
+evidence" case), record it so the next compile pass can target the hole:
+
+```bash
+python3 "$WIKI" write-page --file q.md --artifact wiki/questions/<slug>.md --deps ''
+```
+
+`q.md`: `type: question`, `asked: <today YYYY-MM-DD>`, empty `deps`, body =
+the verbatim question plus what evidence would resolve it. Question pages
+need no evidence; `[[...]]` links are not required (page references are plain
+backticked `wiki/<kind>/<slug>.md` paths).
+
 ## Hard rules
 
 - **Never answer a project question without `query-prepare` output and

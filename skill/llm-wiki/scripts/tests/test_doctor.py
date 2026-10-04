@@ -1,4 +1,4 @@
-import json, os, sys, tempfile, unittest
+import json, os, sys, tempfile, time, unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -122,6 +122,65 @@ class TestDoctor(unittest.TestCase):
         txn.commit(wiki.revision())
         out = doctor.run(wiki)
         self.assertTrue(any(f["code"] == "broken_reference" for f in out["findings"]))
+
+    def test_detects_orphan_claim(self):
+        wiki = fresh()
+        c = add_accepted_claim(wiki)
+        txn = Transaction(wiki, "strip")
+        c["evidence"] = []
+        claims.save_claim(txn, c)
+        txn.commit(wiki.revision())
+        out = doctor.run(wiki)
+        self.assertTrue(any(f["code"] == "orphan_claim" for f in out["findings"]))
+
+    def _queue_append(self, wiki, line):
+        with open(wiki.p(".state/review-queue.jsonl"), "a") as f:
+            f.write(line + "\n")
+
+    def test_detects_malformed_review_lines(self):
+        wiki = fresh()
+        self._queue_append(wiki, "{not json")
+        self._queue_append(wiki, json.dumps({"id": "review_x", "status": "open"}))
+        out = doctor.run(wiki)
+        codes = [f["code"] for f in out["findings"]]
+        self.assertEqual(codes.count("malformed_review_item"), 2)
+        self.assertFalse(out["ok"])
+
+    def test_detects_missing_affected_id(self):
+        wiki = fresh()
+        self._queue_append(wiki, json.dumps({
+            "id": "review_x", "created_at": "2026-10-01T00:00:00Z",
+            "kind": "authority_conflict", "status": "open",
+            "problem": "p", "affected": ["claim_NOPE"], "risk": "high"}))
+        out = doctor.run(wiki)
+        self.assertTrue(any(f["code"] == "broken_reference"
+                            and "claim_NOPE" in f["detail"]
+                            for f in out["findings"]))
+
+    def test_detects_deferred_aging(self):
+        wiki = fresh()
+        old = time.strftime("%Y-%m-%dT%H:%M:%SZ",
+                            time.gmtime(time.time() - 8 * 86400))
+        self._queue_append(wiki, json.dumps({
+            "id": "review_x", "created_at": old, "kind": "authority_conflict",
+            "status": "deferred", "deferred_at": old, "problem": "p",
+            "affected": [], "risk": "high"}))
+        out = doctor.run(wiki)
+        self.assertTrue(any(f["code"] == "deferred_aging"
+                            for f in out["findings"]))
+
+    def test_detects_unregistered_page_and_journal(self):
+        wiki = fresh()
+        os.makedirs(wiki.p("wiki/questions"), exist_ok=True)
+        with open(wiki.p("wiki/questions/x.md"), "w") as f:
+            f.write("---\ntype: question\ndeps: []\n---\n\nbody\n")
+        with open(wiki.p(".state/journal.json"), "w") as f:
+            f.write("{}")
+        out = doctor.run(wiki)
+        codes = [f["code"] for f in out["findings"]]
+        self.assertIn("unregistered_page", codes)
+        self.assertIn("transaction_journal_leftover", codes)
+        self.assertFalse(out["ok"])
 
 
 if __name__ == "__main__":

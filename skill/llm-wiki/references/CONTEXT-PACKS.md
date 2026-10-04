@@ -16,14 +16,22 @@ budget — sections are added in priority order and assembly stops at the cap:
 1. critical constraints (accepted explicit decisions)
 2. accepted decisions
 3. directly relevant claims (token overlap with your task text — phrase the
-   `--task` with domain words, not pronouns)
+   `--task` with domain words, not pronouns; non-matching claims are
+   filtered out entirely when a task is given)
 4. implementation references
 5. unresolved conflicts
-6. related concept pages
+6. related pages
 7. supplementary evidence
 
-If a section shows `omitted: budget exhausted`, either accept the smaller pack
-or raise the budget deliberately.
+Relevance filtering: with a task supplied, only claims whose
+subject/predicate/value tokens overlap the task text are included, ranked by
+overlap. Related PAGES are matched on page CONTENT (title, frontmatter
+subject, body) — not the filename — so a page titled "Order attribution"
+surfaces for "attribution window" tasks even if the slug differs.
+
+When the budget would be exceeded, whole sections are dropped lowest-priority
+first and the pack lists them with an `omitted: budget exhausted` marker.
+Either accept the smaller pack or raise the budget deliberately.
 
 ## Consuming a pack
 

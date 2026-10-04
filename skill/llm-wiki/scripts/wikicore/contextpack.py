@@ -1,31 +1,23 @@
 """Context packs: the smallest useful context for a specific task, under a
-hard budget, with a receipt recording exactly what the agent received
-(PRD §18-22). Assembly, not dumping (PRD §8.5).
-
-The hard budget counts the FULL pack file (frontmatter included). Sections
-are added in PRD §19 priority order; when the budget is hit, assembly stops.
+hard token budget (PRD §19). Everything here is derived from committed state;
+a pack is itself a registered artifact so staleness propagates (PRD §17).
 """
 import json
 import math
 import os
-import re
 import time
 from typing import Optional
 
-from . import claims, deps, ids
+from . import claims, deps, ids, synthesize
+from .text import norm_tokens
 from .transaction import Transaction, TxnError
 from .yamlite import dumps as yamldumps
 
 STOPWORDS = set("""a an and are as at be but by for from has have how i in is it its of on or
 that the this to was we what when where which who why will with you our us do does did""".split())
 
-_WORD_RE = re.compile(r"[a-z0-9_]+")
-
-
-def _tokens(text: str) -> set:
-    # split snake_case too: predicate click_lookback_window must match "click window"
-    return {t for t in _WORD_RE.findall(text.lower().replace("_", " "))
-            if t not in STOPWORDS}
+_PAGE_LIMIT = 10
+_SOURCE_LIMIT = 10
 
 
 def _est(text: str) -> int:
@@ -53,12 +45,31 @@ def _fmt_claim(c: dict) -> str:
             ev.get("locator", {}).get("value", "") or ev.get("locator", {}).get("type", "")))
     return "".join(parts)
 
-
 def _sections(wiki, task: str):
-    """Candidate sections in PRD §19 priority order: (title, lines, claim_ids, other_deps)."""
+    """Candidate sections in PRD §19 priority order: (title, lines, claim_ids,
+    other_deps). Sections whose every item is off-topic for a narrow task are
+    dropped and reported as (title, reason) in the returned omitted list (Q5)."""
     cfg = wiki.load_config()
     policy = cfg["acceptance_policy"]
-    task_tokens = _tokens(task)
+    ttask = norm_tokens(task) - STOPWORDS
+    narrow = bool(ttask)
+
+    def hits(text: str) -> int:
+        # split snake_case too: predicate click_lookback_window matches "click window"
+        return len(ttask & norm_tokens(text.replace("_", " "))) if narrow else 0
+
+    def filtered(title: str, items: list, key) -> list:
+        if not narrow:
+            return items
+        kept = [x for x in items if hits(key(x)) > 0]
+        if items and not kept:
+            omitted.append((title, "off-topic"))
+        return kept
+
+    def ctext(c):
+        return "%s %s %s" % (c["subject"], c["predicate"], c.get("value"))
+
+    omitted = []
     all_claims = claims.list_claims(wiki)
     decisions = claims.list_decisions(wiki)
     review = wiki.read_jsonl(".state/review-queue.jsonl")
@@ -66,20 +77,17 @@ def _sections(wiki, task: str):
 
     sections = []
 
-    def matches(c):
-        if not task_tokens:
-            return 0
-        hay = _tokens("%s %s %s" % (c["subject"], c["predicate"], c.get("value")))
-        return len(task_tokens & hay)
-
     constraints = [c for c in all_claims
                    if c["status"] == "accepted"
                    and (c.get("authority") or {}).get("type") in policy["auto_accept_authority"]]
+    constraints = filtered("Critical constraints", constraints, ctext)
     if constraints:
         sections.append(("Critical constraints",
                          [_fmt_claim(c) for c in constraints],
                          [c["id"] for c in constraints], []))
 
+    decisions = filtered("Accepted decisions", decisions,
+                         lambda d: "%s %s" % (d["title"], d.get("body") or ""))
     if decisions:
         lines = []
         for d in decisions:
@@ -89,48 +97,66 @@ def _sections(wiki, task: str):
 
     relevant = [c for c in all_claims
                 if c["status"] in ("accepted", "provisional", "disputed", "candidate")]
-    relevant.sort(key=lambda c: (matches(c), c["status"] == "accepted"), reverse=True)
-    relevant = [c for c in relevant if matches(c) > 0 or not task_tokens][:15]
+    relevant.sort(key=lambda c: (hits(ctext(c)), c["status"] == "accepted"), reverse=True)
+    relevant = [c for c in relevant if hits(ctext(c)) > 0 or not narrow][:15]
     if relevant:
         sections.append(("Relevant claims", [_fmt_claim(c) for c in relevant],
                          [c["id"] for c in relevant], []))
 
     impl = [c for c in all_claims
             if c["evidence"] and c["evidence"][0].get("locator", {}).get("type") == "repo_path"]
+    impl = filtered("Implementation references", impl, ctext)
     if impl:
         sections.append(("Implementation references",
                          [_fmt_claim(c) for c in impl], [c["id"] for c in impl], []))
 
+    open_items = filtered("Unresolved conflicts", open_items,
+                          lambda r: r.get("problem", ""))
     if open_items:
         lines = ["- [%s] %s (affected: %s)" % (r["kind"], r["problem"],
                                                ", ".join(r.get("affected", [])))
                  for r in open_items]
         sections.append(("Unresolved conflicts", lines, [], [r["id"] for r in open_items]))
 
-    concept_pages = []
+    # Related concepts: relevance-scored on title + body + subject tokens,
+    # not filename only (Q5).
+    scored = []
     cdir = wiki.p("wiki", "concepts")
     if os.path.isdir(cdir):
         for name in sorted(os.listdir(cdir)):
-            if name.endswith(".md") and (not task_tokens or
-                                         task_tokens & _tokens(name.replace(".md", "").replace("-", " "))):
-                concept_pages.append("wiki/concepts/%s" % name)
+            if not name.endswith(".md"):
+                continue
+            rel = "wiki/concepts/%s" % name
+            try:
+                with open(wiki.p(rel)) as f:
+                    front, body = synthesize._split_front(f.read())
+            except OSError:
+                continue
+            score = hits("%s %s %s" % (front.get("title") or name[:-3],
+                                       front.get("subject") or "", body))
+            if narrow and score == 0:
+                continue
+            scored.append((score, rel))
+    scored.sort(key=lambda t: (-t[0], t[1]))
+    concept_pages = [rel for _s, rel in scored[:_PAGE_LIMIT]]
     if concept_pages:
         sections.append(("Related concepts", ["- %s" % p for p in concept_pages],
                          [], concept_pages))
 
     srcs_dir = wiki.p("sources")
     if os.path.isdir(srcs_dir):
-        names = []
-        for sid in sorted(os.listdir(srcs_dir))[:10]:
+        manifests = []
+        for sid in sorted(os.listdir(srcs_dir))[:_SOURCE_LIMIT]:
             mpath = wiki.p("sources", sid, "manifest.json")
             if os.path.isfile(mpath):
-                m = wiki.load_json("sources/%s/manifest.json" % sid)
-                names.append("- %s (%s, %d version(s))" % (
-                    m.get("title", sid), m["kind"], len(m["versions"])))
+                manifests.append(wiki.load_json("sources/%s/manifest.json" % sid))
+        manifests = filtered("Supplementary evidence", manifests,
+                             lambda m: m.get("title", ""))
+        names = ["- %s (%s, %d version(s))" % (m.get("title", m["id"]), m["kind"],
+                                               len(m["versions"])) for m in manifests]
         if names:
             sections.append(("Supplementary evidence", names, [], []))
-    return sections
-
+    return sections, omitted
 
 def _claim_version_map(wiki) -> dict:
     out = {c["id"]: c["version"] for c in claims.list_claims(wiki)}
@@ -153,9 +179,10 @@ def build(wiki, task: str, budget: Optional[int] = None, resume: bool = False,
         ref, briefing_claims = _briefing(wiki, changes_since)
         blocks = [("Change briefing", briefing_claims["lines"],
                    briefing_claims["claim_ids"], [])]
+        omitted = []
     else:
         ref = None
-        blocks = [(t, lines, cids, others) for t, lines, cids, others in _sections(wiki, task)]
+        blocks, omitted = _sections(wiki, task)
 
     header = ["# Context pack %s" % context_id, "",
               "- Task: %s" % task_label,
@@ -165,7 +192,9 @@ def build(wiki, task: str, budget: Optional[int] = None, resume: bool = False,
               ""]
 
     # Greedy inclusion in priority order, then drop-from-end until the FULL
-    # rendered file fits the budget (two-pass hard gate).
+    # rendered file fits the budget (two-pass hard gate). Sections dropped for
+    # budget — like sections filtered as off-topic — are recorded as omitted
+    # markers so the agent knows what it did not see (Q5).
     included = list(blocks)
     while True:
         body = list(header)
@@ -174,9 +203,12 @@ def build(wiki, task: str, budget: Optional[int] = None, resume: bool = False,
             body += ["## %s" % title, ""] + lines + [""]
             claim_ids += cids
             other_deps += others
+        if omitted:
+            body += ["## Omitted sections", ""]
+            body += ["- %s (%s)" % (t, reason) for t, reason in omitted] + [""]
         seen = set()
         claim_ids = [c for c in claim_ids if not (c in seen or seen.add(c))]
-        deps_list = ["%s@%s" % (c, versions.get(c, versions.get(c, 1))) for c in claim_ids]
+        deps_list = ["%s@%s" % (c, versions.get(c, 1)) for c in claim_ids]
         deps_list += ["%s@1" % d if "@" not in d else d for d in other_deps]
         seen2 = set()
         deps_list = [d for d in deps_list if not (d in seen2 or seen2.add(d))]
@@ -185,7 +217,8 @@ def build(wiki, task: str, budget: Optional[int] = None, resume: bool = False,
         pack_text = "---\n%s\n---\n\n%s" % (front, "\n".join(body) + "\n")
         if _est(pack_text) <= budget or not included:
             break
-        included.pop()  # lowest-priority section dropped; try again
+        dropped = included.pop()  # lowest-priority section dropped; try again
+        omitted.append((dropped[0], "budget"))
 
     est = _est(pack_text)
     if est > budget:
@@ -207,6 +240,7 @@ def build(wiki, task: str, budget: Optional[int] = None, resume: bool = False,
         "decisions": [d for d in other_deps if d.startswith("decision_")],
         "sources": src_ids[:10],
         "wiki_pages": [d for d in other_deps if d.startswith("wiki/")],
+        "omitted": ["%s (%s)" % (t, reason) for t, reason in omitted],
     }
     txn.stage_write("context/%s.receipt.json" % context_id, receipt)
     deps.register(txn, pack_rel, deps_list)
@@ -219,12 +253,10 @@ def build(wiki, task: str, budget: Optional[int] = None, resume: bool = False,
         "receipt": receipt,
     }
 
-
 def _ops_after(wiki, since_ts: str) -> list:
     # second-granularity timestamps: include ops committed in the same second
     return [op for op in wiki.read_jsonl(".state/operations.jsonl")
             if op.get("finished_at", "") >= since_ts and since_ts]
-
 
 def _last_receipt(wiki, before_id: Optional[str]) -> dict:
     ctx_dir = wiki.p("context")
@@ -241,7 +273,6 @@ def _last_receipt(wiki, before_id: Optional[str]) -> dict:
             if best is None or r["generated_at"] >= best["generated_at"]:
                 best = r
     return best or {"generated_at": "", "context_id": "project-start"}
-
 
 def _briefing(wiki, changes_since: Optional[str]) -> tuple:
     ref = _last_receipt(wiki, changes_since)

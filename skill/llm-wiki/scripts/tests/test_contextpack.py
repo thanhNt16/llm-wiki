@@ -6,7 +6,6 @@ from wikicore import claims, compile as wc_compile, contextpack, deps, sources
 from wikicore.store import Wiki, init_wiki
 from wikicore.transaction import Transaction
 
-
 def fresh(budget_default=6000):
     root = tempfile.mkdtemp()
     wiki = Wiki(root)
@@ -15,7 +14,6 @@ def fresh(budget_default=6000):
     cfg["context_budget_default"] = budget_default
     wiki.save_config(cfg)
     return wiki
-
 
 def add_claim(wiki, subject, predicate, value=1, authority="explicit_project_decision",
               scope=None, ref=None):
@@ -42,6 +40,17 @@ def add_claim(wiki, subject, predicate, value=1, authority="explicit_project_dec
                                wiki.revision())
     return claims.list_claims(wiki, subject=subject)[0]
 
+def add_decision(wiki, title, body=""):
+    d = {
+        "id": "decision_" + claims.ids.new("decision").split("_", 1)[1],
+        "title": title, "status": "accepted", "decided_on": "2026-01-10",
+        "recorded_at": "2026-09-15T00:00:00Z", "version": 1,
+        "claims": [], "evidence": [], "body": body,
+    }
+    txn = Transaction(wiki, "t")
+    claims.save_decision(txn, d)
+    txn.commit(wiki.revision())
+    return d
 
 class TestContextPack(unittest.TestCase):
     def test_pack_respects_hard_budget(self):
@@ -56,14 +65,46 @@ class TestContextPack(unittest.TestCase):
 
     def test_priority_constraints_first(self):
         wiki = fresh()
-        constraint = add_claim(wiki, "security", "must_encrypt_pii", authority="explicit_project_decision")
-        generic = add_claim(wiki, "notes", "color", value="blue", authority="agent_inference")
-        out = contextpack.build(wiki, task="totally unrelated task", budget=800)
+        constraint = add_claim(wiki, "security", "must_encrypt_pii",
+                               authority="explicit_project_decision")
+        generic = add_claim(wiki, "notes", "color", value="blue",
+                            authority="agent_inference")
+        # narrow task (Q5): matching constraint included, off-topic claim omitted
+        out = contextpack.build(wiki, task="must encrypt pii", budget=800)
         with open(wiki.p(out["pack_path"])) as f:
             pack = f.read()
         self.assertIn("must_encrypt_pii", pack)
-        # constraints section appears before generic claims section
-        self.assertLess(pack.index("must_encrypt_pii"), pack.rindex("color"))
+        self.assertNotIn("color", pack)
+
+    def test_offtopic_sections_omitted_with_markers(self):
+        wiki = fresh()
+        add_claim(wiki, "payments", "retention_days", value=365)
+        add_decision(wiki, "Use PostgreSQL", body="We chose Postgres.")
+        out = contextpack.build(wiki, task="payment retention", budget=4000)
+        with open(wiki.p(out["pack_path"])) as f:
+            pack = f.read()
+        self.assertIn("## Omitted sections", pack)
+        self.assertIn("Accepted decisions (off-topic)", pack)
+        self.assertTrue(any("Accepted decisions (off-topic)" in o
+                            for o in out["receipt"]["omitted"]))
+
+    def test_concept_pages_scored_by_content(self):
+        wiki = fresh()
+        add_claim(wiki, "payments", "retention_days", value=365)
+        os.makedirs(wiki.p("wiki/concepts"), exist_ok=True)
+        with open(wiki.p("wiki/concepts/alpha.md"), "w") as f:
+            f.write("---\ntype: concept\nsubject: payments\ntitle: Notes A\n"
+                    "created: 2026-09-15T00:00:00Z\ndeps: []\nstale: false\n---\n\n"
+                    "Retry backoff uses exponential delays.\n")
+        with open(wiki.p("wiki/concepts/beta.md"), "w") as f:
+            f.write("---\ntype: concept\nsubject: caching\ntitle: Notes B\n"
+                    "created: 2026-09-15T00:00:00Z\ndeps: []\nstale: false\n---\n\n"
+                    "Cache invalidation gossip.\n")
+        out = contextpack.build(wiki, task="retry backoff", budget=4000)
+        with open(wiki.p(out["pack_path"])) as f:
+            pack = f.read()
+        self.assertIn("wiki/concepts/alpha.md", pack)
+        self.assertNotIn("beta.md", pack)
 
     def test_receipt_lists_exact_dependency_versions(self):
         wiki = fresh()
@@ -120,7 +161,6 @@ class TestContextPack(unittest.TestCase):
         with open(wiki.p(out["pack_path"])) as f:
             pack = f.read()
         self.assertIn("b / y", pack)  # claim b/y appears as changed
-
 
 if __name__ == "__main__":
     unittest.main()

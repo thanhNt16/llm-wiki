@@ -1,7 +1,7 @@
 """Read-only knowledge-graph payload for the wiki-visualize skill.
 
-`wiki.py graph-data` prints one JSON object: entity/source/decision nodes and
-typed links derived from .llm-wiki/claims, .llm-wiki/decisions and
+`wiki.py graph-data` prints one JSON object: entity/source/decision/page
+nodes and typed links derived from .llm-wiki/claims, .llm-wiki/decisions,
 .llm-wiki/sources. The wiki-visualize app fetches this payload and renders it;
 layout happens client-side, so no x/y/z here. Deterministic: identical wiki
 state -> byte-identical output except `generated_at`.
@@ -12,8 +12,8 @@ import os
 import re
 import time
 
-
-from . import claims
+from . import claims, deps, review, synthesize
+from .text import norm_tokens
 from .transaction import TxnError
 
 TICKET_RE = re.compile(r"^(?:stc|pm)-?\d+$", re.I)
@@ -23,17 +23,25 @@ MENTION_STOP = {
     "list", "modal", "api", "ui", "feature", "status", "field", "source",
     "data", "page", "tab", "table", "column", "po", "bo", "service",
 }
+# Alias words too generic to imply a "mentions" edge. The module constant is
+# the default; setting the MENTION_STOP env var (comma-separated words)
+# replaces it for a run (Q8).
 
 SUMMARY_PREDICATES = ("status", "summary", "verdict", "feature", "title")
+
+
+def _mention_stop() -> set:
+    env = os.environ.get("MENTION_STOP")
+    if env is None:
+        return set(MENTION_STOP)
+    return {w.strip().lower() for w in env.split(",") if w.strip()}
 
 
 def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
-
 def _entity_key(subject: str) -> str:
     return ".".join(subject.split(".")[:2])
-
 
 def _summarize(clist: list) -> list:
     pri = [c for c in clist if c["predicate"] in SUMMARY_PREDICATES]
@@ -42,7 +50,6 @@ def _summarize(clist: list) -> list:
     for c in pick:
         seen[c["predicate"]] = c["value"]  # latest wins
     return [{"p": k, "v": v} for k, v in list(seen.items())[:4]]
-
 
 def _load_type_map(wiki, warnings: list) -> dict:
     path = wiki.p("graph-types.json")
@@ -62,7 +69,6 @@ def _load_type_map(wiki, warnings: list) -> dict:
         )
         return {}
 
-
 def _wtype(key: str, type_map: dict) -> str:
     seg = key.split(".")[1] if "." in key else key
     if seg in type_map:
@@ -71,14 +77,12 @@ def _wtype(key: str, type_map: dict) -> str:
         return "ticket"
     return "domain"
 
-
 def _size(kind: str, claim_count: int) -> float:
     if kind == "source":
         return 5.0
     if kind == "decision":
         return 7.0
     return max(4.0, 6.0 * math.sqrt(max(1, claim_count)))
-
 
 def _list_sources(wiki) -> list:
     sdir = wiki.p("sources")
@@ -94,7 +98,6 @@ def _list_sources(wiki) -> list:
         except (OSError, json.JSONDecodeError):
             continue
     return out
-
 
 def graph_payload(wiki) -> dict:
     if not wiki.exists():
@@ -215,6 +218,42 @@ def graph_payload(wiki) -> dict:
             }),
         })
 
+    # Agent-authored wiki/<kind>/*.md pages; deterministic: sorted by path.
+    pages = []
+    page_ids = {}
+    page_rels = []
+    for kind in synthesize.PAGE_KINDS:
+        pdir = wiki.p("wiki", kind)
+        if os.path.isdir(pdir):
+            for name in os.listdir(pdir):
+                if name.endswith(".md") and name != "index.md":
+                    page_rels.append("wiki/%s/%s" % (kind, name))
+    for rel in sorted(page_rels):
+        with open(wiki.p(rel)) as f:
+            front, _ = synthesize._split_front(f.read())
+        singular = synthesize.KIND_TYPE[rel.split("/")[1]]
+        idx = len(nodes) + len(src_nodes) + len(dec_nodes) + len(pages)
+        page_ids[rel] = idx
+        summary = [
+            {"p": "type", "v": singular},
+            {"p": "stale", "v": bool(front.get("stale", False))},
+        ]
+        if front.get("title"):
+            summary.append({"p": "title", "v": front["title"]})
+        pages.append({
+            "id": idx,
+            "kind": "page",
+            "key": rel,
+            "label": front.get("title") or os.path.basename(rel)[:-3],
+            "wtype": "page_" + singular,
+            "claim_count": 0,
+            "size": 5.0,
+            "summary": summary,
+            "claims": [],
+            "sources": [],
+            "path": rel,
+        })
+
     links = []
     eset = set()
 
@@ -238,21 +277,39 @@ def graph_payload(wiki) -> dict:
         if parent in by_ent and parent != key:
             add(ent_ids[parent], ent_ids[key], "contains")
 
-    alias_rx = {}
+    # Alias matching (Q1/Q8): normalized token overlap, not a raw prefix
+    # regex. Alias = second key segment minus project-qualifying prefix,
+    # minimum 4 chars, filtered through the stop list; word boundaries come
+    # free from tokenization, and morphology matches inflected forms
+    # ("orders" hits alias "order").
+    stop = _mention_stop()
+    alias_stems = {}
     for key, lst in by_ent.items():
         seg = key.split(".")[1] if "." in key else key
         alias = seg.lower()
-        if len(alias) >= 5 and alias not in MENTION_STOP and len(lst) >= 2:
-            alias_rx[key] = re.compile(r"\b%s" % re.escape(alias), re.I)
+        if project:
+            low = project.lower()
+            for sep in ("_", "-", "."):
+                if alias.startswith(low + sep):
+                    alias = alias[len(low) + 1:]
+                    break
+            if alias == low:
+                alias = ""
+        # stop membership is checked on canonical stems so "orders" is
+        # filtered exactly like "order"
+        stems = norm_tokens(alias)
+        if len(alias) >= 4 and stems and not (stems & stop) and len(lst) >= 2:
+            alias_stems[key] = stems
     for key, lst in by_ent.items():
         blob = " ".join(
             str(c.get("predicate", "")) + " " + str(c.get("value", ""))
             for c in lst
         ).lower()
-        for other, rx in alias_rx.items():
+        tokens = re.findall(r"[a-z0-9_]+", blob)
+        for other, stem in alias_stems.items():
             if other == key:
                 continue
-            hits = len(rx.findall(blob))
+            hits = sum(1 for t in tokens if norm_tokens(t) & stem)
             if hits >= 2:
                 add(ent_ids[other], ent_ids[key], "mentions", hits)
 
@@ -267,7 +324,58 @@ def graph_payload(wiki) -> dict:
             if sid in src_ids and did in dec_ids:
                 add(dec_ids[did], src_ids[sid], "evidence")
 
-    all_nodes = nodes + src_nodes + dec_nodes
+    dep_edges = deps.graph(wiki).get("edges", {})
+    for artifact in sorted(dep_edges):
+        page_id = page_ids.get(artifact)
+        if page_id is None:
+            continue
+        for dep in dep_edges[artifact]:
+            dep_id = dep.split("@", 1)[0]
+            if dep_id.startswith("claim_"):
+                ent = claim_to_ent.get(dep_id)
+                if ent in ent_ids:
+                    add(ent_ids[ent], page_id, "documents")
+            elif dep_id.startswith("decision_"):
+                if dep_id in dec_ids:
+                    add(dec_ids[dep_id], page_id, "documents")
+            elif dep_id in page_ids:
+                add(page_ids[dep_id], page_id, "depends_on")
+
+    all_nodes = nodes + src_nodes + dec_nodes + pages
+
+    # Review-surface annotations (R3): per-node flags plus the queue summary
+    # under meta. Entity nodes carry claim dicts; decision nodes reference
+    # claim ids; pages/sources have none.
+    open_affected = set()
+    for item in wiki.read_jsonl(review.QUEUE):
+        if item.get("status") == "open":
+            open_affected |= {a.split("@", 1)[0] for a in item.get("affected", [])}
+    claim_status = {c["id"]: c.get("status", "") for c in all_claims}
+    dec_status = {d.get("id", ""): d.get("status", "") for d in decisions}
+    degree = {}
+    for l in links:
+        degree[l["source"]] = degree.get(l["source"], 0) + 1
+        degree[l["target"]] = degree.get(l["target"], 0) + 1
+    for n in all_nodes:
+        raw = n.get("claims") or []
+        if raw and isinstance(raw[0], dict):
+            cids = {c["id"] for c in raw}
+            statuses = {c.get("status", "") for c in raw}
+        else:
+            cids = set(raw)
+            statuses = {claim_status.get(c, "") for c in cids}
+            if n["kind"] == "decision":
+                statuses.add(dec_status.get(n["key"], ""))
+        terminal = statuses & set(claims.TERMINAL)
+        n["flags"] = {
+            "review_open": bool(cids & open_affected),
+            "disputed": "disputed" in statuses,
+            "superseded": "superseded" in statuses,
+            "stale": bool(terminal) and terminal == statuses - {""},
+            "orphan": degree.get(n["id"], 0) == 0,
+        }
+
+    generated_at = _now()
     return {
         "project": project,
         "nodes": all_nodes,
@@ -275,6 +383,8 @@ def graph_payload(wiki) -> dict:
         "claim_count": len(all_claims),
         "source_count": len(src_nodes),
         "decision_count": len(dec_nodes),
-        "generated_at": _now(),
+        "page_count": len(pages),
+        "generated_at": generated_at,
+        "meta": {"review": review.summary(wiki), "generated_at": generated_at},
         "warnings": warnings,
     }

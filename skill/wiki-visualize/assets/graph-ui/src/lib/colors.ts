@@ -9,6 +9,12 @@ const LABEL_COLORS: Record<string, string> = {
   QA: "#f472b6",
   Decision: "#fbbf24",
   Doc: "#475569",
+  "Page·Concept": "#34d399",
+  "Page·Entity": "#c084fc",
+  "Page·Procedure": "#fb923c",
+  "Page·Question": "#38bdf8",
+  "Page·Source": "#94a3b8",
+  "Page·Change": "#f87171",
   /* legacy code-graph kinds (kept for shared components) */
   Project: "#e11d48",
   Package: "#f97316",

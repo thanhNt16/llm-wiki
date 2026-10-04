@@ -53,6 +53,22 @@ selection under budget. The agent owns interpretation: extraction,
 relationship classification, prose. Never move work across this line —
 don't hand-edit what a script should compute; don't script semantic judgment.
 
+## Derived pages (wiki/)
+
+Two regimes under `wiki/`:
+
+- **Script-rendered** — `build-pages` generates per-kind section indexes
+  (`wiki/<kind>/index.md`), the project `overview.md`, and decision stubs.
+  Never hand-authored.
+- **Agent-authored** — source/concept/entity/procedure/question pages,
+  committed only through `write-page`, which validates frontmatter and
+  citations, registers the page's `deps`, and clears its stale flag.
+
+Invalidation flags a page stale but preserves its committed body verbatim
+(stale-body preservation): derived state degrades to "explicitly stale",
+never to missing or silently outdated. `page-targets --stale-only` lists
+what needs re-authoring; `verify` fails while stale pages remain.
+
 ## Storage rule
 
 Canonical = JSON under `sources/ claims/ decisions/ notes/` plus `.state/`.

@@ -2,17 +2,15 @@ import json, os, sys, tempfile, unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from wikicore import graphdata
+from wikicore import deps, graphdata, review, synthesize
 from wikicore.store import Wiki, init_wiki
-from wikicore.transaction import TxnError
-
+from wikicore.transaction import Transaction, TxnError
 
 def fresh(project="demo"):
     root = tempfile.mkdtemp()
     wiki = Wiki(root)
     init_wiki(wiki, project)
     return wiki
-
 
 def put_claim(wiki, cid, subject, predicate, value, status="accepted",
               evidence=None, authority=None, **extra):
@@ -37,7 +35,6 @@ def put_claim(wiki, cid, subject, predicate, value, status="accepted",
     with open(wiki.p("claims/%s.json" % cid), "w") as f:
         json.dump(claim, f)
 
-
 def put_source(wiki, sid, origin="docs/a.md", title=None):
     sdir = wiki.p("sources/%s" % sid)
     os.makedirs(sdir, exist_ok=True)
@@ -47,7 +44,6 @@ def put_source(wiki, sid, origin="docs/a.md", title=None):
                    "versions": [{"version": 1, "sha256": "ab"}],
                    "title": title or os.path.basename(origin)}, f)
 
-
 def put_decision(wiki, did, title, claim_ids=(), evidence=()):
     os.makedirs(wiki.p("decisions"), exist_ok=True)
     with open(wiki.p("decisions/%s.json" % did), "w") as f:
@@ -56,18 +52,26 @@ def put_decision(wiki, did, title, claim_ids=(), evidence=()):
                    "recorded_at": "2026-10-01T00:00:00Z", "version": 1,
                    "claims": list(claim_ids), "evidence": list(evidence)}, f)
 
-
 def payload(wiki):
     return graphdata.graph_payload(wiki)
-
 
 def by_kind(p, kind):
     return [n for n in p["nodes"] if n["kind"] == kind]
 
-
 def links(p, ltype):
     return [l for l in p["links"] if l["type"] == ltype]
 
+def page_md(dep_list, body="We run postgres.", type_="concept"):
+    lines = ["---", "type: %s" % type_, "subject: db.engine", "title: DB engine",
+             "created: 2026-09-15T00:00:00Z", "updated: 2026-09-15T00:00:00Z"]
+    if dep_list:
+        lines.append("deps:")
+        for d in dep_list:
+            lines.append("  - %s" % d)
+    else:
+        lines.append("deps: []")
+    lines += ["stale: false", "---", "", body, ""]
+    return "\n".join(lines)
 
 class TestGraphData(unittest.TestCase):
     def test_uninitialized_raises(self):
@@ -81,6 +85,8 @@ class TestGraphData(unittest.TestCase):
         self.assertEqual(p["links"], [])
         self.assertEqual(p["claim_count"], 0)
         self.assertIn("generated_at", p)
+        self.assertEqual(p["meta"]["review"], {"open": 0, "deferred": 0, "total": 0})
+        self.assertEqual(p["meta"]["generated_at"], p["generated_at"])
 
     def test_entity_grouping_and_label_strip(self):
         wiki = fresh("demo")
@@ -129,7 +135,6 @@ class TestGraphData(unittest.TestCase):
         self.assertEqual((co[0]["source"], co[0]["target"]),
                          (ids["demo"], ids["demo.pm97"]))
 
-
     def test_mentions_edge(self):
         wiki = fresh("demo")
         for i in range(2):
@@ -143,6 +148,38 @@ class TestGraphData(unittest.TestCase):
         self.assertEqual(len(me), 1)
         self.assertEqual(me[0]["source"], ids["demo.modalpha"])
         self.assertEqual(me[0]["target"], ids["demo.consumer"])
+
+    def test_mentions_inflected_and_short_alias(self):
+        # Q8: 3-char alias never matches; 4-char alias matches inflected forms;
+        # stop filtering is stem-based ("orders" filtered like "order")
+        wiki = fresh("demo")
+        for i in range(2):
+            put_claim(wiki, "claim_s%d" % i, "demo.abc.p%d" % i, "x", i)
+        for i in range(2):
+            put_claim(wiki, "claim_t%d" % i, "demo.user.p%d" % i,
+                      "uses abc", "abc abc")
+        for i in range(2):
+            put_claim(wiki, "claim_u%d" % i, "demo.orders.p%d" % i, "x", i)
+        for i in range(2):
+            put_claim(wiki, "claim_v%d" % i, "demo.fulfill.p%d" % i,
+                      "tracks orders", "orders orders")
+        p = payload(wiki)
+        self.assertEqual(links(p, "mentions"), [])
+        # override the stop list: "orders" becomes matchable
+        old = os.environ.get("MENTION_STOP")
+        try:
+            os.environ["MENTION_STOP"] = ""
+            p2 = payload(wiki)
+            me2 = links(p2, "mentions")
+            ids = {n["key"]: n["id"] for n in by_kind(p2, "entity")}
+            self.assertEqual(len(me2), 1)
+            self.assertEqual((me2[0]["source"], me2[0]["target"]),
+                             (ids["demo.orders"], ids["demo.fulfill"]))
+        finally:
+            if old is None:
+                os.environ.pop("MENTION_STOP", None)
+            else:
+                os.environ["MENTION_STOP"] = old
 
     def test_decision_node_and_edge(self):
         wiki = fresh("demo")
@@ -224,8 +261,6 @@ class TestGraphData(unittest.TestCase):
         put_claim(wiki, "claim_a", "demo.pm97.role", "x", 1,
                   evidence=[{"source_id": "source_aaa", "version": 1},
                             {"source_id": "source_bbb", "version": 1}])
-        put_decision(wiki, "decision_d1", "D1", claim_ids=["claim_a"],
-                     evidence=[{"source_id": "source_aaa", "version": 1}])
         p = payload(wiki)
         ids = [n["id"] for n in p["nodes"]]
         self.assertEqual(sorted(ids), list(range(len(ids))))
@@ -233,6 +268,131 @@ class TestGraphData(unittest.TestCase):
             self.assertIn(l["source"], ids)
             self.assertIn(l["target"], ids)
 
+class TestReviewSurface(unittest.TestCase):
+    def test_node_flags_review_disputed_stale_orphan(self):
+        wiki = fresh("demo")
+        put_claim(wiki, "claim_a", "demo.pm97.role", "x", 1,               # reviewed
+                  evidence=[{"source_id": "source_aaa", "version": 1}])
+        put_claim(wiki, "claim_b", "demo.pm97.db", "engine", "old",
+                  status="superseded", superseded_by="claim_c")
+        put_claim(wiki, "claim_c", "demo.pm97.db", "engine", "new")
+        put_claim(wiki, "claim_d", "demo.billing.sum", "x", 1, status="disputed")
+        put_source(wiki, "source_aaa")  # linked via claim_a evidence
+        txn = Transaction(wiki, "t")
+        review.add_item(txn, "contradiction", "role may change", [],
+                        ["claim_a@1"], "low")
+        txn.commit(wiki.revision())
+        p = payload(wiki)
+        flags = {n["key"]: n["flags"] for n in by_kind(p, "entity")}
+        self.assertTrue(flags["demo.pm97"]["review_open"])
+        self.assertTrue(flags["demo.billing"]["disputed"])
+        # pm97 has accepted + superseded claims: mixed -> not stale
+        self.assertFalse(flags["demo.pm97"]["stale"])
+        src_flags = by_kind(p, "source")[0]["flags"]
+        self.assertFalse(src_flags["orphan"])
+        self.assertFalse(flags["demo.pm97"]["orphan"])
+        self.assertTrue(flags["demo.billing"]["orphan"])
+        self.assertEqual(p["meta"]["review"]["open"], 1)
+        self.assertEqual(p["meta"]["review"]["total"], 1)
+        self.assertTrue(all("flags" in n for n in p["nodes"]))
+
+    def test_fully_terminal_entity_is_stale(self):
+        wiki = fresh("demo")
+        put_claim(wiki, "claim_old", "demo.legacy.x", "x", 1, status="rejected")
+        p = payload(wiki)
+        flags = by_kind(p, "entity")[0]["flags"]
+        self.assertTrue(flags["stale"])
+        self.assertFalse(flags["superseded"])
+
+class TestPageNodes(unittest.TestCase):
+    def test_concept_page_documents_claim_entity(self):
+        wiki = fresh()
+        put_claim(wiki, "claim_a", "demo.db.engine", "value", "postgres")
+        dep = "claim_a@1"
+        os.makedirs(wiki.p("wiki/concepts"), exist_ok=True)
+        with open(wiki.p("wiki/concepts/index.md"), "w") as f:
+            f.write("# Concepts\n")
+        synthesize.write_page(wiki, "wiki/concepts/db-engine.md",
+                              page_md([dep], body="We run [[claim_a]]."),
+                              [dep], wiki.revision())
+        p = payload(wiki)
+        pgs = by_kind(p, "page")
+        self.assertEqual(len(pgs), 1)  # index.md excluded
+        pg = pgs[0]
+        self.assertEqual(pg["kind"], "page")
+        self.assertEqual(pg["wtype"], "page_concept")
+        self.assertEqual(pg["key"], "wiki/concepts/db-engine.md")
+        self.assertEqual(pg["path"], "wiki/concepts/db-engine.md")
+        self.assertEqual(pg["label"], "DB engine")
+        self.assertEqual(p["page_count"], 1)
+        docs = links(p, "documents")
+        self.assertEqual(len(docs), 1)
+        self.assertEqual(docs[0]["source"], by_kind(p, "entity")[0]["id"])
+        self.assertEqual(docs[0]["target"], pg["id"])
+
+    def test_stale_flag_and_slug_label(self):
+        wiki = fresh()
+        os.makedirs(wiki.p("wiki/questions"), exist_ok=True)
+        with open(wiki.p("wiki/questions/how-to-auth.md"), "w") as f:
+            f.write("---\ntype: question\ndeps: []\nstale: true\n---\n"
+                    "\nHow?\n")
+        os.makedirs(wiki.p("wiki/sources"), exist_ok=True)
+        with open(wiki.p("wiki/sources/notes.md"), "w") as f:
+            f.write("---\ntype: source\ndeps: []\nstale: false\n---\n"
+                    "\nNotes.\n")
+        p = payload(wiki)
+        self.assertEqual(p["page_count"], 2)
+        by_wtype = {n["wtype"]: n for n in by_kind(p, "page")}
+        q = by_wtype["page_question"]
+        self.assertEqual(q["label"], "how-to-auth")
+        self.assertIn({"p": "type", "v": "question"}, q["summary"])
+        self.assertIn({"p": "stale", "v": True}, q["summary"])
+        self.assertIn({"p": "stale", "v": False},
+                      by_wtype["page_source"]["summary"])
+
+    def test_decision_dep_documents_edge(self):
+        wiki = fresh()
+        put_decision(wiki, "decision_d1", "Ship it")
+        os.makedirs(wiki.p("wiki/changes"), exist_ok=True)
+        with open(wiki.p("wiki/changes/db-switch.md"), "w") as f:
+            f.write("---\ntype: change\ntitle: DB switch\n"
+                    "deps:\n  - decision_d1@1\nstale: false\n---\n"
+                    "\nSwitched.\n")
+        txn = Transaction(wiki, "deps")
+        deps.register(txn, "wiki/changes/db-switch.md", ["decision_d1@1"])
+        txn.commit(wiki.revision())
+        p = payload(wiki)
+        docs = links(p, "documents")
+        self.assertEqual(len(docs), 1)
+        self.assertEqual(docs[0]["source"], by_kind(p, "decision")[0]["id"])
+        self.assertEqual(docs[0]["target"], by_kind(p, "page")[0]["id"])
+
+    def test_depends_on_and_unresolved_deps_skipped(self):
+        wiki = fresh()
+        put_claim(wiki, "claim_a", "demo.db.engine", "value", "postgres")
+        dep = "claim_a@1"
+        os.makedirs(wiki.p("wiki/procedures"), exist_ok=True)
+        with open(wiki.p("wiki/procedures/failover.md"), "w") as f:
+            f.write("---\ntype: procedure\ndeps: []\nstale: false\n---\n"
+                    "\nSteps.\n")
+        synthesize.write_page(wiki, "wiki/concepts/db-engine.md",
+                              page_md([dep], body="We run [[claim_a]]."),
+                              [dep], wiki.revision())
+        txn = Transaction(wiki, "deps")
+        deps.register(txn, "wiki/procedures/failover.md",
+                      ["wiki/concepts/db-engine.md", "claim_gone@1"])
+        txn.commit(wiki.revision())
+        p = payload(wiki)
+        ids = {n["key"]: n["id"] for n in by_kind(p, "page")}
+        self.assertEqual(len(ids), 2)
+        dep_links = links(p, "depends_on")
+        self.assertEqual(len(dep_links), 1)
+        self.assertEqual(dep_links[0]["source"],
+                         ids["wiki/concepts/db-engine.md"])
+        self.assertEqual(dep_links[0]["target"],
+                         ids["wiki/procedures/failover.md"])
+        # unresolvable claim_gone@1 silently skipped, claim_a edge intact
+        self.assertEqual(len(links(p, "documents")), 1)
 
 if __name__ == "__main__":
     unittest.main()

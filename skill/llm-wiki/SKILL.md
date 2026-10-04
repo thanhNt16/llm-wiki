@@ -1,6 +1,6 @@
 ---
 name: llm-wiki
-description: Use when working in a project with a .llm-wiki directory or when asked to remember, resume, ingest, compile, or query project knowledge, generate task context, review knowledge conflicts, or diagnose project memory — also when the user says wiki-init, wiki-ingest, wiki-compile, wiki-query, wiki-context, wiki-review, or wiki-doctor.
+description: Use when working in a project with a .llm-wiki directory or when asked to remember, resume, ingest, compile, or query project knowledge, generate task context, review knowledge conflicts, or diagnose project memory — also when the user says wiki-init, wiki-ingest, wiki-compile, wiki-write, wiki-query, wiki-context, wiki-review, or wiki-doctor.
 ---
 
 # llm-wiki — evidence-backed project memory
@@ -50,6 +50,7 @@ before removing it.
 | Set up memory in this project | references/COMMANDS.md#init | `wiki.py init --name <project>` |
 | Add documents/URLs/repos/sessions as evidence | references/COMMANDS.md#ingest | `wiki.py ingest --file <p>` |
 | Turn ingested evidence into claims | references/COMMANDS.md#compile + references/RECONCILIATION.md + references/EXTRACTION.md | `wiki.py compile-plan` |
+| Write or refresh readable wiki pages from claims | references/COMMANDS.md#write + `wiki-write` skill (PAGES.md) | `wiki.py page-targets` |
 | Answer a project question | references/COMMANDS.md#query | `wiki.py query-prepare --question "..."` |
 | Prepare context for a task / resume work | references/CONTEXT-PACKS.md | `wiki.py context-pack --task "..." --budget 6000` |
 | Resolve conflicts / review candidates | references/COMMANDS.md#review | `wiki.py review list` |

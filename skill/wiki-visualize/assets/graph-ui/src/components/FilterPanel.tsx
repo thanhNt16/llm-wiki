@@ -1,39 +1,63 @@
 import { useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { colorForLabel } from "../lib/colors";
-import type { GraphData } from "../lib/types";
+import type { GraphData, GraphNode } from "../lib/types";
+
+/* Flag filters AND into the label/edge filters; a checked flag shows only
+ * nodes carrying it. Keys match graphdata.py node.flags. */
+export const FLAG_FILTERS: {
+  filter: string;
+  flag: keyof NonNullable<GraphNode["flags"]>;
+  label: string;
+}[] = [
+  { filter: "has_open_review", flag: "review_open", label: "open review" },
+  { filter: "is_disputed", flag: "disputed", label: "disputed" },
+  { filter: "is_superseded", flag: "superseded", label: "superseded" },
+  { filter: "is_stale", flag: "stale", label: "stale" },
+  { filter: "is_orphan", flag: "orphan", label: "orphan" },
+];
+
 
 interface FilterPanelProps {
   data: GraphData;
   enabledLabels: Set<string>;
   enabledEdgeTypes: Set<string>;
+  enabledFlags: Set<string>;
   showLabels: boolean;
   onToggleLabel: (label: string) => void;
   onToggleEdgeType: (type: string) => void;
   onToggleShowLabels: () => void;
   onEnableAll: () => void;
   onDisableAll: () => void;
+  onToggleFlag: (flag: string) => void;
 }
 
 export function FilterPanel({
   data,
   enabledLabels,
   enabledEdgeTypes,
+  enabledFlags,
   showLabels,
   onToggleLabel,
   onToggleEdgeType,
   onToggleShowLabels,
+  onToggleFlag,
   onEnableAll,
   onDisableAll,
 }: FilterPanelProps) {
-  const { labelCounts, edgeTypeCounts } = useMemo(() => {
+  const { labelCounts, edgeTypeCounts, flagCounts } = useMemo(() => {
     const lc = new Map<string, number>();
     for (const n of data.nodes) lc.set(n.label, (lc.get(n.label) ?? 0) + 1);
     const ec = new Map<string, number>();
     for (const e of data.edges) ec.set(e.type, (ec.get(e.type) ?? 0) + 1);
+    const fc = FLAG_FILTERS.map((f) => ({
+      ...f,
+      count: data.nodes.filter((n) => n.flags?.[f.flag]).length,
+    })).filter((f) => f.count > 0);
     return {
       labelCounts: [...lc.entries()].sort((a, b) => b[1] - a[1]),
       edgeTypeCounts: [...ec.entries()].sort((a, b) => b[1] - a[1]),
+      flagCounts: fc,
     };
   }, [data]);
 
@@ -69,6 +93,29 @@ export function FilterPanel({
                     >
                       <span className="w-[5px] h-[5px] rounded-full" style={{ backgroundColor: on ? c : "#444" }} />
                       <span style={{ color: on ? c : "#555" }}>{label}</span>
+                      <span className="text-foreground/20 tabular-nums">{count.toLocaleString()}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {flagCounts.length > 0 && (
+            <div>
+              <p className="text-[10px] font-medium text-foreground/40 mb-1.5 uppercase tracking-wider">Review flags</p>
+              <div className="flex flex-wrap gap-1">
+                {flagCounts.map(({ filter, label, count }) => {
+                  const on = enabledFlags.has(filter);
+                  return (
+                    <button
+                      key={filter}
+                      onClick={() => onToggleFlag(filter)}
+                      className={`inline-flex items-center gap-1 px-1.5 py-[3px] rounded-md text-[10px] font-medium transition-all border ${
+                        on ? "border-white/[0.08] bg-white/[0.04] text-foreground/70" : "border-transparent opacity-25 text-foreground/40"
+                      }`}
+                    >
+                      {label}
                       <span className="text-foreground/20 tabular-nums">{count.toLocaleString()}</span>
                     </button>
                   );

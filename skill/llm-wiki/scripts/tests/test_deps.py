@@ -64,6 +64,16 @@ class TestDeps(unittest.TestCase):
         self.assertFalse(deps.is_stale(wiki, "wiki/a.md"))
         self.assertTrue(deps.is_stale(wiki, "wiki/b.md"))
 
+    def test_replace_shrinks_edge_set(self):
+        wiki = fresh()
+        txn = Transaction(wiki, "t")
+        deps.register(txn, "wiki/a.md", ["claim_01JABC@1", "claim_01JDEF@1"])
+        txn.commit(0)
+        txn = Transaction(wiki, "t2")
+        deps.replace(txn, "wiki/a.md", ["claim_01JABC@1"])
+        txn.commit(wiki.revision())
+        self.assertEqual(deps.graph(wiki)["edges"]["wiki/a.md"], ["claim_01JABC@1"])
+
 
 if __name__ == "__main__":
     unittest.main()

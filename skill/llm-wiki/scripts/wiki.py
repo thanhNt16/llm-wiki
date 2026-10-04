@@ -14,6 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from wikicore import claims, compile as wc_compile, contextpack, deps, doctor, graphdata, pages, dirs  # noqa: E402
 from wikicore import query, review, sources  # noqa: E402
 from wikicore.shorthand import normalize_candidate, parse_candidates_file  # noqa: E402
+from wikicore import query, review, sources, synthesize  # noqa: E402
+from wikicore.yamlite import loads as yamlloads  # noqa: E402
 from wikicore.store import Wiki, SKILL_VERSION, init_wiki  # noqa: E402
 from wikicore.transaction import ConflictError, LockedError, TxnError  # noqa: E402
 
@@ -156,6 +158,63 @@ def cmd_build_pages(args) -> int:
     return 0
 
 
+def cmd_page_targets(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    _emit(synthesize.page_targets(wiki, kind=args.kind, stale_only=args.stale_only,
+                                  min_claims=args.min_claims, min_sources=args.min_sources))
+    return 0
+
+
+def cmd_write_page(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    if args.text is not None:
+        text = args.text
+    elif args.file == "-":
+        text = sys.stdin.read()
+    elif args.file:
+        try:
+            with open(args.file, "r", encoding="utf-8") as f:
+                text = f.read()
+        except (OSError, UnicodeDecodeError) as e:
+            raise TxnError("cannot read --file %s: %s" % (args.file, e))
+    else:
+        raise TxnError("provide --file (- for stdin) or --text")
+    dep_list = None  # absent everywhere -> write_page auto-derives from links
+    if args.deps_file:
+        try:
+            parsed = _load_json_file(args.deps_file)
+        except (OSError, json.JSONDecodeError) as e:
+            raise TxnError("cannot parse --deps-file %s: %s" % (args.deps_file, e))
+        if isinstance(parsed, dict):
+            dep_list = parsed.get("claim_ids")  # page-targets target dict
+            if dep_list is None:
+                raise TxnError('--deps-file dict must contain "claim_ids"')
+        elif isinstance(parsed, list):
+            dep_list = parsed
+        else:
+            raise TxnError("--deps-file must be a JSON list or a page-target dict")
+    elif args.deps is not None:
+        dep_list = [d.strip() for d in args.deps.split(",") if d.strip()]
+    else:
+        front = {}
+        if text.startswith("---\n"):
+            parts = text.split("---\n", 2)
+            if len(parts) == 3:
+                front = yamlloads("---\n" + parts[1] + "\n---\n")
+        fm = front.get("deps")
+        if isinstance(fm, list):
+            dep_list = fm
+    base = args.base_revision if args.base_revision is not None else wiki.revision()
+    _emit(synthesize.write_page(wiki, args.artifact, text, dep_list, base))
+    return 0
+
+
+def cmd_page_show(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    _emit(synthesize.page_show(wiki, args.artifact))
+    return 0
+
+
 def cmd_verify(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
     result = pages.verify(wiki)
@@ -167,6 +226,12 @@ def cmd_query_prepare(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
     _emit(query.prepare(wiki, args.question, as_of=args.as_of))
     return 0
+
+def cmd_subjects(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    _emit({"subjects": query.subjects(wiki, prefix=args.prefix)})
+    return 0
+
 
 
 def cmd_context_pack(args) -> int:
@@ -184,8 +249,9 @@ def cmd_context_pack(args) -> int:
 def cmd_review(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
     if args.review_cmd == "list":
-        _emit({"items": review.list_items(wiki, kind=args.kind,
-                                          status=args.status or "open")})
+        status = None if args.all else (args.status or "open")
+        _emit({"items": review.list_items(wiki, kind=args.kind, status=status),
+               "summary": review.summary(wiki)})
         return 0
     if args.review_cmd == "show":
         _emit(review.show(wiki, args.item))
@@ -274,6 +340,28 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--base-revision", type=int, default=None)
     p.set_defaults(fn=cmd_build_pages)
 
+    p = sub.add_parser("page-targets")
+    p.add_argument("--kind", default=None,
+                   choices=tuple(synthesize.PAGE_KINDS))
+    p.add_argument("--stale-only", action="store_true", dest="stale_only")
+    p.add_argument("--min-claims", type=int, default=2, dest="min_claims")
+    p.add_argument("--min-sources", type=int, default=2, dest="min_sources")
+    p.set_defaults(fn=cmd_page_targets)
+    p = sub.add_parser("write-page")
+    p.add_argument("--file", default=None,
+                   help="markdown page file, '-' for stdin (body + optional deps frontmatter)")
+    p.add_argument("--text", default=None, help="markdown page as a string argument")
+    p.add_argument("--artifact", required=True, help="target wiki path, e.g. wiki/concepts/foo.md")
+    p.add_argument("--deps-file", default=None,
+                   help="JSON file: list of dep strings, or a page-targets target dict")
+    p.add_argument("--deps", default=None, help="comma-separated dep list (overrides deps: frontmatter)")
+    p.add_argument("--base-revision", type=int, default=None)
+    p.set_defaults(fn=cmd_write_page)
+
+    p = sub.add_parser("page-show")
+    p.add_argument("--artifact", required=True, help="wiki/<kind>/<slug>.md")
+    p.set_defaults(fn=cmd_page_show)
+
     p = sub.add_parser("verify")
     p.set_defaults(fn=cmd_verify)
 
@@ -281,6 +369,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--question", required=True)
     p.add_argument("--as-of", default=None, dest="as_of")
     p.set_defaults(fn=cmd_query_prepare)
+
+    p = sub.add_parser("subjects")
+    p.add_argument("--prefix", default=None)
+    p.set_defaults(fn=cmd_subjects)
 
     p = sub.add_parser("context-pack")
     p.add_argument("--task", default="")
@@ -295,10 +387,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--item", default=None)
     p.add_argument("--action", default=None,
                    help="accept|reject|merge|mark_duplicate|mark_authoritative|"
-                        "mark_superseded|set_scope|set_validity|defer")
+                        "mark_superseded|set_scope|set_validity|defer|reopen")
     p.add_argument("--params", default=None, help="params JSON file")
     p.add_argument("--kind", default=None)
     p.add_argument("--status", default=None)
+    p.add_argument("--all", action="store_true",
+                   help="review list: include deferred items too")
     p.add_argument("--base-revision", type=int, default=None)
     p.set_defaults(fn=cmd_review)
 

@@ -25,6 +25,28 @@ python3 evals/deterministic/run_gates.py
 
 Unit suite: `python3 -m unittest discover -s skill/scripts/tests`.
 
+## Review-surface acceptance gates
+
+Review UX is a contract, not a nicety — every gate must hold after a compile
+run that produces conflicts:
+
+- **Queue visible** — open review items appear in `overview.md` and in
+  `graph-data` output (`meta.review` counts; per-claim review flags), not
+  only in a JSONL file nobody reads.
+- **Both sides shown** — `review show` (and any page/overview rendering of a
+  contradiction) presents both claims with their ids, values, and origins.
+  Never one side, never an averaged compromise.
+- **Deferred ≠ deleted** — `defer` keeps the item discoverable via
+  `review list --all`; deferred items must remain visible in the queue
+  surfaces (overview/graph flags), or debt silently disappears.
+- **Changelog records mutations** — every mutation lands in the operations
+  log, which `build-pages` derives into `wiki/changes/index.md` (agent-authored
+  `wiki/changes/<slug>.md` pages add the narrative), so "what changed" is
+  answerable from the wiki itself.
+- **Verify green after each action** — after every `review act`, `write-page`,
+  or `build-pages`, `wiki.py verify` reports `"ok": true` before the next
+  step. A red verify blocks progression, never ships.
+
 ## Semantic scenarios (PRD §57) — run against `evals/golden-corpus`
 
 Copy the corpus to a temp project, run init → ingest(docs/, notes/, config/,

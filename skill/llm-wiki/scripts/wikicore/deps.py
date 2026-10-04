@@ -23,6 +23,15 @@ def register(txn: Transaction, artifact: str, deps_list: list) -> None:
     txn.stage_state(DEPS_FILE, _upd)
 
 
+def replace(txn: Transaction, artifact: str, deps_list: list) -> None:
+    """Set the artifact's dependency edges to deps_list exactly (replaces,
+    never merges). `register` remains as the merging legacy path."""
+    def _upd(data):
+        data.setdefault("edges", {})[artifact] = list(deps_list)
+
+    txn.stage_state(DEPS_FILE, _upd)
+
+
 def graph(wiki) -> dict:
     return wiki.load_json(DEPS_FILE)
 

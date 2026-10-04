@@ -126,14 +126,11 @@ class Transaction:
                     "stale commit: base_revision=%d but wiki is at %d; re-read and rebase"
                     % (base_revision, current)
                 )
+            # (a) every destination's parent must exist or be creatable
             for op, rel, src in self.staged:
-                dst = self.wiki.p(rel)
-                if op == "write":
-                    os.makedirs(os.path.dirname(dst), exist_ok=True)
-                    os.replace(src, dst)
-                elif op == "delete":
-                    if os.path.exists(dst):
-                        os.unlink(dst)
+                os.makedirs(os.path.dirname(self.wiki.p(rel)), exist_ok=True)
+            # build the receipt up front: the journal carries it and schema
+            # failures abort before any destination is touched
             receipt = {
                 "run_id": self.run_id,
                 "command": self.command,
@@ -148,20 +145,63 @@ class Transaction:
             errors = schema_validate(receipt, _run_receipt_schema())
             if errors:
                 raise TxnError("run receipt invalid: %s" % "; ".join(errors))
-            os.makedirs(self.wiki.p(".state", "operations"), exist_ok=True)
-            with open(
-                self.wiki.p(".state", "operations", "%s.receipt.json" % self.run_id), "w"
-            ) as f:
-                json.dump(receipt, f, indent=2, ensure_ascii=False)
+            # (b) pre-write the receipt to a journal so an interrupted commit
+            # is discoverable (doctor flags leftover journals)
+            journal_path = self.wiki.p(".state", "journal.json")
+            with open(journal_path, "w") as f:
+                json.dump({"receipt": receipt,
+                           "ops": [[op, rel] for op, rel, _ in self.staged]},
+                          f, indent=2, ensure_ascii=False)
                 f.write("\n")
-            with open(self.wiki.p(".state", "operations.jsonl"), "a") as f:
-                f.write(canonical_json(receipt) + "\n")
-            state = self.wiki.state()
-            state["revision"] = current + 1
-            state["content_hash"] = canonical_json([op[0] + ":" + op[1] for op in self.staged])[:64]
-            self.wiki.save_state(state)
-            shutil.rmtree(self.staging_dir, ignore_errors=True)
-            return receipt
+            backup_dir = self.wiki.p(".state", ".backup-%d" % current)
+            try:
+                # (c) back up every existing target
+                backed_up = False
+                for op, rel, src in self.staged:
+                    dst = self.wiki.p(rel)
+                    if os.path.lexists(dst):
+                        bpath = os.path.join(backup_dir, rel)
+                        os.makedirs(os.path.dirname(bpath), exist_ok=True)
+                        shutil.copy2(dst, bpath)
+                        backed_up = True
+                # (d) apply
+                for op, rel, src in self.staged:
+                    dst = self.wiki.p(rel)
+                    if op == "write":
+                        os.replace(src, dst)
+                    elif op == "delete":
+                        if os.path.lexists(dst):
+                            os.unlink(dst)
+                # (e) receipt + state
+                os.makedirs(self.wiki.p(".state", "operations"), exist_ok=True)
+                with open(
+                    self.wiki.p(".state", "operations", "%s.receipt.json" % self.run_id), "w"
+                ) as f:
+                    json.dump(receipt, f, indent=2, ensure_ascii=False)
+                    f.write("\n")
+                with open(self.wiki.p(".state", "operations.jsonl"), "a") as f:
+                    f.write(canonical_json(receipt) + "\n")
+                state = self.wiki.state()
+                state["revision"] = current + 1
+                state["content_hash"] = canonical_json(
+                    [op[0] + ":" + op[1] for op in self.staged])[:64]
+                self.wiki.save_state(state)
+                # (f) clear journal + backups
+                os.unlink(journal_path)
+                if backed_up:
+                    shutil.rmtree(backup_dir, ignore_errors=True)
+                shutil.rmtree(self.staging_dir, ignore_errors=True)
+                return receipt
+            except BaseException:
+                # restore pre-commit state; the journal stays behind for doctor
+                for op, rel, src in self.staged:
+                    dst = self.wiki.p(rel)
+                    bpath = os.path.join(backup_dir, rel)
+                    if os.path.lexists(bpath):
+                        os.replace(bpath, dst)
+                    elif op == "write" and os.path.lexists(dst):
+                        os.unlink(dst)
+                raise
         finally:
             try:
                 fcntl.flock(lock_fd, fcntl.LOCK_UN)

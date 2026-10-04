@@ -41,6 +41,22 @@ engine auto-classifies UNRELATED, DUPLICATE, and CORROBORATION; only
 `needs_review` rows require agent classifications. Low-level commands remain
 available when needed.
 
+After the final `compile --resume` lands:
+
+1. Synthesis — run `python3 "$WIKI" page-targets`; for EVERY entry in
+   `targets[]`, author or refresh the page per the `wiki-write` skill. Use
+   `target.artifact` and `target.claim_ids` verbatim — never hardcode
+   `wiki/concepts/<slug>.md`; the kind router decides the directory.
+   Commit each page with
+   `python3 "$WIKI" write-page --artifact <target.artifact> --deps '<claim_ids comma-joined>'`
+   (e.g. `--deps 'claim_abc123@3,claim_def456@1'`). A later
+   `page-targets --stale-only` pass re-lists anything that goes stale.
+2. `python3 "$WIKI" build-pages` — rebuilds index/decision stubs and clears stale flags.
+3. `python3 "$WIKI" verify` — must report `"ok": true` before you finish. Fix every
+   error (unresolved links, stale pages) and re-verify.
+
+Report the run receipt: changes counts, conflicts (new review items).
+
 ## Hard rules
 
 - **Evidence ≠ Claim ≠ Decision.** Claims are structured interpretations with

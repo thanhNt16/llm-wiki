@@ -19,17 +19,32 @@ project root:
 WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
 python3 "$WIKI" review list                     # open items
 python3 "$WIKI" review list --kind possible_contradiction
+python3 "$WIKI" review list --all               # include deferred
 python3 "$WIKI" review show --item review_...
 python3 "$WIKI" review act --item review_... --action accept --params params.json
 ```
 
 Actions: `accept reject merge mark_duplicate mark_authoritative
-mark_superseded set_scope set_validity defer`. Params JSON e.g.
+mark_superseded set_scope set_validity defer reopen`. Params JSON e.g.
 `{"claim_id": "claim_...", "scope": {"environment": "staging"}}` or
 `{"claim_id": "...", "target": "claim_..."}` for mark_superseded.
 
-After acting, run `wiki.py build-pages` if a claim changed, then
-`wiki.py verify`.
+`defer` parks an item as deferred — it stays in the queue with no resolution
+and no `resolved_at`, discoverable via `review list --all` (or
+`--status deferred`) and in the derived surfaces (`wiki/review.md`, overview,
+graph review flags). `reopen` returns a deferred item to open. Deferred is
+not resolved: surface deferred items in your report so semantic debt stays
+visible.
+
+## The loop
+
+1. `review list` (and `--all` when triaging debt) → pick an item.
+2. `review show --item <id>` — present BOTH sides of a conflict to the human.
+3. `review act --item <id> --action <action> --params params.json` — the
+   human decides, the script applies.
+4. If a claim changed: `python3 "$WIKI" build-pages`, then
+   `python3 "$WIKI" verify` — must report `"ok": true`. Repeat for the next
+   item.
 
 ## Hard rules
 

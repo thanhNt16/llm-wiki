@@ -30,6 +30,8 @@ const EDGE_TYPE_COLORS: Record<string, string> = {
   MENTIONS: "#7aa2ff",
   CONTAINS: "#22c55e",
   DECISION: "#fbbf24",
+  DOCUMENTS: "#475569",
+  DEPENDS_ON: "#84cc16",
   CALLS: "#1DA27E",
   IMPORTS: "#3b82f6",
   DEFINES: "#a855f7",

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { colorForLabel } from "../lib/colors";
 import type { GraphNode, GraphEdge, WikiClaim } from "../lib/types";
@@ -22,7 +22,10 @@ interface NodeDetailPanelProps {
 }
 
 /* Predicates that carry headline information — rendered as the summary card */
-const KEY_PREDICATES = new Set(["status", "summary", "title", "verdict", "feature", "outcome"]);
+const KEY_PREDICATES: Record<string, true> = {
+  status: true, summary: true, title: true, verdict: true,
+  feature: true, outcome: true, stale: true,
+};
 
 const STATUS_TONE: Record<string, { bg: string; fg: string }> = {
   accepted: { bg: "#22c55e22", fg: "#4ade80" },
@@ -43,6 +46,21 @@ const EDGE_ICON: Record<string, string> = {
   MENTIONS: "◎",
   CONTAINS: "▸",
 };
+
+/* Review flags from graphdata.py — badges rendered only when the payload
+ * carries them (backward compat with older graph-data.json). */
+const FLAGS: {
+  key: keyof NonNullable<GraphNode["flags"]>;
+  label: string;
+  bg: string;
+  fg: string;
+}[] = [
+  { key: "review_open", label: "open review", bg: "#eab30822", fg: "#facc15" },
+  { key: "disputed", label: "disputed", bg: "#ef444422", fg: "#f87171" },
+  { key: "superseded", label: "superseded", bg: "#64748b22", fg: "#94a3b8" },
+  { key: "stale", label: "stale", bg: "#f9731622", fg: "#fb923c" },
+  { key: "orphan", label: "orphan", bg: "#a855f722", fg: "#c084fc" },
+];
 
 function statusTone(status?: string): { bg: string; fg: string } {
   return STATUS_TONE[(status ?? "").toLowerCase()] ?? { bg: "#38bdf822", fg: "#7dd3fc" };
@@ -87,6 +105,25 @@ export function NodeDetailPanel({
   const outbound = connections.filter((c) => c.direction === "outbound");
   const inbound = connections.filter((c) => c.direction === "inbound");
   const claims = node.claims ?? [];
+  const superseded = claims.filter((c) => c.st === "superseded" || c.sup_by);
+  const [copied, setCopied] = useState<string | null>(null);
+  const copyCommand = (text: string, id: string) => {
+    const done = () => {
+      setCopied(id);
+      setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
+    };
+    navigator.clipboard?.writeText(text).then(done, () => {
+      /* Clipboard permission denied — execCommand fallback (still works
+       * in Electron views and older engines). */
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      done();
+    });
+  };
   const sources = node.sources ?? [];
 
   /* Summary: headline claims deduped per predicate — latest wins */
@@ -94,7 +131,7 @@ export function NodeDetailPanel({
     const latest = new Map<string, WikiClaim>();
     const rest: WikiClaim[] = [];
     for (const c of claims) {
-      if (KEY_PREDICATES.has(c.p)) latest.set(c.p, c);
+      if (KEY_PREDICATES[c.p]) latest.set(c.p, c);
       else rest.push(c);
     }
     return { summaryClaims: [...latest.values()].slice(0, 4), otherClaims: rest };
@@ -161,6 +198,15 @@ export function NodeDetailPanel({
                   {claimValue(summaryClaims.find((c) => c.p === "status")!.v)}
                 </span>
               )}
+              {FLAGS.filter((f) => node.flags?.[f.key]).map((f) => (
+                <span
+                  key={f.key}
+                  className="inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold"
+                  style={{ backgroundColor: f.bg, color: f.fg }}
+                >
+                  {f.label}
+                </span>
+              ))}
             </div>
           </div>
           <button
@@ -195,6 +241,64 @@ export function NodeDetailPanel({
 
       <ScrollArea className="flex-1 min-h-0">
         <div className="px-4 py-3 space-y-4">
+          {/* Review context — engine review annotations (contract: node.review) */}
+          {node.review && node.review.length > 0 && (
+            <div>
+              <p className="text-[11px] font-medium text-foreground/40 mb-2">
+                Review items <span className="text-foreground/15">({node.review.length})</span>
+              </p>
+              <div className="space-y-1.5">
+                {node.review.map((r) => (
+                  <div
+                    key={r.id}
+                    className="rounded-md border border-white/[0.05] bg-white/[0.02] px-2.5 py-1.5"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] uppercase tracking-widest text-foreground/35">{r.kind}</span>
+                      <span
+                        className="px-1 py-px rounded text-[8.5px] font-semibold"
+                        style={{ backgroundColor: statusTone(r.status).bg, color: statusTone(r.status).fg }}
+                      >
+                        {r.status}
+                      </span>
+                      <span className="ml-auto text-[9.5px] font-mono text-foreground/25">{r.id}</span>
+                    </div>
+                    {r.risk && <p className="text-[10.5px] text-foreground/50 mt-1">risk: {r.risk}</p>}
+                    {r.affected.length > 0 && (
+                      <p className="text-[10px] text-foreground/35 font-mono break-all mt-0.5">
+                        affects: {r.affected.join(", ")}
+                      </p>
+                    )}
+                    <button
+                      onClick={() => copyCommand(`wiki.py review show ${r.id}`, r.id)}
+                      className="mt-1 text-[10px] font-mono text-[#2dd4bf]/80 hover:text-[#2dd4bf] hover:underline"
+                      title="Copy command"
+                    >
+                      {copied === r.id ? "copied ✓" : `$ wiki.py review show ${r.id}`}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Supersession chain — claims replaced by newer versions */}
+          {superseded.length > 0 && (
+            <div>
+              <p className="text-[11px] font-medium text-foreground/40 mb-2">
+                Supersession chain <span className="text-foreground/15">({superseded.length})</span>
+              </p>
+              <div className="space-y-1">
+                {superseded.map((c) => (
+                  <p key={c.id} className="text-[10.5px] font-mono text-foreground/40 break-all">
+                    {c.id} <span className="text-foreground/20">→ superseded by</span>{" "}
+                    <span className="text-[#94a3b8]">{c.sup_by ?? "(unresolved)"}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Summary card — headline claims */}
           {summaryClaims.length > 0 && (
             <div>

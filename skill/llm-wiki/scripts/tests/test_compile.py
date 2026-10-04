@@ -4,6 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from wikicore import claims, compile as wc_compile, deps, sources
 from wikicore.transaction import ConflictError, Transaction, TxnError
+from wikicore import claims, compile as wc_compile, deps, pages, sources
 from wikicore.store import Wiki, init_wiki
 
 
@@ -245,6 +246,23 @@ class TestCompile(unittest.TestCase):
         self.assertEqual(len(prep["comparisons"][0]["matches"]), 1)
         self.assertEqual(prep["comparisons"][0]["matches"][0]["claim_id"], existing["id"])
         self.assertTrue(prep["comparisons"][0]["matches"][0]["same_scope"])
+
+    def test_build_pages_emits_changes_index(self):
+        wiki = fresh()
+        receipt = ingest_text(wiki, "doc-analytics.md", "# Window\n7 days.")
+        run_compile(wiki, receipt, [candidate(wiki, receipt)],
+                    [{"index": 0, "relationship": "UNRELATED",
+                      "target_claim_id": None, "valid_from": None,
+                      "valid_to": None,
+                      "authority": {"type": "explicit_project_decision"}}])
+        pages.build_pages(wiki, wiki.revision())
+        path = wiki.p("wiki/changes/index.md")
+        self.assertTrue(os.path.isfile(path))
+        with open(path) as f:
+            text = f.read()
+        self.assertIn("| Revision | At | Op | Run | Affected |", text)
+        self.assertIn("wiki-compile", text)
+        self.assertIn("claims_created=1", text)
 
 
     def test_auto_verdict_unrelated(self):

@@ -105,6 +105,51 @@ class TestTransaction(unittest.TestCase):
         txn.commit(0)
         self.assertFalse(os.path.exists(wiki.p("notes/doomed.md")))
 
+    def test_commit_clears_journal_and_backups(self):
+        wiki = fresh()
+        txn = Transaction(wiki, "t1")
+        txn.stage_write("notes/a.md", "original-a")
+        txn.commit(0)
+        txn = Transaction(wiki, "t2")
+        txn.stage_write("notes/a.md", "updated-a")
+        txn.commit(wiki.revision())
+        self.assertFalse(os.path.exists(wiki.p(".state/journal.json")))
+        leftovers = [n for n in os.listdir(wiki.p(".state")) if n.startswith(".backup-")]
+        self.assertEqual(leftovers, [])
+
+    def test_mid_commit_failure_restores_backups(self):
+        wiki = fresh()
+        txn = Transaction(wiki, "t1")
+        txn.stage_write("notes/a.md", "original-a")
+        txn.commit(0)
+        txn = Transaction(wiki, "t2")
+        txn.stage_write("notes/a.md", "updated-a")
+        txn.stage_write("notes/b.md", "new-b")
+        real_replace = os.replace
+        calls = []
+
+        def flaky_replace(src, dst):
+            calls.append(dst)
+            if len(calls) == 2:  # fail on the second staged write
+                raise OSError("boom mid-commit")
+            return real_replace(src, dst)
+
+        from wikicore import transaction as tmod
+        tmod.os.replace = flaky_replace
+        try:
+            with self.assertRaises(OSError):
+                txn.commit(wiki.revision())
+        finally:
+            tmod.os.replace = real_replace
+        with open(wiki.p("notes/a.md")) as f:
+            self.assertEqual(f.read(), "original-a")
+        self.assertFalse(os.path.exists(wiki.p("notes/b.md")))
+        self.assertEqual(wiki.revision(), 1)  # failed commit must not bump
+        # journal left in place for doctor forensics
+        self.assertTrue(os.path.isfile(wiki.p(".state/journal.json")))
+        journal = json.load(open(wiki.p(".state/journal.json")))
+        self.assertEqual(journal["receipt"]["command"], "t2")
+
 
 if __name__ == "__main__":
     unittest.main()

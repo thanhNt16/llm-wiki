@@ -3,7 +3,7 @@ import json
 import os
 import re
 
-from . import claims, deps, schema as schema_mod
+from . import claims, deps, review, schema as schema_mod
 from .hashing import canonical_json
 from .transaction import TxnError
 
@@ -101,11 +101,41 @@ def run(wiki) -> dict:
             if entry.startswith("run_"):
                 add("warn", "staging_leftover", "staging run %s still present" % entry,
                     "inspect then delete .state/staging/%s (failed or abandoned run)" % entry)
+    # --- transaction atomicity leftovers (R10) ------------------------------
+    state_dir = wiki.p(".state")
+    if os.path.isdir(state_dir):
+        if os.path.isfile(os.path.join(state_dir, "journal.json")):
+            add("error", "transaction_journal_leftover",
+                "interrupted transaction left .state/journal.json",
+                "restore affected files from the newest .state/.backup-<rev>/ dir, "
+                "then delete the journal")
+        for entry in sorted(os.listdir(state_dir)):
+            if entry.startswith(".backup-") and os.path.isdir(os.path.join(state_dir, entry)):
+                add("warn", "stale_transaction_backup",
+                    "transaction backup dir .state/%s still present" % entry,
+                    "verify the corresponding commit landed, then delete .state/%s" % entry)
 
     # --- static: stale derived artifacts -----------------------------------
     for artifact in deps.stale_artifacts(wiki):
         add("warn", "stale_dependency", "derived artifact %s is stale" % artifact,
             "rebuild via wiki-compile / build-pages")
+
+    # --- unregistered derived pages (R10) -----------------------------------
+    edges = deps.graph(wiki).get("edges", {})
+    for sub in ("sources", "concepts", "entities", "procedures", "questions",
+                "decisions", "changes"):
+        subdir = wiki.p("wiki", sub)
+        if not os.path.isdir(subdir):
+            continue
+        for name in sorted(os.listdir(subdir)):
+            if not name.endswith(".md"):
+                continue
+            rel = "wiki/%s/%s" % (sub, name)
+            if rel not in edges:
+                add("warn", "unregistered_page",
+                    "derived page %s has no dependency registration" % rel,
+                    "rebuild via build-pages (script-owned) or re-write via "
+                    "write-page (agent-authored)")
 
     # --- semantic debt (PRD §24) -------------------------------------------
     for c in claims.list_claims(wiki):
@@ -126,11 +156,55 @@ def run(wiki) -> dict:
         if c["status"] == "disputed":
             add("warn", "unresolved_contradiction",
                 "claim %s is disputed" % c["id"], "resolve via wiki-review")
+        if not c.get("evidence"):
+            add("warn", "orphan_claim",
+                "claim %s (%s) has no evidence" % (c["id"], c.get("subject", "-")),
+                "add evidence via wiki-ingest/compile, or reject via wiki-review")
 
-    for item in wiki.read_jsonl(".state/review-queue.jsonl"):
+    for item in _queue_items(wiki):
         if item.get("status") == "open" and item.get("kind") == "possible_contradiction":
             add("warn", "unresolved_contradiction",
                 "open review item: %s" % item["problem"], "resolve via wiki-review")
+
+    # --- review queue hygiene (R10) -----------------------------------------
+    known_review_ids = set(claim_ids)
+    known_review_ids.update(d["id"] for d in claims.list_decisions(wiki))
+    queue_path = wiki.p(review.QUEUE)
+    if os.path.isfile(queue_path):
+        with open(queue_path, encoding="utf-8") as f:
+            for lineno, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    item = json.loads(line)
+                except ValueError:
+                    add("error", "malformed_review_item",
+                        "review-queue line %d is not valid JSON" % lineno,
+                        "repair or remove .state/review-queue.jsonl line %d "
+                        "(queue is transaction-owned; restore from backup)" % lineno)
+                    continue
+                missing = [k for k in ("id", "created_at", "kind", "status",
+                                       "problem", "affected", "risk")
+                           if k not in item]
+                if missing:
+                    add("error", "malformed_review_item",
+                        "review item %s missing fields: %s"
+                        % (item.get("id", "?"), ", ".join(missing)),
+                        "restore .state/review-queue.jsonl from backup")
+                    continue
+                for aid in item.get("affected") or []:
+                    if aid not in known_review_ids:
+                        add("warn", "broken_reference",
+                            "review item %s affected id %s no longer exists"
+                            % (item["id"], aid),
+                            "update or resolve the review item via wiki-review")
+                if item.get("status") == "deferred" and review.age_days(
+                        item.get("deferred_at")) > 7:
+                    add("warn", "deferred_aging",
+                        "review item %s deferred for %d days"
+                        % (item["id"], review.age_days(item.get("deferred_at"))),
+                        "reopen or resolve via wiki-review (defer/reopen)")
 
     # low extraction coverage on text-like sources
     if os.path.isdir(wiki.p("sources")):
@@ -146,6 +220,7 @@ def run(wiki) -> dict:
                     "source %s text was not extracted" % sid,
                     "ingest with a document parser for semantic extraction")
 
+
     severity_rank = {"error": 0, "warn": 1, "info": 2}
     findings.sort(key=lambda f: (severity_rank[f["severity"]], f["code"]))
     ok = not any(f["severity"] == "error" for f in findings)
@@ -160,3 +235,21 @@ def _source_cited(wiki, sid: str) -> bool:
             if ev.get("source_id") == sid:
                 return True
     return False
+
+def _queue_items(wiki) -> list:
+    """Parsed review items, skipping unparseable lines (flagged separately)."""
+    out = []
+    path = wiki.p(review.QUEUE)
+    if not os.path.isfile(path):
+        return out
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                out.append(json.loads(line))
+            except ValueError:
+                continue
+    return out
+

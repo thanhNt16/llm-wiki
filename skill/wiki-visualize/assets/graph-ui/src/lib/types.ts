@@ -17,14 +17,42 @@ export interface GraphNode {
   status?: NodeStatus;
   in_calls?: number;
   /* wiki-graph fork: knowledge payload */
-  wtype?: "ticket" | "domain" | "agent" | "migration" | "qa" | "source" | "decision";
+  wtype?: "ticket" | "domain" | "agent" | "migration" | "qa" | "source" | "decision"
+    | "page_concept" | "page_entity" | "page_procedure" | "page_question"
+    | "page_source" | "page_change";
   summary?: { p: string; v: unknown }[];
   claims?: WikiClaim[];
   sources?: string[];
   claim_count?: number;
+  flags?: NodeFlags;
+  review?: ClaimReviewItem[];
   title?: string;
   origin?: string;
 }
+
+/* Review/audit annotations from graphdata.py — absent in older payloads. */
+export interface NodeFlags {
+  review_open?: boolean;
+  disputed?: boolean;
+  superseded?: boolean;
+  stale?: boolean;
+  orphan?: boolean;
+}
+
+export interface ClaimReviewItem {
+  id: string;
+  kind: string;
+  risk: string;
+  affected: string[];
+  status: string;
+}
+
+export interface ReviewCounts {
+  open: number;
+  deferred: number;
+  total: number;
+}
+
 
 export interface WikiClaim {
   id: string;
@@ -35,6 +63,8 @@ export interface WikiClaim {
   vf?: string | null;
   vt?: string | null;
   st?: string;
+  sup?: string[];       // supersedes (ids this claim replaced)
+  sup_by?: string | null; // superseded_by
   auth?: string;
   src?: string;
   loc?: string | null;
@@ -93,6 +123,7 @@ export interface GraphData {
     source_count: number;
     decision_count?: number;
     generated_at?: string;
+    review?: ReviewCounts;
   };
 }
 

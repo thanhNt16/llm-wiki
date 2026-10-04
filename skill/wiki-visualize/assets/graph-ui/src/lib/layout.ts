@@ -12,11 +12,19 @@ import {
   forceZ,
   type SimulationNodeDatum,
 } from "d3-force-3d";
-import type { GraphData, GraphEdge, GraphNode, WikiClaim } from "./types";
+import type {
+  ClaimReviewItem,
+  GraphData,
+  GraphEdge,
+  GraphNode,
+  NodeFlags,
+  ReviewCounts,
+  WikiClaim,
+} from "./types";
 
 export interface WikiPayloadNode {
   id: number;
-  kind: "entity" | "source" | "decision";
+  kind: "entity" | "source" | "decision" | "page";
   key: string;
   label: string;
   wtype?: string;
@@ -27,6 +35,8 @@ export interface WikiPayloadNode {
   sources?: string[];
   title?: string;
   origin?: string;
+  flags?: NodeFlags;
+  review?: ClaimReviewItem[];
 }
 
 export interface WikiPayloadLink {
@@ -44,6 +54,7 @@ export interface WikiPayload {
   source_count: number;
   decision_count?: number;
   generated_at?: string;
+  meta?: { review?: ReviewCounts; generated_at?: string };
   warnings?: string[];
 }
 
@@ -55,6 +66,12 @@ const TYPE_COLORS: Record<string, string> = {
   qa: "#f472b6",
   source: "#475569",
   decision: "#fbbf24",
+  page_concept: "#34d399",
+  page_entity: "#c084fc",
+  page_procedure: "#fb923c",
+  page_question: "#38bdf8",
+  page_source: "#94a3b8",
+  page_change: "#f87171",
 };
 
 /* label (filter/color category) per wiki type — matches upstream gen-graph */
@@ -66,6 +83,12 @@ const LABEL: Record<string, string> = {
   qa: "QA",
   source: "Doc",
   decision: "Decision",
+  page_concept: "Page·Concept",
+  page_entity: "Page·Entity",
+  page_procedure: "Page·Procedure",
+  page_question: "Page·Question",
+  page_source: "Page·Source",
+  page_change: "Page·Change",
 };
 
 const STATUS: Record<string, GraphNode["status"]> = {
@@ -76,6 +99,12 @@ const STATUS: Record<string, GraphNode["status"]> = {
   qa: "test",
   source: "structural",
   decision: "entry",
+  page_concept: "structural",
+  page_entity: "structural",
+  page_procedure: "structural",
+  page_question: "structural",
+  page_source: "structural",
+  page_change: "structural",
 };
 
 /* Engine emits full claim dicts; the detail panel consumes the compact
@@ -95,6 +124,8 @@ function slimClaim(c: Record<string, unknown>): WikiClaim {
     vf: (c.valid_from as string | null) ?? null,
     vt: (c.valid_to as string | null) ?? null,
     st: c.status as string | undefined,
+    sup: (c.supersedes as string[] | undefined) ?? undefined,
+    sup_by: (c.superseded_by as string | null | undefined) ?? undefined,
     auth: auth.type,
     src: auth.source,
     loc: ev[0]?.locator?.value ?? null,
@@ -104,6 +135,7 @@ function slimClaim(c: Record<string, unknown>): WikiClaim {
 function filePathFor(n: WikiPayloadNode): string {
   if (n.kind === "source") return `sources/${n.title ?? n.key}`;
   if (n.kind === "decision") return `decisions/${n.key}`;
+  if (n.kind === "page") return n.key.replace(/\.md$/, "");
   /* entity keys look like "ptt.pm97" — strip the first segment so the
    * sidebar groups by module; "entities/" is a virtual root because the
    * sidebar renders only directory children, never root-level leaves. */
@@ -130,6 +162,8 @@ export function payloadToGraphData(payload: WikiPayload): GraphData {
       sources: n.sources,
       title: n.title,
       origin: n.origin,
+      flags: n.flags,
+      review: n.review,
       x: 0,
       y: 0,
       z: 0,
@@ -151,7 +185,8 @@ export function payloadToGraphData(payload: WikiPayload): GraphData {
       claim_count: payload.claim_count,
       source_count: payload.source_count,
       decision_count: payload.decision_count ?? 0,
-      generated_at: payload.generated_at,
+      generated_at: payload.meta?.generated_at ?? payload.generated_at,
+      review: payload.meta?.review,
     },
   };
 }
@@ -183,8 +218,9 @@ export function computeLayout(data: GraphData): GraphData {
   return { ...data, nodes };
 }
 
-/* Shared loader: fetch + map + layout once, cache the promise. Refresh by
- * reloading the page (data file changes between runs, not during a session). */
+/* Shared loader: fetch + map + layout once, cache the promise. Refresh with
+ * refreshWikiData() (clears the cache, refetches; project selection is
+ * app-level state and survives the reload). */
 let cache: Promise<GraphData> | null = null;
 
 export function loadWikiData(): Promise<GraphData> {
@@ -205,4 +241,10 @@ export function loadWikiData(): Promise<GraphData> {
       });
   }
   return cache;
+}
+
+/* Clear the payload cache and refetch graph-data.json. */
+export function refreshWikiData(): Promise<GraphData> {
+  cache = null;
+  return loadWikiData();
 }

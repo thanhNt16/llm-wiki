@@ -1,14 +1,16 @@
 ---
 name: wiki-visualize
-description: Use when asked to visualize, explore, or render the llm-wiki knowledge graph in a browser — entities, sources, decisions and claim detail — or when the user says wiki-visualize.
+description: Use when asked to visualize, explore, or render the llm-wiki knowledge graph in a browser — entities, sources, decisions, authored page nodes (concepts/entities/procedures/questions/changes/sources, colored by page type) and claim detail — or when the user says wiki-visualize.
 ---
 
 # wiki-visualize — knowledge-graph explorer
 
 Renders `.llm-wiki` as an interactive 3D force graph (React + Three.js,
-forked from codebase-memory's UI): entity/source/decision nodes, evidence /
-contains / mentions / decision edges, claim detail panel, label + edge
-filters, stats overview.
+forked from codebase-memory's UI): entity/source/decision nodes plus authored
+wiki-page nodes (concepts/entities/procedures/questions/changes/sources,
+colored per page type), evidence / contains / mentions / decision /
+documents / depends_on edges, claim detail panel, label + edge filters,
+stats overview.
 
 ## Prerequisites
 

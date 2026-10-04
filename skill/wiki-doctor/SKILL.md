@@ -20,11 +20,27 @@ python3 "$WIKI" doctor
 ```
 
 Findings have `severity` (error/warn/info), `code`, `detail`, `fix`.
+Categories:
 
-- Fix errors first — usually broken references from out-of-band edits.
+- Schema validity of canonical claim/decision files; broken references
+  (evidence source ids, supersedes chains, decision claim lists).
+- Derived-dependency integrity: every registered dep must be a current
+  claim, decision, or registered `wiki/` artifact; malformed or stale
+  versions and unknown namespaces are reported, as are edges pointing at
+  missing artifacts (orphan edges) and dependency cycles.
+- Page integrity: frontmatter `subject` vs artifact slug mismatches,
+  subjects colliding on the same `(kind, slug)`, pages depending on
+  disputed claims without the required labeling, duplicate `page-targets`
+  artifacts, and ambiguous `page-kinds.json` routing (shadowed rules).
+- Interrupted commits: operation receipts disagreeing with canonical files.
+  Recommend recovery — never auto-delete canonical data.
 - `staging_leftover` entries can be deleted after inspection.
-- Report unresolved semantic debt (unsupported claims, contradictions) to the
-  user — do not auto-resolve.
+- Semantic debt: unsupported claims, disputed claims, unresolved
+  contradictions, stale derived artifacts, stale or dangling context packs,
+  low extraction coverage. Report to the user — do not auto-resolve.
+
+Fix errors first — usually broken references from out-of-band edits. Report
+unresolved semantic debt to the user.
 
 ## Hard rules
 

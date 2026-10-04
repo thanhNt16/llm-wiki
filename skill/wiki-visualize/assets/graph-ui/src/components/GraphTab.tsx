@@ -14,7 +14,7 @@ import {
   type CameraTarget,
 } from "./GraphScene";
 import { Sidebar } from "./Sidebar";
-import { FilterPanel } from "./FilterPanel";
+import { FilterPanel, FLAG_FILTERS } from "./FilterPanel";
 import { NodeDetailPanel } from "./NodeDetailPanel";
 import { ResizeHandle } from "./ResizeHandle";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -33,6 +33,13 @@ function saveWidth(key: string, value: number) {
 
 interface GraphTabProps {
   project: string | null;
+}
+
+/* Checked flag filters are constraints (node must carry the flag), ANDed
+ * with the label filter. */
+function flagHolds(n: GraphNode, filter: string): boolean {
+  const def = FLAG_FILTERS.find((f) => f.filter === filter);
+  return def ? !!n.flags?.[def.flag] : true;
 }
 
 export function GraphTab({ project }: GraphTabProps) {
@@ -55,16 +62,22 @@ export function GraphTab({ project }: GraphTabProps) {
 
   const [enabledLabels, setEnabledLabels] = useState<Set<string>>(new Set());
   const [enabledEdgeTypes, setEnabledEdgeTypes] = useState<Set<string>>(new Set());
+  const [enabledFlags, setEnabledFlags] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!data) return;
     setEnabledLabels(new Set(data.nodes.map((n) => n.label)));
     setEnabledEdgeTypes(new Set(data.edges.map((e) => e.type)));
+    setEnabledFlags(new Set());
   }, [data]);
 
   const filteredData: GraphData | null = useMemo(() => {
     if (!data) return null;
-    const nodes = data.nodes.filter((n) => enabledLabels.has(n.label));
+    const nodes = data.nodes.filter(
+      (n) =>
+        enabledLabels.has(n.label) &&
+        [...enabledFlags].every((f) => flagHolds(n, f)),
+    );
     const nodeIds = new Set(nodes.map((n) => n.id));
     const edges = data.edges.filter(
       (e) =>
@@ -73,7 +86,7 @@ export function GraphTab({ project }: GraphTabProps) {
         nodeIds.has(e.target),
     );
     return { nodes, edges, total_nodes: data.total_nodes };
-  }, [data, enabledLabels, enabledEdgeTypes]);
+  }, [data, enabledLabels, enabledEdgeTypes, enabledFlags]);
 
   useEffect(() => {
     /* Data is project-scoped at generation time — fetch always. */
@@ -176,10 +189,19 @@ export function GraphTab({ project }: GraphTabProps) {
     if (!data) return;
     setEnabledLabels(new Set(data.nodes.map((n) => n.label)));
     setEnabledEdgeTypes(new Set(data.edges.map((e) => e.type)));
+    setEnabledFlags(new Set());
   }, [data]);
   const disableAll = useCallback(() => {
     setEnabledLabels(new Set());
     setEnabledEdgeTypes(new Set());
+    setEnabledFlags(new Set());
+  }, []);
+  const toggleFlag = useCallback((flag: string) => {
+    setEnabledFlags((prev) => {
+      const next = new Set(prev);
+      if (next.has(flag)) next.delete(flag); else next.add(flag);
+      return next;
+    });
   }, []);
 
   if (loading) {
@@ -220,9 +242,11 @@ export function GraphTab({ project }: GraphTabProps) {
           data={data}
           enabledLabels={enabledLabels}
           enabledEdgeTypes={enabledEdgeTypes}
+          enabledFlags={enabledFlags}
           showLabels={showLabels}
           onToggleLabel={toggleLabel}
           onToggleEdgeType={toggleEdgeType}
+          onToggleFlag={toggleFlag}
           onToggleShowLabels={() => setShowLabels((v) => !v)}
           onEnableAll={enableAll}
           onDisableAll={disableAll}
