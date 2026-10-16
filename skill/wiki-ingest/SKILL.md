@@ -39,7 +39,18 @@ Route every input through this table:
 ## Vision lane (images)
 
 1. View the image with your vision-capable read tool.
-2. Write a description file containing a summary, verbatim text transcription, diagram/flow semantics, and notable details or confidence caveats.
+2. Write a description file. Beyond the summary, tailor it to the image:
+   - **Screenshot/UI** — visible text verbatim, UI state, what action or
+     system it depicts.
+   - **Architecture/flow diagram** — node names AND the edges/relations
+     between them (relations are where claims come from; "A feeds B" is a
+     claimable fact, "boxes on a canvas" is not).
+   - **Chart/table** — axes, units, the actual values and the conclusion
+     they support.
+   - **Photo/document scan** — transcription first, context second.
+   Always: verbatim text, named entities/products verbatim (they become
+   claim subjects and topic-map rows at compile), diagram semantics, and
+   confidence caveats for anything illegible or inferred.
 3. Ingest it:
 
 ```bash

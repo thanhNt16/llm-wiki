@@ -83,3 +83,8 @@ failure is the cardinal sin here:
 
 Coverage vocabulary: `complete partial preserved not_extracted skipped`.
 If a section was unreadable, say `partial` and add a warning naming it.
+
+For image sources (`parser.name: agent-vision`), the description file IS the
+text — extract claims from it the same way; mark `images: "interpreted"`
+only when the description actually captured diagram semantics, otherwise
+`"preserved"` with a warning.
