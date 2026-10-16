@@ -176,7 +176,9 @@ def create_decision(wiki, data: dict) -> dict:
         if c.get("status") in TERMINAL:
             raise TxnError("claim %s is %s; cannot support a decision" % (cid, c["status"]))
     from . import sources as sources_mod
-    for ev in data.get("evidence") or []:
+    for i, ev in enumerate(data.get("evidence") or []):
+        if not isinstance(ev, dict):
+            raise TxnError("evidence[%d] must be a JSON object" % i)
         sid = ev.get("source_id", "")
         if sources_mod.get_manifest(wiki, sid) is None:
             raise TxnError("unknown source: %s" % sid)

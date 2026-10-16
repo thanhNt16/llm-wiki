@@ -429,6 +429,39 @@ class TestRecordDecision(unittest.TestCase):
                 "status": "accepted", "decided_on": "2026-10-01",
                 "claims": [], "evidence": []})
 
+    def test_record_decision_rejects_terminal_claim(self):
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "adr", b"use postgres")
+        cid = self._accepted_claim(wiki, r)
+        c = claims.load_claim(wiki, cid)
+        c["status"] = "rejected"
+        c["acceptance"] = {"reason": "human_review"}
+        _commit(wiki, lambda t: claims.save_claim(t, c))
+        with self.assertRaises(TxnError) as cm:
+            claims.create_decision(wiki, {
+                "title": "X", "status": "accepted", "decided_on": "2026-10-01",
+                "claims": [cid], "evidence": []})
+        self.assertIn("rejected", str(cm.exception))
+
+    def test_record_decision_rejects_unknown_source(self):
+        wiki = fresh()
+        with self.assertRaises(TxnError) as cm:
+            claims.create_decision(wiki, {
+                "title": "X", "status": "accepted", "decided_on": "2026-10-01",
+                "claims": [],
+                "evidence": [{"source_id": "src_0000000000000000000000000A",
+                              "source_version": 1,
+                              "locator": {"type": "heading", "value": "H"}}]})
+        self.assertIn("unknown source", str(cm.exception))
+
+    def test_record_decision_rejects_non_dict_evidence(self):
+        wiki = fresh()
+        with self.assertRaises(TxnError) as cm:
+            claims.create_decision(wiki, {
+                "title": "X", "status": "accepted", "decided_on": "2026-10-01",
+                "claims": [], "evidence": ["not-a-dict"]})
+        self.assertIn("evidence[0]", str(cm.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

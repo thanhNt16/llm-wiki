@@ -248,7 +248,7 @@ def _default_validator(txn: Transaction) -> None:
 
 
 def _check_object(rel: str, data) -> None:
-    """Schema-enforce canonically-named files only (claims/claim_*, decisions/decision_*)."""
+    """Schema-enforce canonically-named files only (claims/claim_*, decisions/decision_*, topics.json)."""
     base = os.path.basename(rel)
     schema_file = None
     if rel.startswith("claims/") and base.startswith("claim_"):
