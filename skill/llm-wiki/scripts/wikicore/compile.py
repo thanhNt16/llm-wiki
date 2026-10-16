@@ -10,6 +10,7 @@ import os
 
 from . import claims, deps, ids
 from .transaction import Transaction, TxnError
+from .text import slugify
 
 RELATIONSHIPS = (
     "CORRECTION", "POLICY_CHANGE", "SCOPE_DIFFERENCE", "CONTRADICTION",
@@ -229,7 +230,8 @@ def json_key(obj) -> str:
     return json.dumps(obj, sort_keys=True, ensure_ascii=False)
 
 
-def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int) -> dict:
+def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int,
+                    topics_rows=None, declared_by=None) -> dict:
     rundir = _run_dir(wiki, run_id)
     payload = _load_json(os.path.join(rundir, "compile.json"))
     candidates = payload["candidates"]
@@ -259,6 +261,21 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
         auto_counts[verdict.lower()] += 1
 
     txn = Transaction(wiki, "wiki-compile")
+
+    from . import topics as topics_mod
+
+    topic_out = {"declared": 0, "registered": 0, "auto_registered": [],
+                 "kind_conflicts": [], "decision_topics": [], "warnings": []}
+    if declared_by:
+        if topics_rows:
+            topic_out.update(topics_mod.merge_rows(txn, topics_rows, declared_by))
+        topics_mod.ensure_source_topic(
+            txn, "source.%s" % (slugify(str(
+                declared_by.get("title") or source_id)) or "source"),
+            str(declared_by.get("title") or source_id), declared_by)
+        topic_out["decision_topics"] = sorted(
+            str(r["subject"]).strip() for r in (topics_rows or [])
+            if topics_mod._norm_kind(r["kind"]) == "decision")
     changes = {"claims_created": 0, "claims_updated": 0, "claims_superseded": 0,
                "review_items": 0}
     conflicts = []
@@ -338,6 +355,19 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
             conflicts.append(rid)
             deps.invalidate(wiki, [new_claim["id"]], txn=txn)
 
+    if declared_by:
+        declared_subjects = {str(r["subject"]).strip() for r in (topics_rows or [])}
+        undeclared = sorted({c["subject"].strip() for c in candidates} - declared_subjects)
+        reg = topics_mod.load(wiki)
+        reg.setdefault("topics", {})
+        overlay = txn._state_overlay.get("topics.json", reg)
+        undeclared = [s for s in undeclared if s not in overlay["topics"]]
+        if undeclared:
+            topic_out.update(topics_mod.auto_register(txn, undeclared, declared_by))
+            for s in undeclared:
+                topic_out["warnings"].append(
+                    "subject %r not declared in topics.jsonl; auto-registered as concept" % s)
+
     # persist extraction for this version and mark it compiled
     extraction = {
         "source_version": source_version,
@@ -357,6 +387,7 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
     txn.changes = changes
     txn.conflicts = conflicts
     receipt = txn.commit(base_revision)
+    receipt["topics"] = topic_out
     receipt["auto"] = auto_counts
     # staging compile.json is consumed
     compile_leftover = os.path.join(rundir, "compile.json")
@@ -394,7 +425,7 @@ def _staging_state(wiki, run_id):
 def compile_umbrella(wiki, resume=False):
     """Spec §1: 3-phase state machine over staging dirs (extract -> classify
     -> apply), resumable across CLI invocations."""
-    from . import pages as pages_mod, sources as sources_mod
+    from . import pages as pages_mod, sources as sources_mod, topics as topics_mod
     from .shorthand import normalize_candidate, parse_candidates_file
 
     if not resume:
@@ -431,6 +462,7 @@ def compile_umbrella(wiki, resume=False):
             meta = {
                 "source_id": sid, "source_version": ver, "run_id": run_id,
                 "content_path": wiki.p(*rel.split("/")),
+                "topics_path": os.path.join(d, "topics.jsonl"),
                 "candidates_path": os.path.join(d, "candidates.jsonl"),
                 "classifications_path": os.path.join(d, "classifications.json"),
             }
@@ -445,8 +477,21 @@ def compile_umbrella(wiki, resume=False):
     applied = []
     auto_totals = {"unrelated": 0, "duplicate": 0, "corroboration": 0}
 
-    def _apply(run_id, classifications):
-        receipt = reconcile_apply(wiki, run_id, classifications, wiki.revision())
+    def _apply(run_id, classifications, topics_rows=None, topics_missing=False):
+        meta2 = _load_json(os.path.join(
+            wiki.p(".state", "staging", run_id), "pending.json"))
+        manifest = sources_mod.get_manifest(wiki, meta2["source_id"]) or {}
+        declared_by = {"source_id": meta2["source_id"],
+                       "version": meta2["source_version"],
+                       "title": manifest.get("title") or meta2["source_id"]}
+        receipt = reconcile_apply(wiki, run_id, classifications,
+                                  wiki.revision(),
+                                  topics_rows=topics_rows,
+                                  declared_by=declared_by)
+        if topics_missing:
+            receipt.setdefault("topics", {}).setdefault("warnings", []).append(
+                "no_topics_declared (%s)" % run_id)
+        receipt["topics"]["unclaimed"] = topics_mod.unclaimed(wiki)
         with open(os.path.join(wiki.p(".state", "staging", run_id),
                                "receipt.json"), "w") as f:
             json.dump(receipt, f, indent=2, ensure_ascii=False)
@@ -464,6 +509,14 @@ def compile_umbrella(wiki, resume=False):
         cand_p = meta["candidates_path"]
         compile_p = os.path.join(d, "compile.json")
         state = _staging_state(wiki, run_id)
+
+        topics_p = os.path.join(d, "topics.jsonl")
+        topics_rows = None
+        topics_missing = False
+        if os.path.isfile(topics_p):
+            topics_rows, _declared = topics_mod.parse_topics_file(topics_p)
+        else:
+            topics_missing = True
 
         if state == "prepared" and not os.path.isfile(compile_p):
             # applied (classified or all-auto) on an earlier resume — replay
@@ -484,7 +537,7 @@ def compile_umbrella(wiki, resume=False):
                                if cls_p.endswith(".jsonl") else _load_json(cls_p))
             if isinstance(classifications, dict):
                 classifications = classifications.get("classifications", [])
-            _apply(run_id, classifications)
+            _apply(run_id, classifications, topics_rows, topics_missing)
             continue
 
         if state not in ("staged", "prepared"):
@@ -520,7 +573,7 @@ def compile_umbrella(wiki, resume=False):
         needs_review_rows.extend(rows)
         if not rows:
             # all auto — apply immediately with empty classifications
-            _apply(run_id, [])
+            _apply(run_id, [], topics_rows, topics_missing)
 
     if needs_review_rows:
         return {"phase": "classify", "needs_classifications": True,
@@ -537,10 +590,23 @@ def compile_umbrella(wiki, resume=False):
             for k in total:
                 total[k] += r.get("changes", {}).get(k, 0)
             conflicts.extend(r.get("conflicts", []))
+        topics_total = {"declared": 0, "registered": 0, "auto_registered": [],
+                        "kind_conflicts": [], "decision_topics": [],
+                        "unclaimed": [], "warnings": []}
+        for r in applied:
+            t = r.get("topics") or {}
+            topics_total["declared"] += t.get("declared", 0)
+            topics_total["registered"] += t.get("registered", 0)
+            for k in ("auto_registered", "kind_conflicts", "decision_topics",
+                      "unclaimed", "warnings"):
+                for v in t.get(k) or []:
+                    if v not in topics_total[k]:
+                        topics_total[k].append(v)
         return {"phase": "done", "needs_classifications": False,
                 "needs_review": needs_review_rows,
                 "auto": auto_totals, "changes": total,
                 "conflicts": conflicts, "verify": verify,
+                "topics": topics_total,
                 "receipts": applied}
 
     return {"phase": "waiting", "needs_classifications": False,

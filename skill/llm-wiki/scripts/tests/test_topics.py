@@ -3,6 +3,7 @@ import json, os, sys, tempfile, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from wikicore import claims, sources, topics
+from wikicore import compile as wc_compile
 from wikicore.store import Wiki, init_wiki
 from wikicore.transaction import Transaction, TxnError
 
@@ -123,6 +124,87 @@ class TestRegistryFile(unittest.TestCase):
         self.assertIn("lake.s3", reg["topics"])
         self.assertEqual(reg["topics"]["lake.s3"]["declared_by"],
                          [{"source_id": "src_a", "version": 1}])
+
+
+class TestCompileTopics(unittest.TestCase):
+    def _run_umbrella(self, wiki, topics_rows=None, cands=None):
+        """Full umbrella: compile -> write files -> resume."""
+        r = sources.ingest(wiki, "text", "doc-t", b"# Doc\nS3 is object storage.")
+        plan = wc_compile.compile_umbrella(wiki)
+        meta = plan["pending"][0]
+        if topics_rows is not None:
+            with open(meta["topics_path"], "w") as f:
+                for row in topics_rows:
+                    f.write(json.dumps(row) + "\n")
+        with open(meta["candidates_path"], "w") as f:
+            for c in (cands or []):
+                f.write(json.dumps(c) + "\n")
+        res = wc_compile.compile_umbrella(wiki, resume=True)
+        while res["phase"] == "classify":
+            cls = [{"index": row["index"], "relationship": "CONTRADICTION",
+                    "target_claim_id": None, "authority": {"type": "authoritative_source"}}
+                   for row in res["needs_review"]]
+            with open(meta["classifications_path"], "w") as f:
+                json.dump(cls, f)
+            res = wc_compile.compile_umbrella(wiki, resume=True)
+        return r, res
+
+    def test_pending_entry_has_topics_path(self):
+        wiki = fresh()
+        sources.ingest(wiki, "text", "doc-t", b"hello")
+        plan = wc_compile.compile_umbrella(wiki)
+        self.assertIn("topics_path", plan["pending"][0])
+        self.assertTrue(plan["pending"][0]["topics_path"].endswith("topics.jsonl"))
+
+    def test_declared_topics_registered_and_in_receipt(self):
+        wiki = fresh()
+        cand = {"subject": "lake.s3", "predicate": "type", "value": "object store",
+                "locator": "h:Doc", "authority": "doc"}
+        _, res = self._run_umbrella(wiki,
+            topics_rows=[{"subject": "lake.s3", "kind": "entity", "title": "S3"}],
+            cands=[cand])
+        t = topics.get(wiki, "lake.s3")
+        self.assertEqual(t["kind"], "entity")
+        self.assertEqual(res["topics"]["registered"], 1)
+
+    def test_source_topic_auto_registered(self):
+        wiki = fresh()
+        _, res = self._run_umbrella(wiki, topics_rows=[], cands=[])
+        reg = topics.load(wiki)["topics"]
+        self.assertTrue(any(e["kind"] == "source" for e in reg.values()))
+
+    def test_undeclared_subject_auto_registered_with_warning(self):
+        wiki = fresh()
+        cand = {"subject": "misc.thing", "predicate": "p", "value": 1,
+                "locator": "h:Doc", "authority": "doc"}
+        _, res = self._run_umbrella(wiki, topics_rows=[], cands=[cand])
+        e = topics.get(wiki, "misc.thing")
+        self.assertTrue(e["auto_registered"])
+        self.assertIn("misc.thing", res["topics"]["auto_registered"])
+
+    def test_missing_topics_file_warns_not_fails(self):
+        wiki = fresh()
+        cand = {"subject": "x.y", "predicate": "p", "value": 1,
+                "locator": "h:Doc", "authority": "doc"}
+        _, res = self._run_umbrella(wiki, topics_rows=None, cands=[cand])
+        self.assertEqual(res["phase"], "done")
+        self.assertTrue(any("no_topics_declared" in w
+                            for w in res["topics"]["warnings"]))
+
+    def test_unclaimed_topic_listed(self):
+        wiki = fresh()
+        _, res = self._run_umbrella(wiki,
+            topics_rows=[{"subject": "lake.presto", "kind": "entity", "title": "P"}],
+            cands=[])
+        self.assertIn("lake.presto", res["topics"]["unclaimed"])
+
+    def test_decision_topic_in_receipt_not_page(self):
+        wiki = fresh()
+        _, res = self._run_umbrella(wiki,
+            topics_rows=[{"subject": "policy.pg", "kind": "decision", "title": "PG"}],
+            cands=[])
+        self.assertIn("policy.pg", res["topics"]["decision_topics"])
+        self.assertEqual(topics.get(wiki, "policy.pg")["kind"], "decision")
 
 
 if __name__ == "__main__":
