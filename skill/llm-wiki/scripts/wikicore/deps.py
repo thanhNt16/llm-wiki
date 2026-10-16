@@ -99,3 +99,15 @@ def clear_stale(txn: Transaction, artifacts: list) -> None:
         data["stale"] = [a for a in data.get("stale", []) if a not in artifacts]
 
     txn.stage_state(DEPS_FILE, _upd)
+
+
+def mark_stale(txn: Transaction, artifacts: list) -> None:
+    """Mark specific derived artifacts stale without dependency lookup."""
+    if not artifacts:
+        return
+    def _upd(data):
+        stale = data.setdefault("stale", [])
+        for a in artifacts:
+            if a not in stale:
+                stale.append(a)
+    txn.stage_state(DEPS_FILE, _upd)

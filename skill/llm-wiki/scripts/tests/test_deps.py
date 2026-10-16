@@ -74,6 +74,13 @@ class TestDeps(unittest.TestCase):
         txn.commit(wiki.revision())
         self.assertEqual(deps.graph(wiki)["edges"]["wiki/a.md"], ["claim_01JABC@1"])
 
+    def test_mark_stale_adds_artifacts(self):
+        wiki = fresh()
+        txn = Transaction(wiki, "test")
+        deps.mark_stale(txn, ["wiki/concepts/old-dir.md"])
+        txn.commit(wiki.revision())
+        self.assertTrue(deps.is_stale(wiki, "wiki/concepts/old-dir.md"))
+
 
 if __name__ == "__main__":
     unittest.main()
