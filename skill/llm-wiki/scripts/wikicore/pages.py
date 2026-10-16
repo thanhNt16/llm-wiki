@@ -352,9 +352,10 @@ def build_pages(wiki, base_revision: int) -> dict:
                 t["subject"], t["kind"], t["claim_count"],
                 t["distinct_origins"], link, link, status))
         for w in waiting:
-            overview.append("| %s | - | %d | %d | - | below threshold |" % (
+            overview.append("| %s | - | %d | %d | - | %s |" % (
                 w.get("subject", "-"), w.get("claim_count", 0),
-                w.get("distinct_origins", 0)))
+                w.get("distinct_origins", 0),
+                w.get("reason", "below_threshold").replace("_", " ")))
     else:
         overview.append("No synthesis targets.")
     front = {"type": "overview", "generated": _now(), "deps": []}

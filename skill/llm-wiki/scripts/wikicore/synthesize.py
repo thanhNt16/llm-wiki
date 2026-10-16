@@ -218,6 +218,20 @@ def page_targets(wiki, kind: Optional[str] = None, stale_only: bool = False,
             "claim_details": [_detail(c) for c in cs],
         })
 
+    # resolved declared topics with no eligible claims still surface as
+    # waiting rows so the agent can see them pending
+    for subject in sorted(topic_map):
+        e = topic_map[subject]
+        if (subject not in groups
+                and e.get("status") == "resolved"
+                and topics.PAGE_DIR.get(e["kind"]) is not None):
+            waiting.append({
+                "subject": subject,
+                "claim_count": 0,
+                "distinct_origins": 0,
+                "reason": "declared_no_claims",
+            })
+
     # slug collisions: same (kind, slug) from distinct subjects — the first
     # subject (sorted order) keeps the base slug; the rest get a deterministic
     # "-<md5(subject)[:6]>" suffix (mirrored by write_page's slug check)

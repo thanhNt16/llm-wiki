@@ -315,6 +315,7 @@ class TestPageTargets(unittest.TestCase):
         self._claim(wiki, r, "misc.thing")  # auto-registered NOT applied here
         res = synthesize.page_targets(wiki)
         self.assertFalse(any(t["subject"] == "misc.thing" for t in res["targets"]))
+        self.assertTrue(any(w["subject"] == "misc.thing" for w in res["waiting"]))
 
     def test_conflict_subject_falls_back_to_rules(self):
         wiki = fresh()
@@ -327,6 +328,28 @@ class TestPageTargets(unittest.TestCase):
         res = synthesize.page_targets(wiki)
         self.assertFalse(any(t["subject"] == "lake.d" for t in res["targets"]))
         self.assertTrue(any(w["subject"] == "lake.d" for w in res["waiting"]))
+
+    def test_declared_decision_topic_never_targets(self):
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc", b"x")
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "policy.pg", "kind": "decision", "title": "PG"},
+        ], {"source_id": r["source_id"], "version": r["version"]}))
+        self._claim(wiki, r, "policy.pg")
+        res = synthesize.page_targets(wiki)
+        self.assertFalse(any(t["subject"] == "policy.pg" for t in res["targets"]))
+
+    def test_declared_topic_zero_claims_waiting(self):
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc", b"x")
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "lake.z", "kind": "entity", "title": "Z"},
+        ], {"source_id": r["source_id"], "version": r["version"]}))
+        res = synthesize.page_targets(wiki)
+        self.assertFalse(any(t["subject"] == "lake.z" for t in res["targets"]))
+        w = next((x for x in res["waiting"] if x["subject"] == "lake.z"), None)
+        self.assertIsNotNone(w, res["waiting"])
+        self.assertEqual(w["reason"], "declared_no_claims")
 
 if __name__ == "__main__":
     unittest.main()
