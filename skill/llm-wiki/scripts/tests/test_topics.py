@@ -338,6 +338,7 @@ class TestPageTargets(unittest.TestCase):
         self._claim(wiki, r, "policy.pg")
         res = synthesize.page_targets(wiki)
         self.assertFalse(any(t["subject"] == "policy.pg" for t in res["targets"]))
+        self.assertFalse(any(w["subject"] == "policy.pg" for w in res["waiting"]))
 
     def test_declared_topic_zero_claims_waiting(self):
         wiki = fresh()
@@ -350,6 +351,30 @@ class TestPageTargets(unittest.TestCase):
         w = next((x for x in res["waiting"] if x["subject"] == "lake.z"), None)
         self.assertIsNotNone(w, res["waiting"])
         self.assertEqual(w["reason"], "declared_no_claims")
+
+    def test_decision_topic_corroborated_still_no_target(self):
+        """Resolved decision topic + claims meeting old thresholds: no target."""
+        wiki = fresh()
+        ra = sources.ingest(wiki, "text", "doc-a", b"a")
+        rb = sources.ingest(wiki, "text", "doc-b", b"b")
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "policy.two", "kind": "decision", "title": "Two"},
+        ], {"source_id": ra["source_id"], "version": ra["version"]}))
+        self._claim(wiki, ra, "policy.two")
+        self._claim(wiki, rb, "policy.two")
+        res = synthesize.page_targets(wiki)
+        self.assertFalse(any(t["subject"] == "policy.two" for t in res["targets"]))
+        self.assertFalse(any(w["subject"] == "policy.two" for w in res["waiting"]))
+
+    def test_source_topic_no_declared_no_claims_row(self):
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc", b"x")
+        _commit(wiki, lambda t: topics.ensure_source_topic(
+            t, "source.doc", "doc",
+            {"source_id": r["source_id"], "version": r["version"]}))
+        res = synthesize.page_targets(wiki)
+        self.assertFalse(any(t["subject"] == "source.doc" for t in res["targets"]))
+        self.assertFalse(any(w["subject"] == "source.doc" for w in res["waiting"]))
 
 if __name__ == "__main__":
     unittest.main()

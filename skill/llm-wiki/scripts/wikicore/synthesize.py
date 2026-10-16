@@ -181,6 +181,9 @@ def page_targets(wiki, kind: Optional[str] = None, stale_only: bool = False,
         declared_kind = (topics.PAGE_DIR.get(tentry["kind"])
                          if tentry and tentry.get("status") == "resolved"
                          else None)
+        if (tentry and tentry.get("status") == "resolved"
+                and tentry["kind"] == "decision"):
+            continue  # decision topics never emit pages (receipts/census only)
         if declared_kind is not None:
             reason = "declared"
         elif n >= min_claims and origins >= min_sources:
@@ -224,6 +227,7 @@ def page_targets(wiki, kind: Optional[str] = None, stale_only: bool = False,
         e = topic_map[subject]
         if (subject not in groups
                 and e.get("status") == "resolved"
+                and e["kind"] != "source"
                 and topics.PAGE_DIR.get(e["kind"]) is not None):
             waiting.append({
                 "subject": subject,
