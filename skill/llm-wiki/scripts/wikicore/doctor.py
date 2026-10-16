@@ -239,7 +239,7 @@ def run(wiki) -> dict:
     auto_n = sum(1 for e in treg.values() if e.get("auto_registered"))
     if auto_n:
         add("info", "topics_auto_registered",
-            "%d topic(s) auto-registered as concept" % auto_n,
+            "%d topic(s) auto-registered (kind inferred)" % auto_n,
             "declare kinds explicitly in topics.jsonl")
     from .text import slugify
     for subj, e in treg.items():

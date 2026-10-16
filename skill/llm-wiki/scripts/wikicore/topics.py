@@ -208,9 +208,16 @@ def backfill(wiki) -> dict:
     for subj in sorted(groups):
         if subj in reg["topics"]:
             continue
-        plural, _ = synthesize._route_kind(subj, groups[subj], rules,
-                                           default_kind)
-        k = _PLURAL.get(plural, "concept")
+        k = None
+        slug = slugify(subj)
+        for d in PAGE_DIR.values():
+            if os.path.isfile(wiki.p("wiki", d, slug + ".md")):
+                k = _PLURAL[d]
+                break
+        if k is None:
+            plural, _ = synthesize._route_kind(subj, groups[subj], rules,
+                                               default_kind)
+            k = _PLURAL.get(plural, "concept")
         ent = _entry(k, _title_for(subj), declared_by)
         ent["auto_registered"] = True
         reg["topics"][subj] = ent

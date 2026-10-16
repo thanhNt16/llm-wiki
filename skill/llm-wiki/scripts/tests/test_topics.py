@@ -517,5 +517,44 @@ class TestReviewAndDoctor(unittest.TestCase):
         self.assertIn("topic_kind_conflict", codes)
         self.assertIn("topic_unclaimed", codes)
 
+    def test_set_topic_kind_requires_conflict_item_and_affected(self):
+        from wikicore import review
+        wiki = fresh()
+        self._conflict(wiki)  # lake.d conflict; item affected=[lake.d]
+        # a non-conflict item may not be closed by set_topic_kind
+        holder = {}
+        def _add(t):
+            holder["id"] = review.add_item(
+                t, "ambiguous_scope", "scope unclear", [],
+                ["lake.d"], "risk")
+        _commit(wiki, _add)
+        with self.assertRaises(TxnError):
+            review.act(wiki, holder["id"], "set_topic_kind",
+                       {"subject": "lake.d", "kind": "concept"},
+                       wiki.revision())
+        # a conflict item may not resolve a subject it does not affect
+        item = [i for i in wiki.read_jsonl(".state/review-queue.jsonl")
+                if i.get("kind") == "topic_kind_conflict"][0]
+        with self.assertRaises(TxnError):
+            review.act(wiki, item["id"], "set_topic_kind",
+                       {"subject": "lake.other", "kind": "concept"},
+                       wiki.revision())
+
+    def test_doctor_flags_page_kind_mismatch(self):
+        from wikicore import doctor
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc", b"x")
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "lake.m", "kind": "entity", "title": "M"},
+        ], {"source_id": r["source_id"], "version": r["version"]}))
+        # simulate a page written under the wrong kind dir
+        wdir = wiki.p("wiki", "concepts")
+        os.makedirs(wdir, exist_ok=True)
+        with open(os.path.join(wdir, topics.slugify("lake.m") + ".md"), "w") as f:
+            f.write("stale page")
+        res = doctor.run(wiki) if hasattr(doctor, "run") else doctor.doctor(wiki)
+        codes = {f["code"] for f in res["findings"]}
+        self.assertIn("topic_page_kind_mismatch", codes)
+
 if __name__ == "__main__":
     unittest.main()

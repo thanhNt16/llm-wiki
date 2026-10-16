@@ -1,6 +1,7 @@
 """Human review: semantic uncertainty lands here instead of being hidden
 (PRD §25-26). Actions are ordinary transactions — nothing special-cased.
 """
+import glob
 import calendar
 import json
 import os
@@ -138,14 +139,20 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
         claims.save_claim(txn, claim)
     elif action == "set_topic_kind":
         from . import deps as deps_mod, topics as topics_mod
+        if item.get("kind") != "topic_kind_conflict":
+            raise TxnError("set_topic_kind requires a topic_kind_conflict item")
         subj = str(params.get("subject") or "").strip()
         new_kind = str(params.get("kind") or "").strip().lower()
+        if subj not in (item.get("affected") or []):
+            raise TxnError("subject %r not affected by item %s" % (subj, item_id))
         entry = topics_mod.get(wiki, subj)
         if entry is None or entry.get("status") != "conflict":
             raise TxnError("subject %r is not a declared topic in conflict" % subj)
         if new_kind not in entry.get("alternate_kinds", []) + [entry["kind"]]:
+            declared = sorted(set(entry.get("alternate_kinds", [])
+                                  + [entry["kind"]]))
             raise TxnError("kind %r was not declared for %r (declared: %s)"
-                           % (new_kind, subj, ", ".join(entry.get("alternate_kinds", []))))
+                           % (new_kind, subj, ", ".join(declared)))
         old_dir = topics_mod.PAGE_DIR.get(entry["kind"])
         def _upd(reg):
             e = reg.setdefault("topics", {}).get(subj)
@@ -154,10 +161,13 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
                 e["status"] = "resolved"
         txn.stage_state(topics_mod.TOPICS_FILE, _upd)
         from .text import slugify
-        old_artifact = "wiki/%s/%s.md" % (old_dir, slugify(subj)) if old_dir else None
-        if old_artifact and old_dir != topics_mod.PAGE_DIR.get(new_kind) \
-                and os.path.isfile(wiki.p(old_artifact)):
-            deps_mod.mark_stale(txn, [old_artifact])
+        slug = slugify(subj)
+        if old_dir and old_dir != topics_mod.PAGE_DIR.get(new_kind):
+            stale = [os.path.basename(p) for pat in (slug + ".md", slug + "-*.md")
+                     for p in glob.glob(wiki.p("wiki", old_dir, pat))]
+            if stale:
+                deps_mod.mark_stale(
+                    txn, ["wiki/%s/%s" % (old_dir, name) for name in stale])
     elif action == "defer":
         pass
     elif action == "reopen":
