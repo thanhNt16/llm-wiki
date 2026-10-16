@@ -2,7 +2,7 @@ import json, os, sys, tempfile, unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from wikicore import claims, sources, topics
+from wikicore import claims, sources, synthesize, topics
 from wikicore import compile as wc_compile
 from wikicore.store import Wiki, init_wiki
 from wikicore.transaction import Transaction, TxnError
@@ -269,6 +269,64 @@ class TestCompileTopics(unittest.TestCase):
                          {"declared", "registered", "auto_registered",
                           "kind_conflicts", "decision_topics", "unclaimed",
                           "warnings"})
+
+
+
+class TestPageTargets(unittest.TestCase):
+    def _claim(self, wiki, r, subject):
+        """Stage+apply one accepted claim via direct txn."""
+        cand = {"id": "auto", "subject": subject, "predicate": "p", "value": 1,
+                "scope": {}, "valid_from": None, "valid_to": None,
+                "recorded_at": "2026-10-01T00:00:00Z", "status": "candidate",
+                "proposed_by": "agent",
+                "authority": {"type": "authoritative_source", "source": "doc"},
+                "evidence": [{"source_id": r["source_id"],
+                              "source_version": r["version"],
+                              "locator": {"type": "heading", "value": "H"}}],
+                "supersedes": []}
+        run_id = wc_compile.stage_candidates(wiki, r["source_id"], r["version"],
+                                             [cand], {"source_id": r["source_id"],
+                                                      "source_version": r["version"],
+                                                      "coverage": {"text": "complete"},
+                                                      "warnings": [],
+                                                      "parser": {"name": "t", "version": "1"}})
+        wc_compile.reconcile_prepare(wiki, run_id)
+        wc_compile.reconcile_apply(wiki, run_id,
+            [{"index": 0, "relationship": "UNRELATED", "target_claim_id": None,
+              "valid_from": None, "valid_to": None,
+              "authority": {"type": "authoritative_source"}}], wiki.revision())
+
+    def test_declared_single_claim_target_with_declared_kind(self):
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc", b"S3 stores objects.")
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "lake.s3", "kind": "entity", "title": "S3"},
+        ], {"source_id": r["source_id"], "version": r["version"]}))
+        self._claim(wiki, r, "lake.s3")
+        res = synthesize.page_targets(wiki)
+        tg = [t for t in res["targets"] if t["subject"] == "lake.s3"]
+        self.assertEqual(len(tg), 1)
+        self.assertEqual(tg[0]["artifact"], "wiki/entities/lake-s3.md")
+        self.assertEqual(tg[0]["reason"], "declared")
+
+    def test_undeclared_single_claim_stays_waiting(self):
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc", b"x")
+        self._claim(wiki, r, "misc.thing")  # auto-registered NOT applied here
+        res = synthesize.page_targets(wiki)
+        self.assertFalse(any(t["subject"] == "misc.thing" for t in res["targets"]))
+
+    def test_conflict_subject_falls_back_to_rules(self):
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc", b"x")
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "lake.d", "kind": "entity", "title": "D"},
+            {"subject": "lake.d", "kind": "concept", "title": "D"},
+        ], {"source_id": r["source_id"], "version": r["version"]}))
+        self._claim(wiki, r, "lake.d")
+        res = synthesize.page_targets(wiki)
+        self.assertFalse(any(t["subject"] == "lake.d" for t in res["targets"]))
+        self.assertTrue(any(w["subject"] == "lake.d" for w in res["waiting"]))
 
 if __name__ == "__main__":
     unittest.main()

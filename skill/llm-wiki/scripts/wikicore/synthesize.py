@@ -11,7 +11,7 @@ import re
 import time
 from typing import Optional
 
-from . import claims, deps
+from . import claims, deps, topics
 from .transaction import Transaction, TxnError
 from .yamlite import dumps as yamldumps, loads as yamlloads
 
@@ -172,11 +172,18 @@ def page_targets(wiki, kind: Optional[str] = None, stale_only: bool = False,
     rules, default_kind = _load_kind_rules(wiki, warnings)
     targets = []
     waiting = []
+    topic_map = topics.load(wiki)["topics"]
     for subject in sorted(groups):
         cs = groups[subject]
         n = len(cs)
         origins = sum(claims.independence(wiki, c) for c in cs)
-        if n >= min_claims and origins >= min_sources:
+        tentry = topic_map.get(subject)
+        declared_kind = (topics.PAGE_DIR.get(tentry["kind"])
+                         if tentry and tentry.get("status") == "resolved"
+                         else None)
+        if declared_kind is not None:
+            reason = "declared"
+        elif n >= min_claims and origins >= min_sources:
             reason = "corroborated"
         elif any((c.get("authority") or {}).get("type") == AUTHORITATIVE for c in cs):
             reason = "authoritative"
@@ -190,6 +197,8 @@ def page_targets(wiki, kind: Optional[str] = None, stale_only: bool = False,
             continue
         if kind is not None:
             k, matched = kind, None
+        elif declared_kind is not None:
+            k, matched = declared_kind, None
         else:
             k, matched = _route_kind(subject, cs, rules, default_kind)
         slug = slugify(subject)
