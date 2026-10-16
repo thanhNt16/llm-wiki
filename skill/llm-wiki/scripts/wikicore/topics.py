@@ -40,8 +40,11 @@ def _entry(kind, title, declared_by):
 def load(wiki) -> dict:
     if not os.path.isfile(wiki.p(TOPICS_FILE)):
         return {"version": 0, "topics": {}}
-    with open(wiki.p(TOPICS_FILE)) as f:
-        return json.load(f)
+    try:
+        with open(wiki.p(TOPICS_FILE)) as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        raise TxnError("corrupt %s (%s): %s" % (wiki.p(TOPICS_FILE), TOPICS_FILE, e))
 
 
 def get(wiki, subject):
@@ -134,6 +137,13 @@ def ensure_source_topic(txn: Transaction, subject: str, title: str,
         reg["topics"][subject] = ent
         reg["version"] = int(reg.get("version", 0)) + 1
         _stage(txn, reg)
+    else:
+        ent = reg["topics"][subject]
+        db = dict(declared_by)
+        if db not in ent.setdefault("declared_by", []):
+            ent["declared_by"].append(db)
+            reg["version"] = int(reg.get("version", 0)) + 1
+            _stage(txn, reg)
 
 
 def auto_register(txn: Transaction, subjects: list, declared_by: dict) -> dict:

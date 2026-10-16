@@ -279,6 +279,7 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
              if topics_mod._norm_kind(r["kind"]) == "decision"})
     changes = {"claims_created": 0, "claims_updated": 0, "claims_superseded": 0,
                "review_items": 0}
+    changes["review_items"] += len(topic_out.get("kind_conflicts") or [])
     conflicts = []
 
     for cls in classifications:

@@ -125,6 +125,22 @@ class TestRegistryFile(unittest.TestCase):
         self.assertEqual(reg["topics"]["lake.s3"]["declared_by"],
                          [{"source_id": "src_a", "version": 1}])
 
+    def test_corrupt_topics_json_raises_txnerror_and_doctor_finds_it(self):
+        from wikicore import doctor
+        wiki = fresh()
+        with open(wiki.p("topics.json"), "w") as f:
+            f.write("{ not valid json !!!")
+        with self.assertRaises(TxnError) as cm:
+            topics.load(wiki)
+        self.assertIn("topics.json", str(cm.exception))
+        res = doctor.run(wiki)
+        bad = [f for f in res["findings"]
+               if f["code"] == "topics_registry_corrupt"]
+        self.assertTrue(bad, [f["code"] for f in res["findings"]])
+        self.assertEqual(bad[0]["severity"], "error")
+        self.assertIn("topics.json", bad[0]["detail"])
+
+
 
 class TestCompileTopics(unittest.TestCase):
     def _run_umbrella(self, wiki, topics_rows=None, cands=None):
@@ -376,6 +392,35 @@ class TestPageTargets(unittest.TestCase):
         self.assertFalse(any(t["subject"] == "source.doc" for t in res["targets"]))
         self.assertFalse(any(w["subject"] == "source.doc" for w in res["waiting"]))
 
+    def test_source_topic_with_claim_targets_sources_dir(self):
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc", b"x")
+        _commit(wiki, lambda t: topics.ensure_source_topic(
+            t, "source.doc", "doc",
+            {"source_id": r["source_id"], "version": r["version"]}))
+        self._claim(wiki, r, "source.doc")
+        res = synthesize.page_targets(wiki)
+        tg = [t for t in res["targets"] if t["subject"] == "source.doc"]
+        self.assertEqual(len(tg), 1)
+        self.assertEqual(tg[0]["artifact"], "wiki/sources/source-doc.md")
+        self.assertEqual(tg[0]["reason"], "declared")
+
+    def test_source_topic_provenance_appends_declared_by(self):
+        wiki = fresh()
+        ra = sources.ingest(wiki, "text", "doc-a", b"a")
+        rb = sources.ingest(wiki, "text", "doc-b", b"b")
+        _commit(wiki, lambda t: topics.ensure_source_topic(
+            t, "source.doc", "doc",
+            {"source_id": ra["source_id"], "version": ra["version"]}))
+        _commit(wiki, lambda t: topics.ensure_source_topic(
+            t, "source.doc", "doc",
+            {"source_id": rb["source_id"], "version": rb["version"]}))
+        ent = topics.get(wiki, "source.doc")
+        self.assertEqual(len(ent["declared_by"]), 2)
+        self.assertIn({"source_id": rb["source_id"], "version": rb["version"]},
+                      ent["declared_by"])
+
+
 
 class TestRecordDecision(unittest.TestCase):
     def _accepted_claim(self, wiki, r):
@@ -461,6 +506,20 @@ class TestRecordDecision(unittest.TestCase):
                 "title": "X", "status": "accepted", "decided_on": "2026-10-01",
                 "claims": [], "evidence": ["not-a-dict"]})
         self.assertIn("evidence[0]", str(cm.exception))
+
+    def test_record_decision_rejects_non_list_claims(self):
+        wiki = fresh()
+        with self.assertRaises(TxnError):
+            claims.create_decision(wiki, {
+                "title": "X", "status": "accepted", "decided_on": "2026-10-01",
+                "claims": 5, "evidence": []})
+
+    def test_record_decision_rejects_non_list_evidence(self):
+        wiki = fresh()
+        with self.assertRaises(TxnError):
+            claims.create_decision(wiki, {
+                "title": "X", "status": "accepted", "decided_on": "2026-10-01",
+                "claims": [], "evidence": 5})
 
 
 class TestReviewAndDoctor(unittest.TestCase):

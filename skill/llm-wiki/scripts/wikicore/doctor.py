@@ -224,8 +224,11 @@ def run(wiki) -> dict:
     try:
         from . import topics as topics_mod
         treg = topics_mod.load(wiki)["topics"]
-    except Exception:
+    except Exception as e:
         treg = {}
+        add("error", "topics_registry_corrupt",
+            "cannot read topic registry topics.json: %s" % e,
+            "fix or remove .llm-wiki/topics.json")
     conflicts_n = sum(1 for e in treg.values() if e.get("status") == "conflict")
     if conflicts_n:
         add("warn", "topic_kind_conflict",

@@ -171,6 +171,10 @@ def create_decision(wiki, data: dict) -> dict:
     for banned in ("id", "recorded_at", "version"):
         if banned in data:
             raise TxnError("decision input must not include %r — engine-stamped" % banned)
+    if not isinstance(data.get("claims", []), list):
+        raise TxnError("decision input 'claims' must be a list")
+    if not isinstance(data.get("evidence", []), list):
+        raise TxnError("decision input 'evidence' must be a list")
     for cid in data.get("claims") or []:
         c = load_claim(wiki, cid)
         if c.get("status") in TERMINAL:

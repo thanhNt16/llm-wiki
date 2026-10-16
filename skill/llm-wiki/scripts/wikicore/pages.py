@@ -365,7 +365,7 @@ def build_pages(wiki, base_revision: int) -> dict:
 
     # agent-authored pages: mark stale in place, PRESERVING the prose body —
     # regeneration is the agent's job; deterministic builds never clobber it
-    for sub in ("concepts", "entities", "procedures", "questions"):
+    for sub in ("concepts", "entities", "procedures", "questions", "sources"):
         subdir = wiki.p("wiki", sub)
         if not os.path.isdir(subdir):
             continue

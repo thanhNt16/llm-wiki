@@ -56,6 +56,7 @@ before removing it.
 | Prepare context for a task / resume work | references/CONTEXT-PACKS.md | `wiki.py context-pack --task "..." --budget 6000` |
 | Resolve conflicts / review candidates | references/COMMANDS.md#review | `wiki.py review list` |
 | List declared topics / register existing subjects | references/COMMANDS.md#topics | `wiki.py topics [--backfill]` |
+| Record an explicit project decision | references/COMMANDS.md#record-decision | `wiki.py record-decision --file decision.json` |
 | Diagnose memory problems | references/COMMANDS.md#doctor | `wiki.py doctor` |
 
 Architecture background (layers, authority, temporal model, provenance):
