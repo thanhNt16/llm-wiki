@@ -17,9 +17,13 @@ project root:
 
 ```bash
 WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
-python3 "$WIKI" compile        # → pending[] with content_path + candidates_path
-# read each content_path, write shorthand JSONL to candidates_path:
-#   {"subject":"a.b","predicate":"p","value":7,"locator":"h:Heading","authority":"manual"}
+python3 "$WIKI" compile        # → pending[] with content_path + topics_path + candidates_path
+# per pending entry:
+#  1) write topics.jsonl (one topic/line) BEFORE candidates:
+#     {"subject":"lake.s3","kind":"entity","title":"Amazon S3","aliases":["S3"]}
+#     kinds: concept|entity|procedure|question|change|decision
+#  2) write candidates.jsonl shorthand as before:
+#     {"subject":"a.b","predicate":"p","value":7,"locator":"h:Heading","authority":"manual"}
 python3 "$WIKI" compile --resume   # → auto counts + needs_review rows (usually empty)
 # if needs_review: write classifications.json (only those rows), then:
 python3 "$WIKI" compile --resume   # → receipt + verify.ok
@@ -36,13 +40,18 @@ range), `s:` (section). Authority names:
 an explicit authority source.
 
 Runs live under `.llm-wiki/.state/staging/<run_id>/`, with
-`candidates.jsonl`, `classifications.json`, and optional `report.json`. The
-engine auto-classifies UNRELATED, DUPLICATE, and CORROBORATION; only
-`needs_review` rows require agent classifications. Low-level commands remain
-available when needed.
+`topics.jsonl`, `candidates.jsonl`, `classifications.json`, and optional
+`report.json`. The engine auto-classifies UNRELATED, DUPLICATE, and
+CORROBORATION; only `needs_review` rows require agent classifications.
+Low-level commands remain available when needed.
 
 After the final `compile --resume` lands:
 
+0. Topics — the receipt's `topics` block lists `decision_topics[]` (record each
+   with `wiki.py record-decision --file decision.json`), `unclaimed[]`
+   (declared but no claims — extract more or accept), `auto_registered[]`,
+   `kind_conflicts[]` (resolve via `review act set_topic_kind` on the
+   `topic_kind_conflict` item), and `no_topics_declared` warnings.
 1. Synthesis — run `python3 "$WIKI" page-targets`; for EVERY entry in
    `targets[]`, author or refresh the page per the `wiki-write` skill. Use
    `target.artifact` and `target.claim_ids` verbatim — never hardcode

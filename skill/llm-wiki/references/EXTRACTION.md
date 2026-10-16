@@ -8,6 +8,28 @@ the run's `candidates_path` (a `.jsonl` file):
 {"subject":"a.b","predicate":"p","value":7,"locator":"h:Heading","authority":"manual"}
 ```
 
+## Topic declaration (topics.jsonl)
+
+Before writing candidates, write one topic row per subject the source
+mentions to `topics_path` — the topology comes first, claims attach to it:
+
+```json
+{"subject":"lake.data-lake","kind":"concept","title":"Data lake"}
+{"subject":"lake.s3","kind":"entity","title":"Amazon S3","aliases":["S3"]}
+{"subject":"policy.use-postgres","kind":"decision","title":"Use Postgres","decided_on":"2026-10-01"}
+```
+
+Kinds: `concept | entity | procedure | question | change | decision`
+(plurals normalized; `source` is reserved — the engine registers each
+compiled source itself). Rows need `subject`, `kind`, `title`; `aliases`
+optional. A resolved declared topic emits a `page-targets` entry with a
+single eligible claim (`reason: "declared"`). Subjects you extract but
+never declare auto-register as `concept` with a receipt warning. A
+`decision` row never emits a page target — it lists in `decision_topics[]`
+for `record-decision` after apply. Declared topics with a page dir (every
+kind but `source`/`decision`) and zero claims appear in `page-targets`
+`waiting[]` as `declared_no_claims` and in the receipt's `unclaimed[]`.
+
 ## Shorthand fields
 
 You supply `subject`, `predicate`, `value`, `locator`, `authority`, and

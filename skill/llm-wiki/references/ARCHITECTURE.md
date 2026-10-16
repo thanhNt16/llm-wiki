@@ -71,7 +71,12 @@ what needs re-authoring; `verify` fails while stale pages remain.
 
 ## Storage rule
 
-Canonical = JSON under `sources/ claims/ decisions/ notes/` plus `.state/`.
+Canonical = JSON under `sources/ claims/ decisions/ topics.json notes/` plus `.state/`.
 Derived = Markdown + yamlite frontmatter under `wiki/ context/ views/`.
 Every derived artifact's frontmatter lists `deps: ["claim_X@N", …]` —
 `wiki.py verify` enforces this.
+
+The topic registry (`topics.json`) records agent-declared subject→kind
+topology; `page-targets` routes declared resolved subjects to
+`wiki/<kind>/` regardless of claim thresholds (a single eligible claim
+suffices; `decision`-kind topics never emit page targets).

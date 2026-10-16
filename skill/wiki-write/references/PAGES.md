@@ -91,6 +91,8 @@ not a gate:
   `[[claim_id]]`s; never averaged into a quiet compromise.
 - On refresh: preserve existing `created` and any human-curated aliases;
   update `updated` and `deps` to current versions.
+- Declared topics (`reason: "declared"` targets) can be authored from a
+  single claim; the same citation rules apply.
 
 ## procedure page — `wiki/procedures/<slug>.md`
 
