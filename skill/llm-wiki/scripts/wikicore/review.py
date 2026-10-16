@@ -31,7 +31,7 @@ def add_item(txn: Transaction, kind: str, problem: str, evidence: list,
         "risk": risk,
         "proposed_resolution": proposed,
     }
-    queue = txn.wiki.read_jsonl(QUEUE)
+    queue = _txn_queue(txn)
     queue.append(item)
     txn.stage_write(QUEUE, _dump(queue))
     return item["id"]
@@ -39,6 +39,21 @@ def add_item(txn: Transaction, kind: str, problem: str, evidence: list,
 
 def _dump(queue: list) -> str:
     return "\n".join(json.dumps(x, ensure_ascii=False) for x in queue) + ("\n" if queue else "")
+
+
+def _txn_queue(txn) -> list:
+    """Queue including items already staged by this transaction: staged write
+    to QUEUE wins over the on-disk file so multiple add_item calls compose."""
+    staged = os.path.join(txn.staging_dir, QUEUE)
+    path = staged if os.path.isfile(staged) else txn.wiki.p(QUEUE)
+    out = []
+    if os.path.isfile(path):
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    out.append(json.loads(line))
+    return out
 
 
 def list_items(wiki, kind: Optional[str] = None, status: str = "open") -> list:

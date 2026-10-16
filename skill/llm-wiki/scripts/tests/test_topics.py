@@ -94,6 +94,23 @@ class TestMerge(unittest.TestCase):
         ], {"source_id": "src_a", "version": 1}))
         self.assertEqual(topics.get(wiki, "policy.pg")["kind"], "decision")
 
+    def test_two_conflicts_in_one_txn_both_reach_review_queue(self):
+        """Regression: review.add_item must compose over the txn's staged
+        queue — a second conflict in the same merge must not drop the first."""
+        wiki = fresh()
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "lake.delta", "kind": "entity", "title": "Delta"},
+            {"subject": "lake.delta", "kind": "concept", "title": "Delta"},
+            {"subject": "lake.ice", "kind": "entity", "title": "Iceberg"},
+            {"subject": "lake.ice", "kind": "procedure", "title": "Iceberg"},
+        ], {"source_id": "src_a", "version": 1}))
+        with open(wiki.p(".state", "review-queue.jsonl")) as f:
+            items = [json.loads(l) for l in f if l.strip()]
+        conflicts = [i for i in items if i["kind"] == "topic_kind_conflict"]
+        self.assertEqual(len(conflicts), 2)
+        self.assertEqual(sorted(i["affected"][0] for i in conflicts),
+                         ["lake.delta", "lake.ice"])
+
 
 class TestRegistryFile(unittest.TestCase):
     def test_registry_json_shape_and_version(self):
