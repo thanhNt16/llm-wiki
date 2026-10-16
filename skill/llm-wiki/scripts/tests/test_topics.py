@@ -207,5 +207,68 @@ class TestCompileTopics(unittest.TestCase):
         self.assertEqual(topics.get(wiki, "policy.pg")["kind"], "decision")
 
 
+    def test_unclaimed_aggregate_uses_final_registry(self):
+        """Run A declares topic X (no claims); run B claims X — aggregate
+        unclaimed must NOT contain X even though run A's per-run snapshot did."""
+        wiki = fresh()
+        ra = sources.ingest(wiki, "text", "doc-a", b"# A\nDeclares X.")
+        rb = sources.ingest(wiki, "text", "doc-b", b"# B\nClaims X.")
+        plan = wc_compile.compile_umbrella(wiki)
+        self.assertEqual(len(plan["pending"]), 2)
+        for meta in plan["pending"]:
+            if meta["source_id"] == ra["source_id"]:
+                with open(meta["topics_path"], "w") as f:
+                    f.write(json.dumps(
+                        {"subject": "misc.x", "kind": "concept", "title": "X"}) + "\n")
+                with open(meta["candidates_path"], "w") as f:
+                    pass
+            else:
+                with open(meta["candidates_path"], "w") as f:
+                    f.write(json.dumps(
+                        {"subject": "misc.x", "predicate": "p", "value": 1,
+                         "locator": "h:B", "authority": "doc"}) + "\n")
+        res = wc_compile.compile_umbrella(wiki, resume=True)
+        while res["phase"] == "classify":
+            meta = next(m for m in plan["pending"]
+                        if m["source_id"] == res["needs_review"][0]["source_id"])
+            cls = [{"index": row["index"], "relationship": "CONTRADICTION",
+                    "target_claim_id": None,
+                    "authority": {"type": "authoritative_source"}}
+                   for row in res["needs_review"]
+                   if row["source_id"] == meta["source_id"]]
+            with open(meta["classifications_path"], "w") as f:
+                json.dump(cls, f)
+            res = wc_compile.compile_umbrella(wiki, resume=True)
+        self.assertEqual(res["phase"], "done")
+        self.assertNotIn("misc.x", res["topics"]["unclaimed"])
+
+    def test_lowlevel_receipt_has_full_topics_shape(self):
+        """reconcile_apply without declared_by still carries all 7 keys."""
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc-l", b"# L\nLow level.")
+        cand = {"subject": "misc.l", "predicate": "p", "value": 1,
+                "locator": "h:L",
+                "scope": {}, "valid_from": None, "valid_to": None,
+                "recorded_at": "2026-10-16T00:00:00Z", "status": "candidate",
+                "proposed_by": "agent",
+                "authority": {"type": "authoritative_source"},
+                "evidence": [{"source_id": r["source_id"],
+                              "source_version": r["version"],
+                              "locator": {"type": "heading", "value": "L"}}],
+                "supersedes": []}
+        run_id = wc_compile.stage_candidates(wiki, r["source_id"], r["version"],
+                                             [cand], {"source_id": r["source_id"],
+                                                      "source_version": r["version"],
+                                                      "coverage": {"text": "complete"},
+                                                      "warnings": [],
+                                                      "parser": {"name": "t", "version": "1"}})
+        wc_compile.reconcile_prepare(wiki, run_id)
+        receipt = wc_compile.reconcile_apply(wiki, run_id, [], wiki.revision())
+        self.assertEqual(receipt["topics"]["unclaimed"], [])
+        self.assertEqual(set(receipt["topics"]),
+                         {"declared", "registered", "auto_registered",
+                          "kind_conflicts", "decision_topics", "unclaimed",
+                          "warnings"})
+
 if __name__ == "__main__":
     unittest.main()

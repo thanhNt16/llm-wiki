@@ -265,7 +265,8 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
     from . import topics as topics_mod
 
     topic_out = {"declared": 0, "registered": 0, "auto_registered": [],
-                 "kind_conflicts": [], "decision_topics": [], "warnings": []}
+                 "kind_conflicts": [], "decision_topics": [], "unclaimed": [],
+                 "warnings": []}
     if declared_by:
         if topics_rows:
             topic_out.update(topics_mod.merge_rows(txn, topics_rows, declared_by))
@@ -274,8 +275,8 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
                 declared_by.get("title") or source_id)) or "source"),
             str(declared_by.get("title") or source_id), declared_by)
         topic_out["decision_topics"] = sorted(
-            str(r["subject"]).strip() for r in (topics_rows or [])
-            if topics_mod._norm_kind(r["kind"]) == "decision")
+            {str(r["subject"]).strip() for r in (topics_rows or [])
+             if topics_mod._norm_kind(r["kind"]) == "decision"})
     changes = {"claims_created": 0, "claims_updated": 0, "claims_superseded": 0,
                "review_items": 0}
     conflicts = []
@@ -510,14 +511,6 @@ def compile_umbrella(wiki, resume=False):
         compile_p = os.path.join(d, "compile.json")
         state = _staging_state(wiki, run_id)
 
-        topics_p = os.path.join(d, "topics.jsonl")
-        topics_rows = None
-        topics_missing = False
-        if os.path.isfile(topics_p):
-            topics_rows, _declared = topics_mod.parse_topics_file(topics_p)
-        else:
-            topics_missing = True
-
         if state == "prepared" and not os.path.isfile(compile_p):
             # applied (classified or all-auto) on an earlier resume — replay
             # the cached receipt instead of re-running reconcile_apply
@@ -531,6 +524,14 @@ def compile_umbrella(wiki, resume=False):
             for k, v in receipt.get("auto", {}).items():
                 auto_totals[k] += v
             continue
+
+        topics_p = os.path.join(d, "topics.jsonl")
+        topics_rows = None
+        topics_missing = False
+        if os.path.isfile(topics_p):
+            topics_rows, _declared = topics_mod.parse_topics_file(topics_p)
+        else:
+            topics_missing = True
 
         if os.path.isfile(cls_p):
             classifications = (parse_candidates_file(cls_p)
@@ -598,10 +599,11 @@ def compile_umbrella(wiki, resume=False):
             topics_total["declared"] += t.get("declared", 0)
             topics_total["registered"] += t.get("registered", 0)
             for k in ("auto_registered", "kind_conflicts", "decision_topics",
-                      "unclaimed", "warnings"):
+                      "warnings"):
                 for v in t.get(k) or []:
                     if v not in topics_total[k]:
                         topics_total[k].append(v)
+        topics_total["unclaimed"] = topics_mod.unclaimed(wiki)
         return {"phase": "done", "needs_classifications": False,
                 "needs_review": needs_review_rows,
                 "auto": auto_totals, "changes": total,
