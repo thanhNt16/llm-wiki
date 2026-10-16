@@ -155,8 +155,11 @@ wiki.py write-page --text '<markdown>' --artifact wiki/questions/open-billing.md
   slug matches the artifact (collision-suffixed slugs still match),
   non-empty `title`, ISO-8601 `created` on new pages, `linked ⊆ deps`,
   `disputed: true` when a dep claim is disputed (empty deps only for
-  `type: question`). It rejects reserved artifacts (`wiki/index.md`,
-  `wiki/overview.md`, `wiki/decisions/*`, any `*/index.md`).
+  `type: question`). Markdown links in the body that resolve to `.md` files
+  under `wiki/` are validated and auto-appended to `deps`; unresolved
+  bundle-internal links are rejected. It rejects reserved artifacts
+  (`wiki/index.md`, `wiki/overview.md`, `wiki/review.md`, `wiki/log.md`,
+  `wiki/decisions/*`, any `*/index.md`).
 - On success the deps REPLACE any previous registration for the artifact in
   `.state/dependencies.json` and the stale flag clears in the same
   transaction. Exit 4 → re-run `page-targets`, re-author, commit with the

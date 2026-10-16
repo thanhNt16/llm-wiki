@@ -58,11 +58,16 @@ don't hand-edit what a script should compute; don't script semantic judgment.
 Two regimes under `wiki/`:
 
 - **Script-rendered** — `build-pages` generates per-kind section indexes
-  (`wiki/<kind>/index.md`), the project `overview.md`, and decision stubs.
-  Never hand-authored.
+  (`wiki/<kind>/index.md`), the project `overview.md`, `review.md`, the
+  OKF-style change history `log.md`, and decision stubs. Never
+  hand-authored.
 - **Agent-authored** — source/concept/entity/procedure/question pages,
-  committed only through `write-page`, which validates frontmatter and
-  citations, registers the page's `deps`, and clears its stale flag.
+  committed only through `write-page`, which validates frontmatter,
+  citations, and bundle-internal markdown page links (`[x](../e/y.md)` —
+  auto-registered as `deps`, forming the navigable OKF graph), registers
+  the page's `deps`, and clears its stale flag. Optional `owner`/`tags`
+  frontmatter is supported; `owner` backfills from the first dep claim's
+  independent origin.
 
 Invalidation flags a page stale but preserves its committed body verbatim
 (stale-body preservation): derived state degrades to "explicitly stale",

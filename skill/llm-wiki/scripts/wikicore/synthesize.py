@@ -29,6 +29,7 @@ ELIGIBLE_STATUSES = ("accepted", "provisional")
 AUTHORITATIVE = "explicit_project_decision"
 
 LINK_RE = re.compile(r"\[\[([a-z]+_[0-9A-Za-z]+)\]\]")
+PAGE_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+\.md)\)")
 _FRONT_RE = re.compile(r"\A---\s*\n(.*?)\n?---\s*\n?", re.S)
 
 KIND_RULES_FILE = "page-kinds.json"
@@ -127,7 +128,7 @@ from .text import slugify  # noqa: F401  (canonical home: text.py)
 def _is_reserved(artifact: str) -> bool:
     a = artifact.strip("/")
     return (
-        a in ("wiki/index.md", "wiki/overview.md")
+        a in ("wiki/index.md", "wiki/overview.md", "wiki/review.md", "wiki/log.md")
         or a.startswith("wiki/decisions/")
         or a.endswith("/index.md")
     )
@@ -206,6 +207,13 @@ def page_targets(wiki, kind: Optional[str] = None, stale_only: bool = False,
             k, matched = _route_kind(subject, cs, rules, default_kind)
         slug = slugify(subject)
         rel = "wiki/%s/%s.md" % (k, slug)
+        prefix = subject.rsplit(".", 1)[0] if "." in subject else subject
+        related = []
+        for sib, e in topic_map.items():
+            if sib == subject or e.get("status") != "resolved":
+                continue
+            if sib.rsplit(".", 1)[0] == prefix:
+                related.append(sib)
         targets.append({
             "subject": subject,
             "matched_rule": matched,
@@ -216,6 +224,7 @@ def page_targets(wiki, kind: Optional[str] = None, stale_only: bool = False,
             "claim_count": n,
             "distinct_origins": origins,
             "reason": reason,
+            "related": sorted(related)[:8],
             "exists": os.path.isfile(wiki.p(rel)),
             "stale": deps.is_stale(wiki, rel),
             "claim_details": [_detail(c) for c in cs],
@@ -270,6 +279,34 @@ def _claim_exists(wiki, cid: str) -> bool:
         return True
     except TxnError:
         return False
+
+
+def _page_links(wiki, artifact: str, body: str) -> list:
+    """Resolve OKF-style markdown page links in the body to wiki/ rel paths.
+
+    Accepts bundle-relative targets (`wiki/entities/x.md`) and same-dir or
+    upward-relative targets (`./y.md`, `../entities/y.md`) resolved against
+    the artifact's own directory. External URLs and non-.md links are
+    ignored. Bundle-internal .md links that don't resolve are rejected."""
+    out = []
+    for target in PAGE_LINK_RE.findall(body):
+        if "://" in target:
+            continue
+        if target.startswith("wiki/"):
+            rel = target
+        else:
+            resolved = os.path.normpath(os.path.join(os.path.dirname(artifact), target))
+            rel = resolved.replace(os.sep, "/")
+        if not rel.startswith("wiki/"):
+            continue  # links outside the bundle are the author's business
+        if rel == artifact:
+            continue
+        if not os.path.isfile(wiki.p(rel)):
+            raise TxnError("unresolved page link %r -> %s in %s"
+                           % (target, rel, artifact))
+        if rel not in out:
+            out.append(rel)
+    return out
 
 
 def _normalize_deps(wiki, dep_list) -> list:
@@ -348,8 +385,11 @@ def write_page(wiki, artifact: str, markdown_text: str, dep_list: Optional[list]
     unresolved = sorted(c for c in linked if not _claim_exists(wiki, c))
     if unresolved:
         raise TxnError("unresolved [[claim]] links: %s" % ", ".join(unresolved))
+    page_deps = _page_links(wiki, rel, body)  # OKF page links, validated here
     if dep_list is None:
         dep_list = sorted(linked)  # auto-derive: bare ids pin to current version
+    dep_list = list(dep_list or []) + [p for p in page_deps
+                                       if p not in dep_list]
     dep_set = _normalize_deps(wiki, dep_list)
     if not dep_set and ftype != "question":
         raise TxnError("deps required: cite at least one dep"
@@ -379,6 +419,20 @@ def write_page(wiki, artifact: str, markdown_text: str, dep_list: Optional[list]
         if not re.match(r"^\d{4}-\d{2}-\d{2}T", created):
             raise TxnError("frontmatter created must be an ISO datetime"
                            " (YYYY-MM-DDT...) on new pages")
+
+    # OKF niceties: `owner`/`tags` pass through untouched when authored;
+    # `owner` is backfilled from the first dep claim's independent origin.
+    if not front.get("owner"):
+        for d in dep_set:
+            did = d.split("@", 1)[0]
+            if did.startswith("claim_"):
+                c = claims.load_claim(wiki, did)
+                origins = [c.get("root_origin")] + [
+                    ev.get("root_origin") for ev in c.get("evidence") or []]
+                origin = next((o for o in origins if o), None)
+                if origin:
+                    front["owner"] = origin
+                    break
 
     front["deps"] = dep_set
     front["updated"] = _now()

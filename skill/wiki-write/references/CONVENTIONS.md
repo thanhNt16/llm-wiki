@@ -8,8 +8,9 @@
   `wiki.py write-page --file ... --artifact ... --deps 'claim_X@3,...'` so
   deps are re-registered and the stale flag clears atomically.
 - **Script-owned (`write-page` rejects them):** `wiki/index.md`,
-  `wiki/overview.md`, `wiki/decisions/*`, every `*/index.md`. `build-pages`
-  generates them from the pages — there is no overview writer.
+  `wiki/overview.md`, `wiki/review.md`, `wiki/log.md`, `wiki/decisions/*`,
+  every `*/index.md`. `build-pages` generates them from the pages — there
+  is no overview writer.
 
 ## The `deps` contract
 
@@ -19,6 +20,11 @@
   `@N` version), or a bare `wiki/<kind>/<slug>.md` artifact path — allowed
   only when that artifact exists on disk. Context-pack receipts are not
   deps.
+- **Page links self-declare.** Any markdown link `[x](../entities/y.md)` /
+  `[x](./y.md)` / `[x](wiki/concepts/x.md)` in the body is validated against
+  disk and appended to `deps` automatically; a bundle-internal link that
+  doesn't resolve is a hard rejection. Claim `[[...]]` links still must be
+  listed manually.
 - **`linked ⊆ deps` enforced.** Every `[[claim_id]]` in the body must appear
   in `deps`; citing an undeclared claim is a hard rejection.
 - **Replacement, not merge.** Each `write-page` sets the page's dep set to
