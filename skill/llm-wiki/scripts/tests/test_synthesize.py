@@ -660,6 +660,44 @@ class TestPageLinks(unittest.TestCase):
             front, _ = synthesize._split_front(f.read())
         self.assertEqual(front.get("owner"), "data-team")
 
+    def test_body_change_stales_linking_pages(self):
+        wiki = fresh()
+        c = save_claim(wiki, "db", authority={"type": "explicit_project_decision"})
+        c2 = save_claim(wiki, "s3", authority={"type": "explicit_project_decision"})
+        dep = ["%s@1" % c["id"]]
+        synthesize.write_page(wiki, "wiki/concepts/db.md", page_md(dep), dep,
+                              wiki.revision())
+        dep2 = ["%s@1" % c2["id"]]
+        body = "Stores sit on [db](../concepts/db.md)."
+        synthesize.write_page(wiki, "wiki/entities/s3.md",
+                              page_md(dep2, body=body, type_="entity",
+                                      subject="s3"),
+                              dep2, wiki.revision())
+        # rewrite db.md with a changed body -> s3.md goes stale
+        synthesize.write_page(wiki, "wiki/concepts/db.md",
+                              page_md(dep, body="CHANGED BODY"), dep,
+                              wiki.revision())
+        self.assertIn("wiki/entities/s3.md", deps.stale_artifacts(wiki))
+        self.assertNotIn("wiki/concepts/db.md", deps.stale_artifacts(wiki))
+
+    def test_identical_body_rewrite_does_not_stale_linkers(self):
+        wiki = fresh()
+        c = save_claim(wiki, "db", authority={"type": "explicit_project_decision"})
+        c2 = save_claim(wiki, "s3", authority={"type": "explicit_project_decision"})
+        dep = ["%s@1" % c["id"]]
+        synthesize.write_page(wiki, "wiki/concepts/db.md", page_md(dep), dep,
+                              wiki.revision())
+        dep2 = ["%s@1" % c2["id"]]
+        body = "Stores sit on [db](../concepts/db.md)."
+        synthesize.write_page(wiki, "wiki/entities/s3.md",
+                              page_md(dep2, body=body, type_="entity",
+                                      subject="s3"),
+                              dep2, wiki.revision())
+        # stale-clear rewrite with the same body leaves s3.md fresh
+        synthesize.write_page(wiki, "wiki/concepts/db.md", page_md(dep), dep,
+                              wiki.revision())
+        self.assertNotIn("wiki/entities/s3.md", deps.stale_artifacts(wiki))
+
 
 class TestRelatedTargets(unittest.TestCase):
     def test_related_lists_same_prefix_siblings(self):

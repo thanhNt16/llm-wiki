@@ -406,9 +406,10 @@ def write_page(wiki, artifact: str, markdown_text: str, dep_list: Optional[list]
                                " to cite it" % did)
 
     rel_path = wiki.p(rel)
+    old_body = None
     if os.path.isfile(rel_path):
         with open(rel_path) as f:
-            old_front, _ = _split_front(f.read())
+            old_front, old_body = _split_front(f.read())
         if str(old_front.get("subject") or "") != subject:
             raise TxnError("subject is immutable on refresh: existing %r != %r"
                            % (old_front.get("subject"), subject))
@@ -446,6 +447,10 @@ def write_page(wiki, artifact: str, markdown_text: str, dep_list: Optional[list]
     txn.stage_write(rel, text)
     deps.replace(txn, rel, dep_set)
     deps.clear_stale(txn, [rel])
+    # A new page or a changed body invalidates every artifact that deps on
+    # this page (transitively, via deps.invalidate's artifact-name cascade).
+    if old_body is None or old_body.strip() != body.strip():
+        deps.invalidate(wiki, [rel], txn=txn)
     txn.changes = {"page": rel}
     txn.commit(base_revision)
     return {"written": rel, "deps": dep_set,

@@ -21,10 +21,11 @@
   only when that artifact exists on disk. Context-pack receipts are not
   deps.
 - **Page links self-declare.** Any markdown link `[x](../entities/y.md)` /
-  `[x](./y.md)` / `[x](wiki/concepts/x.md)` in the body is validated against
-  disk and appended to `deps` automatically; a bundle-internal link that
+  `[x](./y.md)` / `[x](wiki/concepts/x.md)` in the body is validated against disk and
+  appended to `deps` automatically; a bundle-internal link that
   doesn't resolve is a hard rejection. Claim `[[...]]` links still must be
-  listed manually.
+  listed manually. Rewriting a page with a changed body stale-flags every
+  page that links to it (transitively) — identical-body rewrites don't.
 - **`linked ⊆ deps` enforced.** Every `[[claim_id]]` in the body must appear
   in `deps`; citing an undeclared claim is a hard rejection.
 - **Replacement, not merge.** Each `write-page` sets the page's dep set to

@@ -69,7 +69,9 @@ not a gate:
   each is auto-appended to `deps`. External URLs and links outside `wiki/`
   are ignored. This is how the navigable knowledge graph is formed — use
   it: `page-targets` lists `related` subjects per target; link to their
-  pages (e.g. in a `## See also` section) when they exist.
+  pages (e.g. in a `## See also` section) when they exist. Note the cost:
+  rewriting a page with a changed body stale-flags every page linking to
+  it, transitively.
 - If any dep claim is `disputed`, frontmatter must carry `disputed: true`.
 - Question pages may have empty `deps`; every other kind needs at least one.
 - The artifact is `wiki/<kind>/<slug>.md`, not a reserved path
