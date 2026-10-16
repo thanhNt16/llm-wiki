@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TopicRegistry",
+  "type": "object",
+  "required": ["version", "topics"],
+  "properties": {
+    "version": {"type": "integer", "minimum": 0},
+    "topics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["kind", "title", "status"],
+        "properties": {
+          "kind": {"enum": ["concept", "entity", "procedure", "question", "change", "decision", "source"]},
+          "title": {"type": "string", "minLength": 1},
+          "status": {"enum": ["resolved", "conflict"]},
+          "aliases": {"type": "array", "items": {"type": "string"}},
+          "alternate_kinds": {"type": "array", "items": {"type": "string"}},
+          "auto_registered": {"type": "boolean"},
+          "declared_by": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["source_id", "version"],
+              "properties": {"source_id": {"type": "string"}, "version": {"type": "integer"}}
+            }
+          }
+        }
+      }
+    }
+  }
+}

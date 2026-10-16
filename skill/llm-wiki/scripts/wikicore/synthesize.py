@@ -121,16 +121,7 @@ def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def slugify(subject: str) -> str:
-    """Subject -> slug: lowercase, non-alphanumeric runs -> '-', <=60 chars cut
-    at a '-' boundary, trimmed."""
-    slug = re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-")
-    if len(slug) > 60:
-        slug = slug[:60]
-        if "-" in slug:
-            slug = slug[: slug.rindex("-")]
-        slug = slug.strip("-")
-    return slug or "untitled"
+from .text import slugify  # noqa: F401  (canonical home: text.py)
 
 
 def _is_reserved(artifact: str) -> bool:

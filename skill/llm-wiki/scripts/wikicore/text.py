@@ -19,3 +19,15 @@ def norm_tokens(s: str) -> set:
                 break
         out.add(tok)
     return out
+
+
+def slugify(subject: str) -> str:
+    """Subject -> slug: lowercase, non-alphanumeric runs -> '-', <=60 chars cut
+    at a '-' boundary (PRD §17)."""
+    slug = re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-")
+    if len(slug) > 60:
+        cut = slug[:60]
+        if "-" in cut:
+            cut = cut[: cut.rfind("-")]
+        slug = cut.strip("-")
+    return slug or "untitled"
