@@ -265,6 +265,13 @@ def cmd_review(args) -> int:
     raise TxnError("review sub-command required: list|show|act")
 
 
+def cmd_record_decision(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    data = _load_json_file(args.file)
+    _emit(claims.create_decision(wiki, data))
+    return 0
+
+
 def cmd_doctor(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
     result = doctor.run(wiki)
@@ -395,6 +402,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="review list: include deferred items too")
     p.add_argument("--base-revision", type=int, default=None)
     p.set_defaults(fn=cmd_review)
+
+    p = sub.add_parser("record-decision")
+    p.add_argument("--file", required=True, help="decision input JSON file")
+    p.set_defaults(fn=cmd_record_decision)
 
     p = sub.add_parser("doctor")
     p.set_defaults(fn=cmd_doctor)

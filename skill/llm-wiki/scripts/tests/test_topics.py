@@ -376,5 +376,59 @@ class TestPageTargets(unittest.TestCase):
         self.assertFalse(any(t["subject"] == "source.doc" for t in res["targets"]))
         self.assertFalse(any(w["subject"] == "source.doc" for w in res["waiting"]))
 
+
+class TestRecordDecision(unittest.TestCase):
+    def _accepted_claim(self, wiki, r):
+        cand = {"id": "auto", "subject": "policy.pg", "predicate": "db", "value": "postgres",
+                "scope": {}, "valid_from": None, "valid_to": None,
+                "recorded_at": "2026-10-01T00:00:00Z", "status": "candidate",
+                "proposed_by": "agent",
+                "authority": {"type": "explicit_project_decision", "source": "ADR"},
+                "evidence": [{"source_id": r["source_id"], "source_version": r["version"],
+                              "locator": {"type": "heading", "value": "H"}}],
+                "supersedes": []}
+        run_id = wc_compile.stage_candidates(wiki, r["source_id"], r["version"], [cand],
+            {"source_id": r["source_id"], "source_version": r["version"],
+             "coverage": {"text": "complete"}, "warnings": [],
+             "parser": {"name": "t", "version": "1"}})
+        wc_compile.reconcile_prepare(wiki, run_id)
+        wc_compile.reconcile_apply(wiki, run_id,
+            [{"index": 0, "relationship": "UNRELATED", "target_claim_id": None,
+              "valid_from": None, "valid_to": None,
+              "authority": {"type": "explicit_project_decision"}}], wiki.revision())
+        return claims.list_claims(wiki)[0]["id"]
+
+    def test_record_decision_happy_path(self):
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "adr", b"use postgres")
+        cid = self._accepted_claim(wiki, r)
+        out = claims.create_decision(wiki, {
+            "title": "Use Postgres", "status": "accepted",
+            "decided_on": "2026-10-01", "claims": [cid],
+            "evidence": [{"source_id": r["source_id"], "source_version": r["version"],
+                          "locator": {"type": "heading", "value": "H"}}],
+            "body": "ADR-001"})
+        self.assertTrue(out["id"].startswith("decision_"))
+        d = claims.load_decision(wiki, out["id"])
+        self.assertEqual(d["claims"], [cid])
+        self.assertEqual(d["version"], 1)
+
+    def test_record_decision_rejects_unknown_claim(self):
+        wiki = fresh()
+        with self.assertRaises(TxnError) as cm:
+            claims.create_decision(wiki, {
+                "title": "X", "status": "accepted", "decided_on": "2026-10-01",
+                "claims": ["claim_0000000000000000000000000A"], "evidence": []})
+        self.assertIn("unknown claim", str(cm.exception))
+
+    def test_record_decision_rejects_stamped_id(self):
+        wiki = fresh()
+        with self.assertRaises(TxnError):
+            claims.create_decision(wiki, {
+                "id": "decision_0000000000000000000000000A", "title": "X",
+                "status": "accepted", "decided_on": "2026-10-01",
+                "claims": [], "evidence": []})
+
+
 if __name__ == "__main__":
     unittest.main()
