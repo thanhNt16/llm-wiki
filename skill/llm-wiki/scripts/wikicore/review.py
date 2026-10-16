@@ -15,6 +15,7 @@ QUEUE = ".state/review-queue.jsonl"
 ACTIONS = (
     "accept", "reject", "merge", "mark_duplicate", "mark_authoritative",
     "mark_superseded", "set_scope", "set_validity", "defer", "reopen",
+    "set_topic_kind",
 )
 
 
@@ -83,7 +84,7 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
 
     txn = Transaction(wiki, "wiki-review")
     claim = None
-    if action not in ("defer", "reopen"):
+    if action not in ("defer", "reopen", "set_topic_kind"):
         cid = params.get("claim_id")
         if not cid:
             raise TxnError("action %r requires claim_id" % action)
@@ -135,6 +136,28 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
         claim["valid_from"] = params.get("valid_from", claim.get("valid_from"))
         claim["valid_to"] = params.get("valid_to", claim.get("valid_to"))
         claims.save_claim(txn, claim)
+    elif action == "set_topic_kind":
+        from . import deps as deps_mod, topics as topics_mod
+        subj = str(params.get("subject") or "").strip()
+        new_kind = str(params.get("kind") or "").strip().lower()
+        entry = topics_mod.get(wiki, subj)
+        if entry is None or entry.get("status") != "conflict":
+            raise TxnError("subject %r is not a declared topic in conflict" % subj)
+        if new_kind not in entry.get("alternate_kinds", []) + [entry["kind"]]:
+            raise TxnError("kind %r was not declared for %r (declared: %s)"
+                           % (new_kind, subj, ", ".join(entry.get("alternate_kinds", []))))
+        old_dir = topics_mod.PAGE_DIR.get(entry["kind"])
+        def _upd(reg):
+            e = reg.setdefault("topics", {}).get(subj)
+            if e is not None:
+                e["kind"] = new_kind
+                e["status"] = "resolved"
+        txn.stage_state(topics_mod.TOPICS_FILE, _upd)
+        from .text import slugify
+        old_artifact = "wiki/%s/%s.md" % (old_dir, slugify(subj)) if old_dir else None
+        if old_artifact and old_dir != topics_mod.PAGE_DIR.get(new_kind) \
+                and os.path.isfile(wiki.p(old_artifact)):
+            deps_mod.mark_stale(txn, [old_artifact])
     elif action == "defer":
         pass
     elif action == "reopen":

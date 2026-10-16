@@ -463,5 +463,59 @@ class TestRecordDecision(unittest.TestCase):
         self.assertIn("evidence[0]", str(cm.exception))
 
 
+class TestReviewAndDoctor(unittest.TestCase):
+    def _conflict(self, wiki):
+        r = sources.ingest(wiki, "text", "doc", b"x")
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "lake.d", "kind": "entity", "title": "D"},
+            {"subject": "lake.d", "kind": "concept", "title": "D"},
+        ], {"source_id": r["source_id"], "version": r["version"]}))
+        return [i for i in wiki.read_jsonl(".state/review-queue.jsonl")
+                if i.get("kind") == "topic_kind_conflict"][0]
+
+    def test_set_topic_kind_resolves_conflict(self):
+        from wikicore import review
+        wiki = fresh()
+        item = self._conflict(wiki)
+        receipt = review.act(wiki, item["id"], "set_topic_kind",
+                             {"subject": "lake.d", "kind": "concept"},
+                             wiki.revision())
+        e = topics.get(wiki, "lake.d")
+        self.assertEqual(e["kind"], "concept")
+        self.assertEqual(e["status"], "resolved")
+        self.assertEqual(receipt["item"]["status"], "resolved")
+
+    def test_set_topic_kind_rejects_resolved_subject(self):
+        from wikicore import review
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc", b"x")
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "lake.e", "kind": "entity", "title": "E"},
+        ], {"source_id": r["source_id"], "version": r["version"]}))
+        # need a review item to act on — use the conflict path then re-resolve
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "lake.e", "kind": "concept", "title": "E"},
+        ], {"source_id": "src2", "version": 1}))
+        item = [i for i in wiki.read_jsonl(".state/review-queue.jsonl")
+                if i.get("kind") == "topic_kind_conflict"][0]
+        review.act(wiki, item["id"], "set_topic_kind",
+                   {"subject": "lake.e", "kind": "concept"}, wiki.revision())
+        # acting again on same item now that status=resolved must fail
+        with self.assertRaises(TxnError):
+            review.act(wiki, item["id"], "set_topic_kind",
+                       {"subject": "lake.e", "kind": "entity"}, wiki.revision())
+
+    def test_doctor_flags_conflict_and_unclaimed(self):
+        from wikicore import doctor
+        wiki = fresh()
+        self._conflict(wiki)
+        _commit(wiki, lambda t: topics.merge_rows(t, [
+            {"subject": "lake.lonely", "kind": "entity", "title": "L"},
+        ], {"source_id": "srcx", "version": 1}))
+        res = doctor.run(wiki) if hasattr(doctor, "run") else doctor.doctor(wiki)
+        codes = {f["code"] for f in res["findings"]}
+        self.assertIn("topic_kind_conflict", codes)
+        self.assertIn("topic_unclaimed", codes)
+
 if __name__ == "__main__":
     unittest.main()

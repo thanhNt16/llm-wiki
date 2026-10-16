@@ -3,7 +3,7 @@ import json
 import os
 import re
 
-from . import claims, deps, review, schema as schema_mod
+from . import claims, deps, review, schema as schema_mod, synthesize
 from .hashing import canonical_json
 from .transaction import TxnError
 
@@ -219,6 +219,44 @@ def run(wiki) -> dict:
                 add("info", "low_extraction_coverage",
                     "source %s text was not extracted" % sid,
                     "ingest with a document parser for semantic extraction")
+
+    # --- topic registry debt ----------------------------------------------
+    try:
+        from . import topics as topics_mod
+        treg = topics_mod.load(wiki)["topics"]
+    except Exception:
+        treg = {}
+    conflicts_n = sum(1 for e in treg.values() if e.get("status") == "conflict")
+    if conflicts_n:
+        add("warn", "topic_kind_conflict",
+            "%d topic(s) have unresolved kind conflicts" % conflicts_n,
+            "resolve via review act set_topic_kind")
+    unclaimed = topics_mod.unclaimed(wiki) if treg else []
+    if unclaimed:
+        add("info", "topic_unclaimed",
+            "%d declared topic(s) have no claims: %s" % (len(unclaimed), ", ".join(unclaimed[:5])),
+            "extract claims for them or accept thin coverage")
+    auto_n = sum(1 for e in treg.values() if e.get("auto_registered"))
+    if auto_n:
+        add("info", "topics_auto_registered",
+            "%d topic(s) auto-registered as concept" % auto_n,
+            "declare kinds explicitly in topics.jsonl")
+    from .text import slugify
+    for subj, e in treg.items():
+        want = topics_mod.PAGE_DIR.get(e.get("kind"))
+        if not want or e.get("status") != "resolved":
+            continue
+        slug = slugify(subj)
+        wikip = wiki.p("wiki")
+        if not os.path.isdir(wikip):
+            continue
+        for other in os.listdir(wikip):
+            other_p = os.path.join(wikip, other, slug + ".md")
+            if other != want and os.path.isfile(other_p) and \
+                    other in synthesize.PAGE_KINDS:
+                add("error", "topic_page_kind_mismatch",
+                    "topic %r is %s but page exists at wiki/%s/%s.md" % (subj, e["kind"], other, slug),
+                    "re-write page at wiki/%s/%s.md or fix the topic kind" % (want, slug))
 
 
     severity_rank = {"error": 0, "warn": 1, "info": 2}
