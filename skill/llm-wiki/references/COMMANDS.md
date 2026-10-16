@@ -51,28 +51,47 @@ Receipt fields: `source_id`, `version`, `sha256`, `deduplicated`, `warnings`,
 
 Three resumable phases: extract → classify → apply. The first call creates one
 staging run per pending source and returns `pending[]` entries with
-`content_path`, `candidates_path`, and `classifications_path`:
+`content_path`, `topics_path`, `candidates_path`, and `classifications_path`:
 
 ```bash
 wiki.py compile
-# write one shorthand JSON object per line to each candidates_path
+# write topics.jsonl (one topic row per subject) to each topics_path FIRST,
+# then one shorthand JSON object per line to each candidates_path
 wiki.py compile --resume
 # if needs_review rows remain, write classifications.json, then:
 wiki.py compile --resume
 ```
 
-Runs are stored in `.llm-wiki/.state/staging/<run_id>/` with
+Runs are stored in `.llm-wiki/.state/staging/<run_id>/` with `topics.jsonl`,
 `candidates.jsonl`, `classifications.json`, and optional `report.json`.
-`--resume` advances staged runs: it returns auto verdict counts plus
-`needs_review` rows, then applies the supplied classifications and returns the
-receipt, changes, conflicts, and `verify` result. UNRELATED, DUPLICATE, and
-CORROBORATION are auto-classified; the agent classifies only `needs_review`.
+`--resume` advances staged runs: it parses `topics.jsonl` (a missing file adds
+a `no_topics_declared` receipt warning) and merges declared rows into
+`topics.json`, then returns auto verdict counts plus `needs_review` rows,
+then applies the supplied classifications and returns the receipt, changes,
+conflicts, and `verify` result. UNRELATED, DUPLICATE, and CORROBORATION are
+auto-classified; the agent classifies only `needs_review`.
 
 The low-level `compile-plan`, `stage-candidates`, `reconcile-prepare`, and
 `reconcile-apply` commands remain available. `stage-candidates --file` accepts
 `.json` arrays/objects and `.jsonl` shorthand files.
 
-After the apply lands:
+After the apply lands, the receipt carries a `topics` block:
+
+```
+topics: {declared, registered, auto_registered[], kind_conflicts[],
+         decision_topics[], unclaimed[], warnings[]}
+```
+
+- `decision_topics[]` — declared `decision`-kind subjects; record each via
+  `wiki.py record-decision --file decision.json` (see `record-decision`).
+- `kind_conflicts[]` — subjects declared with different kinds across rows;
+  each also opens a `topic_kind_conflict` review item, resolved via
+  `wiki.py review act --action set_topic_kind`.
+- `auto_registered[]` — subjects extracted but never declared; registered as
+  `concept` with a warning. `unclaimed[]` — declared topics (except
+  `source`/`decision`) that ended the run with zero claims.
+
+Then:
 
 1. Synthesis — regenerate invalidated or stale pages you authored per the
    wiki-write skill: run `wiki.py page-targets`, and for EVERY `targets[]`
@@ -100,7 +119,13 @@ wiki.py page-targets --stale-only       # only refresh targets
 
 A subject qualifies with ≥2 eligible claims (`accepted`/`provisional`)
 spanning ≥2 distinct `root_origin`s, or one eligible claim whose
-`authority.type` is `explicit_project_decision`. Kind routing: `--kind`
+`authority.type` is `explicit_project_decision`, OR — regardless of the
+claim/origin thresholds — when the subject is a resolved topic in
+`.llm-wiki/topics.json` with a page kind (`reason: "declared"`).
+`decision`-kind topics never emit page targets (they surface via
+`decision_topics[]` for `record-decision`); resolved page-kind topics with
+zero eligible claims appear in `waiting[]` as `declared_no_claims`.
+Kind routing: a resolved declared topic's kind wins first; `--kind`
 overrides; otherwise `.llm-wiki/page-kinds.json` ordered rules
 (`subject|prefix|suffix|regex|predicate` matchers, `when.min_claims`, first
 match wins) decide the dir — missing file routes everything to `concepts`.
@@ -130,8 +155,11 @@ wiki.py write-page --text '<markdown>' --artifact wiki/questions/open-billing.md
   slug matches the artifact (collision-suffixed slugs still match),
   non-empty `title`, ISO-8601 `created` on new pages, `linked ⊆ deps`,
   `disputed: true` when a dep claim is disputed (empty deps only for
-  `type: question`). It rejects reserved artifacts (`wiki/index.md`,
-  `wiki/overview.md`, `wiki/decisions/*`, any `*/index.md`).
+  `type: question`). Markdown links in the body that resolve to `.md` files
+  under `wiki/` are validated and auto-appended to `deps`; unresolved
+  bundle-internal links are rejected. It rejects reserved artifacts
+  (`wiki/index.md`, `wiki/overview.md`, `wiki/review.md`, `wiki/log.md`,
+  `wiki/decisions/*`, any `*/index.md`).
 - On success the deps REPLACE any previous registration for the artifact in
   `.state/dependencies.json` and the stale flag clears in the same
   transaction. Exit 4 → re-run `page-targets`, re-author, commit with the
@@ -186,6 +214,43 @@ claim_count, source_count, stale_pages[]}]}`, sorted by subject, capped at
 Use it to spot claim-heavy subjects with no page, single-origin subjects
 that stay claim-only, and pages gone stale per subject.
 
+## topics
+
+Read-only census of the canonical topic registry (`.llm-wiki/topics.json`),
+plus an idempotent migration for wikis that predate the registry:
+
+```bash
+wiki.py topics            # registry census
+wiki.py topics --backfill # register existing claim subjects (idempotent)
+```
+
+→ `{"version": N, "topics": [{subject, kind, status, title, claim_count,
+declared_by, auto_registered}]}`, sorted by subject. `status` is `resolved`
+or `conflict` (declared with differing kinds — resolve via
+`review act set_topic_kind`); `declared_by` is a count of declaring sources.
+
+`--backfill` writes `{topics_registered, warnings}` and never overwrites an
+existing entry. For each unregistered claim subject it prefers the kind of
+an existing page dir (`wiki/<kind>/<slug>.md` already on disk), falling
+back to `page-kinds.json` routing (default `concept`); entries are stamped
+`auto_registered: true` with `declared_by: backfill`.
+
+## record-decision
+
+Mints a canonical decision record — the apply step for `decision`-kind
+topics listed in the receipt's `decision_topics[]`:
+
+```bash
+wiki.py record-decision --file decision.json
+```
+
+Input: `{title, status, decided_on, claims[], evidence[], body?, scope?}` —
+no `id`/`recorded_at`/`version` (engine stamps them). Every `claims[]` id
+must exist and be non-terminal. Every `evidence[]` item requires
+`source_id` (must resolve to an ingested source), `source_version`, and a
+`locator` with a `type` (same enum as claim evidence: `heading`,
+`line_range`, …).
+
 ## context
 
 Generate a bounded pack for a task; never dump the wiki.
@@ -214,7 +279,8 @@ wiki.py review act --item review_... --action accept --params params.json
 ```
 
 Actions: `accept reject merge mark_duplicate mark_authoritative
-mark_superseded set_scope set_validity defer reopen`. Params JSON e.g.
+mark_superseded set_scope set_validity defer reopen set_topic_kind`.
+`--params` is a JSON FILE path whose contents are e.g.
 `{"claim_id": "claim_...", "scope": {"environment": "staging"}}` or
 `{"claim_id": "...", "target": "claim_..."}` for mark_superseded.
 
@@ -225,6 +291,11 @@ mark_superseded set_scope set_validity defer reopen`. Params JSON e.g.
 - `reopen` returns a deferred item to `open` (clears `deferred_at`, appends
   to the item's history). Receipt shape is unchanged:
   `{"item": ..., "run_id": ...}`.
+- `set_topic_kind` resolves a `topic_kind_conflict` item. The params file
+  carries `{"subject": "...", "kind": "..."}` — the subject must appear in
+  the item's `affected[]`, and `kind` must be one of the kinds declared for
+  it (`entry.kind` or `alternate_kinds[]`). It sets the topic's kind, marks
+  it `resolved`, and marks pages stale in the old kind dir when it changes.
 - Loop: `review list` → `review show` (present BOTH sides) → `review act` →
   `wiki.py build-pages` if a claim changed → `wiki.py verify` green.
 
@@ -244,11 +315,15 @@ mismatch, slug collisions, disputed deps without labeling, duplicate
 page-target artifacts, ambiguous kind routing); interrupted commits
 (receipt/revision disagreement, leftover `.state/journal.json` or
 `.state/.backup-<rev>/` dirs — recover deliberately, never auto-delete
-canonical data); `staging_leftover`; and semantic debt (unsupported claims,
+canonical data); `staging_leftover`; semantic debt (unsupported claims,
 disputes, contradictions, stale derived artifacts and context packs, low
-extraction coverage). Fix errors first (usually broken references from
-out-of-band edits). Report unresolved semantic debt to the user — do not
-auto-resolve.
+extraction coverage); and topic-registry debt — `topic_kind_conflict`
+(resolve via `review act set_topic_kind`), `topic_unclaimed` (declared
+topic with zero claims), `topics_auto_registered` (kind inferred — declare
+kinds explicitly in topics.jsonl), and `topic_page_kind_mismatch` (page
+lives under the wrong kind dir). Fix errors first (usually broken
+references from out-of-band edits). Report unresolved semantic debt to the
+user — do not auto-resolve.
 
 ## graph-data
 

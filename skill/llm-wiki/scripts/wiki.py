@@ -265,11 +265,36 @@ def cmd_review(args) -> int:
     raise TxnError("review sub-command required: list|show|act")
 
 
+def cmd_record_decision(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    data = _load_json_file(args.file)
+    _emit(claims.create_decision(wiki, data))
+    return 0
+
+
 def cmd_doctor(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
     result = doctor.run(wiki)
     _emit(result)
     return 0 if result["ok"] else 3
+
+def cmd_topics(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    from wikicore import topics as topics_mod
+    if args.backfill:
+        _emit(topics_mod.backfill(wiki))
+        return 0
+    reg = topics_mod.load(wiki)
+    claim_counts = {}
+    for c in claims.list_claims(wiki):
+        claim_counts[c["subject"]] = claim_counts.get(c["subject"], 0) + 1
+    out = [{"subject": s, "kind": e["kind"], "status": e["status"],
+            "title": e["title"], "claim_count": claim_counts.get(s, 0),
+            "declared_by": len(e.get("declared_by", [])),
+            "auto_registered": bool(e.get("auto_registered"))}
+           for s, e in sorted(reg["topics"].items())]
+    _emit({"version": reg.get("version", 0), "topics": out})
+    return 0
 
 
 def cmd_graph_data(args) -> int:
@@ -387,7 +412,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--item", default=None)
     p.add_argument("--action", default=None,
                    help="accept|reject|merge|mark_duplicate|mark_authoritative|"
-                        "mark_superseded|set_scope|set_validity|defer|reopen")
+                        "mark_superseded|set_scope|set_validity|defer|reopen|"
+                        "set_topic_kind")
     p.add_argument("--params", default=None, help="params JSON file")
     p.add_argument("--kind", default=None)
     p.add_argument("--status", default=None)
@@ -396,12 +422,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--base-revision", type=int, default=None)
     p.set_defaults(fn=cmd_review)
 
+    p = sub.add_parser("record-decision")
+    p.add_argument("--file", required=True, help="decision input JSON file")
+    p.set_defaults(fn=cmd_record_decision)
+
     p = sub.add_parser("doctor")
     p.set_defaults(fn=cmd_doctor)
 
     p = sub.add_parser("graph-data")
     p.add_argument("--output", default=None, help="write JSON to file instead of stdout")
     p.set_defaults(fn=cmd_graph_data)
+
+    p = sub.add_parser("topics")
+    p.add_argument("--backfill", action="store_true",
+                   help="register existing claim subjects (idempotent)")
+    p.set_defaults(fn=cmd_topics)
 
     return ap
 

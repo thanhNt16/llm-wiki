@@ -11,7 +11,7 @@ import re
 import time
 from typing import Optional
 
-from . import claims, deps
+from . import claims, deps, topics
 from .transaction import Transaction, TxnError
 from .yamlite import dumps as yamldumps, loads as yamlloads
 
@@ -29,6 +29,7 @@ ELIGIBLE_STATUSES = ("accepted", "provisional")
 AUTHORITATIVE = "explicit_project_decision"
 
 LINK_RE = re.compile(r"\[\[([a-z]+_[0-9A-Za-z]+)\]\]")
+PAGE_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+\.md)\)")
 _FRONT_RE = re.compile(r"\A---\s*\n(.*?)\n?---\s*\n?", re.S)
 
 KIND_RULES_FILE = "page-kinds.json"
@@ -121,22 +122,13 @@ def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def slugify(subject: str) -> str:
-    """Subject -> slug: lowercase, non-alphanumeric runs -> '-', <=60 chars cut
-    at a '-' boundary, trimmed."""
-    slug = re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-")
-    if len(slug) > 60:
-        slug = slug[:60]
-        if "-" in slug:
-            slug = slug[: slug.rindex("-")]
-        slug = slug.strip("-")
-    return slug or "untitled"
+from .text import slugify  # noqa: F401  (canonical home: text.py)
 
 
 def _is_reserved(artifact: str) -> bool:
     a = artifact.strip("/")
     return (
-        a in ("wiki/index.md", "wiki/overview.md")
+        a in ("wiki/index.md", "wiki/overview.md", "wiki/review.md", "wiki/log.md")
         or a.startswith("wiki/decisions/")
         or a.endswith("/index.md")
     )
@@ -181,11 +173,21 @@ def page_targets(wiki, kind: Optional[str] = None, stale_only: bool = False,
     rules, default_kind = _load_kind_rules(wiki, warnings)
     targets = []
     waiting = []
+    topic_map = topics.load(wiki)["topics"]
     for subject in sorted(groups):
         cs = groups[subject]
         n = len(cs)
         origins = sum(claims.independence(wiki, c) for c in cs)
-        if n >= min_claims and origins >= min_sources:
+        tentry = topic_map.get(subject)
+        declared_kind = (topics.PAGE_DIR.get(tentry["kind"])
+                         if tentry and tentry.get("status") == "resolved"
+                         else None)
+        if (tentry and tentry.get("status") == "resolved"
+                and tentry["kind"] == "decision"):
+            continue  # decision topics never emit pages (receipts/census only)
+        if declared_kind is not None:
+            reason = "declared"
+        elif n >= min_claims and origins >= min_sources:
             reason = "corroborated"
         elif any((c.get("authority") or {}).get("type") == AUTHORITATIVE for c in cs):
             reason = "authoritative"
@@ -199,10 +201,19 @@ def page_targets(wiki, kind: Optional[str] = None, stale_only: bool = False,
             continue
         if kind is not None:
             k, matched = kind, None
+        elif declared_kind is not None:
+            k, matched = declared_kind, None
         else:
             k, matched = _route_kind(subject, cs, rules, default_kind)
         slug = slugify(subject)
         rel = "wiki/%s/%s.md" % (k, slug)
+        prefix = subject.rsplit(".", 1)[0] if "." in subject else subject
+        related = []
+        for sib, e in topic_map.items():
+            if sib == subject or e.get("status") != "resolved":
+                continue
+            if sib.rsplit(".", 1)[0] == prefix:
+                related.append(sib)
         targets.append({
             "subject": subject,
             "matched_rule": matched,
@@ -213,10 +224,26 @@ def page_targets(wiki, kind: Optional[str] = None, stale_only: bool = False,
             "claim_count": n,
             "distinct_origins": origins,
             "reason": reason,
+            "related": sorted(related)[:8],
             "exists": os.path.isfile(wiki.p(rel)),
             "stale": deps.is_stale(wiki, rel),
             "claim_details": [_detail(c) for c in cs],
         })
+
+    # resolved declared topics with no eligible claims still surface as
+    # waiting rows so the agent can see them pending
+    for subject in sorted(topic_map):
+        e = topic_map[subject]
+        if (subject not in groups
+                and e.get("status") == "resolved"
+                and e["kind"] != "source"
+                and topics.PAGE_DIR.get(e["kind"]) is not None):
+            waiting.append({
+                "subject": subject,
+                "claim_count": 0,
+                "distinct_origins": 0,
+                "reason": "declared_no_claims",
+            })
 
     # slug collisions: same (kind, slug) from distinct subjects — the first
     # subject (sorted order) keeps the base slug; the rest get a deterministic
@@ -252,6 +279,34 @@ def _claim_exists(wiki, cid: str) -> bool:
         return True
     except TxnError:
         return False
+
+
+def _page_links(wiki, artifact: str, body: str) -> list:
+    """Resolve OKF-style markdown page links in the body to wiki/ rel paths.
+
+    Accepts bundle-relative targets (`wiki/entities/x.md`) and same-dir or
+    upward-relative targets (`./y.md`, `../entities/y.md`) resolved against
+    the artifact's own directory. External URLs and non-.md links are
+    ignored. Bundle-internal .md links that don't resolve are rejected."""
+    out = []
+    for target in PAGE_LINK_RE.findall(body):
+        if "://" in target:
+            continue
+        if target.startswith("wiki/"):
+            rel = target
+        else:
+            resolved = os.path.normpath(os.path.join(os.path.dirname(artifact), target))
+            rel = resolved.replace(os.sep, "/")
+        if not rel.startswith("wiki/"):
+            continue  # links outside the bundle are the author's business
+        if rel == artifact:
+            continue
+        if not os.path.isfile(wiki.p(rel)):
+            raise TxnError("unresolved page link %r -> %s in %s"
+                           % (target, rel, artifact))
+        if rel not in out:
+            out.append(rel)
+    return out
 
 
 def _normalize_deps(wiki, dep_list) -> list:
@@ -330,8 +385,11 @@ def write_page(wiki, artifact: str, markdown_text: str, dep_list: Optional[list]
     unresolved = sorted(c for c in linked if not _claim_exists(wiki, c))
     if unresolved:
         raise TxnError("unresolved [[claim]] links: %s" % ", ".join(unresolved))
+    page_deps = _page_links(wiki, rel, body)  # OKF page links, validated here
     if dep_list is None:
         dep_list = sorted(linked)  # auto-derive: bare ids pin to current version
+    dep_list = list(dep_list or []) + [p for p in page_deps
+                                       if p not in dep_list]
     dep_set = _normalize_deps(wiki, dep_list)
     if not dep_set and ftype != "question":
         raise TxnError("deps required: cite at least one dep"
@@ -348,9 +406,10 @@ def write_page(wiki, artifact: str, markdown_text: str, dep_list: Optional[list]
                                " to cite it" % did)
 
     rel_path = wiki.p(rel)
+    old_body = None
     if os.path.isfile(rel_path):
         with open(rel_path) as f:
-            old_front, _ = _split_front(f.read())
+            old_front, old_body = _split_front(f.read())
         if str(old_front.get("subject") or "") != subject:
             raise TxnError("subject is immutable on refresh: existing %r != %r"
                            % (old_front.get("subject"), subject))
@@ -361,6 +420,20 @@ def write_page(wiki, artifact: str, markdown_text: str, dep_list: Optional[list]
         if not re.match(r"^\d{4}-\d{2}-\d{2}T", created):
             raise TxnError("frontmatter created must be an ISO datetime"
                            " (YYYY-MM-DDT...) on new pages")
+
+    # OKF niceties: `owner`/`tags` pass through untouched when authored;
+    # `owner` is backfilled from the first dep claim's independent origin.
+    if not front.get("owner"):
+        for d in dep_set:
+            did = d.split("@", 1)[0]
+            if did.startswith("claim_"):
+                c = claims.load_claim(wiki, did)
+                origins = [c.get("root_origin")] + [
+                    ev.get("root_origin") for ev in c.get("evidence") or []]
+                origin = next((o for o in origins if o), None)
+                if origin:
+                    front["owner"] = origin
+                    break
 
     front["deps"] = dep_set
     front["updated"] = _now()
@@ -374,6 +447,10 @@ def write_page(wiki, artifact: str, markdown_text: str, dep_list: Optional[list]
     txn.stage_write(rel, text)
     deps.replace(txn, rel, dep_set)
     deps.clear_stale(txn, [rel])
+    # A new page or a changed body invalidates every artifact that deps on
+    # this page (transitively, via deps.invalidate's artifact-name cascade).
+    if old_body is None or old_body.strip() != body.strip():
+        deps.invalidate(wiki, [rel], txn=txn)
     txn.changes = {"page": rel}
     txn.commit(base_revision)
     return {"written": rel, "deps": dep_set,

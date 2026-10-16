@@ -21,7 +21,7 @@ DEFAULT_CONFIG = {
 README = """# .llm-wiki
 
 Evidence-backed project memory. Canonical data lives in `sources/`, `claims/`,
-`decisions/`; everything under `wiki/`, `context/`, `views/` is derived and
+`decisions/`, `topics.json`; everything under `wiki/`, `context/`, `views/` is derived and
 rebuildable. Do not edit canonical JSON by hand — use the llm-wiki skill
 commands (wiki-init, wiki-ingest, wiki-compile, wiki-query, wiki-context,
 wiki-review, wiki-doctor).

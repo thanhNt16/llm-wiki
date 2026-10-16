@@ -153,6 +153,20 @@ class TestPages(unittest.TestCase):
         self.assertIn("wiki-compile", text)
         self.assertIn("wiki-ingest", text)
 
+    def test_log_md_built_from_operations_log(self):
+        wiki, claim, d = self._wiki_with_claim_and_decision()
+        pages.build_pages(wiki, wiki.revision())
+        path = wiki.p("wiki/log.md")
+        self.assertTrue(os.path.isfile(path))
+        with open(path) as f:
+            text = f.read()
+        self.assertIn("# Log", text)
+        self.assertIn("`wiki-compile`", text)
+        self.assertIn("type: log", text)
+        with open(wiki.p("wiki/index.md")) as f:
+            self.assertIn("[Log](log.md)", f.read())
+        self.assertTrue(pages.verify(wiki)["ok"])
+
     def test_verify_accepts_current_versions_and_wiki_paths(self):
         wiki, claim, d = self._wiki_with_claim_and_decision()
         pages.build_pages(wiki, wiki.revision())

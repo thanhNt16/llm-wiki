@@ -248,13 +248,15 @@ def _default_validator(txn: Transaction) -> None:
 
 
 def _check_object(rel: str, data) -> None:
-    """Schema-enforce canonically-named files only (claims/claim_*, decisions/decision_*)."""
+    """Schema-enforce canonically-named files only (claims/claim_*, decisions/decision_*, topics.json)."""
     base = os.path.basename(rel)
     schema_file = None
     if rel.startswith("claims/") and base.startswith("claim_"):
         schema_file = "claim.schema.json"
     elif rel.startswith("decisions/") and base.startswith("decision_"):
         schema_file = "decision.schema.json"
+    elif rel == "topics.json":
+        schema_file = "topics.schema.json"
     if schema_file and isinstance(data, dict):
         with open(_RUN_RECEIPT_SCHEMA_PATH.replace("run-receipt.schema.json", schema_file)) as f:
             s = json.load(f)

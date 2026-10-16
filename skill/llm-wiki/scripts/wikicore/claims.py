@@ -160,3 +160,38 @@ def independence(wiki, claim: dict) -> int:
 
 def _now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def create_decision(wiki, data: dict) -> dict:
+    """Validate + commit a decision record (record-decision command).
+    Caller supplies title/status/decided_on/claims/evidence/body/scope;
+    engine stamps id, recorded_at, version."""
+    if not isinstance(data, dict):
+        raise TxnError("decision input must be a JSON object")
+    for banned in ("id", "recorded_at", "version"):
+        if banned in data:
+            raise TxnError("decision input must not include %r — engine-stamped" % banned)
+    if not isinstance(data.get("claims", []), list):
+        raise TxnError("decision input 'claims' must be a list")
+    if not isinstance(data.get("evidence", []), list):
+        raise TxnError("decision input 'evidence' must be a list")
+    for cid in data.get("claims") or []:
+        c = load_claim(wiki, cid)
+        if c.get("status") in TERMINAL:
+            raise TxnError("claim %s is %s; cannot support a decision" % (cid, c["status"]))
+    from . import sources as sources_mod
+    for i, ev in enumerate(data.get("evidence") or []):
+        if not isinstance(ev, dict):
+            raise TxnError("evidence[%d] must be a JSON object" % i)
+        sid = ev.get("source_id", "")
+        if sources_mod.get_manifest(wiki, sid) is None:
+            raise TxnError("unknown source: %s" % sid)
+    decision = dict(data)
+    decision["id"] = ids.new("decision")
+    decision["recorded_at"] = _now()
+    decision["version"] = 1
+    txn = Transaction(wiki, "wiki-record-decision")
+    save_decision(txn, decision)
+    txn.changes = {"decisions_created": 1}
+    receipt = txn.commit(wiki.revision())
+    return {"id": decision["id"], "decision": decision, "receipt": receipt}

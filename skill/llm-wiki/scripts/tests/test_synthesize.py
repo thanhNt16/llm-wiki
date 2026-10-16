@@ -5,6 +5,7 @@ from unittest import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from wikicore import claims, deps, pages, synthesize
+from wikicore import topics
 from wikicore.store import Wiki, init_wiki
 from wikicore.transaction import Transaction, TxnError
 from wikicore.yamlite import loads as yamlloads
@@ -574,6 +575,144 @@ class TestWritePageCli(unittest.TestCase):
         self.assertFalse(shown["stale"])
         self.assertEqual(shown["deps_registered"], [dep])
 
+
+
+class TestPageLinks(unittest.TestCase):
+    def test_bundle_relative_link_appends_dep(self):
+        wiki = fresh()
+        c1 = save_claim(wiki, "db", authority={"type": "explicit_project_decision"})
+        c2 = save_claim(wiki, "s3", authority={"type": "explicit_project_decision"})
+        dep1 = ["%s@1" % c1["id"]]
+        synthesize.write_page(wiki, "wiki/concepts/db.md", page_md(dep1), dep1,
+                              wiki.revision())
+        dep2 = ["%s@1" % c2["id"]]
+        body = "Stores sit on [the DB](wiki/concepts/db.md)."
+        r = synthesize.write_page(wiki, "wiki/entities/s3.md",
+                                  page_md(dep2, body=body, type_="entity",
+                                          subject="s3"),
+                                  dep2, wiki.revision())
+        self.assertIn("wiki/concepts/db.md", r["deps"])
+        self.assertEqual(deps.graph(wiki)["edges"]["wiki/entities/s3.md"],
+                         sorted(r["deps"]))
+
+    def test_relative_link_resolves_against_artifact_dir(self):
+        wiki = fresh()
+        c = save_claim(wiki, "db", authority={"type": "explicit_project_decision"})
+        dep = ["%s@1" % c["id"]]
+        synthesize.write_page(wiki, "wiki/concepts/db.md", page_md(dep), dep,
+                              wiki.revision())
+        body = "Back to [db](./db.md)."
+        r = synthesize.write_page(wiki, "wiki/concepts/s3.md",
+                                  page_md(dep, body=body, subject="s3"), dep,
+                                  wiki.revision())
+        self.assertIn("wiki/concepts/db.md", r["deps"])
+
+    def test_unresolved_bundle_link_rejected(self):
+        wiki = fresh()
+        c = save_claim(wiki, "db", authority={"type": "explicit_project_decision"})
+        dep = ["%s@1" % c["id"]]
+        body = "See [nope](../entities/nope.md)."
+        with self.assertRaises(TxnError):
+            synthesize.write_page(wiki, "wiki/concepts/db.md",
+                                  page_md(dep, body=body), dep,
+                                  wiki.revision())
+
+    def test_external_and_non_md_links_ignored(self):
+        wiki = fresh()
+        c = save_claim(wiki, "db", authority={"type": "explicit_project_decision"})
+        dep = ["%s@1" % c["id"]]
+        body = "[site](https://x.example/a.md) [img](./pic.png) [out](../../outside/a.md)"
+        r = synthesize.write_page(wiki, "wiki/concepts/db.md",
+                                  page_md(dep, body=body), dep,
+                                  wiki.revision())
+        self.assertEqual(r["deps"], dep)
+
+    def test_reserved_log_and_review_rejected(self):
+        wiki = fresh()
+        c = save_claim(wiki, "db", authority={"type": "explicit_project_decision"})
+        dep = ["%s@1" % c["id"]]
+        for artifact in ("wiki/log.md", "wiki/review.md"):
+            with self.assertRaises(TxnError):
+                synthesize.write_page(wiki, artifact, page_md(dep), dep,
+                                      wiki.revision())
+
+    def test_owner_backfilled_from_root_origin(self):
+        wiki = fresh()
+        c = save_claim(wiki, "db", root_origin="platform-adr",
+                       authority={"type": "explicit_project_decision"})
+        dep = ["%s@1" % c["id"]]
+        synthesize.write_page(wiki, "wiki/concepts/db.md", page_md(dep), dep,
+                              wiki.revision())
+        with open(wiki.p("wiki/concepts/db.md")) as f:
+            front, _ = synthesize._split_front(f.read())
+        self.assertEqual(front.get("owner"), "platform-adr")
+
+    def test_explicit_owner_preserved(self):
+        wiki = fresh()
+        c = save_claim(wiki, "db", root_origin="platform-adr",
+                       authority={"type": "explicit_project_decision"})
+        dep = ["%s@1" % c["id"]]
+        md = page_md(dep).replace("title: DB engine",
+                                  "title: DB engine\nowner: data-team")
+        synthesize.write_page(wiki, "wiki/concepts/db.md", md, dep,
+                              wiki.revision())
+        with open(wiki.p("wiki/concepts/db.md")) as f:
+            front, _ = synthesize._split_front(f.read())
+        self.assertEqual(front.get("owner"), "data-team")
+
+    def test_body_change_stales_linking_pages(self):
+        wiki = fresh()
+        c = save_claim(wiki, "db", authority={"type": "explicit_project_decision"})
+        c2 = save_claim(wiki, "s3", authority={"type": "explicit_project_decision"})
+        dep = ["%s@1" % c["id"]]
+        synthesize.write_page(wiki, "wiki/concepts/db.md", page_md(dep), dep,
+                              wiki.revision())
+        dep2 = ["%s@1" % c2["id"]]
+        body = "Stores sit on [db](../concepts/db.md)."
+        synthesize.write_page(wiki, "wiki/entities/s3.md",
+                              page_md(dep2, body=body, type_="entity",
+                                      subject="s3"),
+                              dep2, wiki.revision())
+        # rewrite db.md with a changed body -> s3.md goes stale
+        synthesize.write_page(wiki, "wiki/concepts/db.md",
+                              page_md(dep, body="CHANGED BODY"), dep,
+                              wiki.revision())
+        self.assertIn("wiki/entities/s3.md", deps.stale_artifacts(wiki))
+        self.assertNotIn("wiki/concepts/db.md", deps.stale_artifacts(wiki))
+
+    def test_identical_body_rewrite_does_not_stale_linkers(self):
+        wiki = fresh()
+        c = save_claim(wiki, "db", authority={"type": "explicit_project_decision"})
+        c2 = save_claim(wiki, "s3", authority={"type": "explicit_project_decision"})
+        dep = ["%s@1" % c["id"]]
+        synthesize.write_page(wiki, "wiki/concepts/db.md", page_md(dep), dep,
+                              wiki.revision())
+        dep2 = ["%s@1" % c2["id"]]
+        body = "Stores sit on [db](../concepts/db.md)."
+        synthesize.write_page(wiki, "wiki/entities/s3.md",
+                              page_md(dep2, body=body, type_="entity",
+                                      subject="s3"),
+                              dep2, wiki.revision())
+        # stale-clear rewrite with the same body leaves s3.md fresh
+        synthesize.write_page(wiki, "wiki/concepts/db.md", page_md(dep), dep,
+                              wiki.revision())
+        self.assertNotIn("wiki/entities/s3.md", deps.stale_artifacts(wiki))
+
+
+class TestRelatedTargets(unittest.TestCase):
+    def test_related_lists_same_prefix_siblings(self):
+        wiki = fresh()
+        txn = Transaction(wiki, "t")
+        topics.merge_rows(txn, [
+            {"subject": "lake.s3", "kind": "entity", "title": "S3"},
+            {"subject": "lake.gcs", "kind": "entity", "title": "GCS"},
+            {"subject": "wh.bq", "kind": "entity", "title": "BigQuery"},
+        ], {"source_id": "src_a", "version": 1})
+        txn.commit(wiki.revision())
+        save_claim(wiki, "lake.s3", authority={"type": "explicit_project_decision"})
+        targets = synthesize.page_targets(wiki)["targets"]
+        t = [x for x in targets if x["subject"] == "lake.s3"][0]
+        self.assertEqual(t["related"], ["lake.gcs"])
 
 if __name__ == "__main__":
     unittest.main()

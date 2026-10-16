@@ -11,7 +11,8 @@ Local-first project memory for coding agents. Two invariants govern everything:
    structured interpretations with citations. Decisions are what the project
    deliberately chose — never inferred from repeated claims.
 2. **Derived is disposable.** `wiki/`, `context/`, `views/` are rebuildable.
-   Canonical state lives only in `sources/`, `claims/`, `decisions/`, `.state/`.
+   Canonical state lives only in `sources/`, `claims/`, `decisions/`,
+   `topics.json`, `.state/`.
 
 ## CRITICAL — you never touch `.llm-wiki/` yourself
 
@@ -54,6 +55,8 @@ before removing it.
 | Answer a project question | references/COMMANDS.md#query | `wiki.py query-prepare --question "..."` |
 | Prepare context for a task / resume work | references/CONTEXT-PACKS.md | `wiki.py context-pack --task "..." --budget 6000` |
 | Resolve conflicts / review candidates | references/COMMANDS.md#review | `wiki.py review list` |
+| List declared topics / register existing subjects | references/COMMANDS.md#topics | `wiki.py topics [--backfill]` |
+| Record an explicit project decision | references/COMMANDS.md#record-decision | `wiki.py record-decision --file decision.json` |
 | Diagnose memory problems | references/COMMANDS.md#doctor | `wiki.py doctor` |
 
 Architecture background (layers, authority, temporal model, provenance):
