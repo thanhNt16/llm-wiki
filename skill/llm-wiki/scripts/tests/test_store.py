@@ -1,4 +1,4 @@
-import os, sys, tempfile, unittest
+import json, os, sys, tempfile, unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -58,6 +58,35 @@ class TestStore(unittest.TestCase):
 
     def test_exists_false_before_init(self):
         self.assertFalse(self.wiki.exists())
+
+
+class InitPageKindsTest(unittest.TestCase):
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.wiki = Wiki(self.root)
+
+    def test_init_writes_starter_file(self):
+        init_wiki(self.wiki, "demo")
+        path = self.wiki.p("page-kinds.json")
+        self.assertTrue(os.path.isfile(path))
+        with open(path) as f:
+            data = json.load(f)
+        self.assertEqual(data["rules"], [])
+        self.assertEqual(data["default"], "concepts")
+        self.assertIn("_comment", data)
+
+    def test_init_does_not_clobber(self):
+        init_wiki(self.wiki, "demo")
+        path = self.wiki.p("page-kinds.json")
+        with open(path, "w") as f:
+            f.write('{"rules": [{"kind": "entities", "prefix": "svc."}]}')
+        # init_wiki early-returns while wiki.json exists; remove the sentinel
+        # so a second init runs the scaffold path again.
+        os.remove(self.wiki.p("wiki.json"))
+        init_wiki(self.wiki, "demo")
+        with open(path) as f:
+            self.assertEqual(f.read(),
+                             '{"rules": [{"kind": "entities", "prefix": "svc."}]}')
 
 
 if __name__ == "__main__":

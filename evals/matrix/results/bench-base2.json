@@ -1,0 +1,163 @@
+{
+  "build_steps": [
+    {
+      "err": "",
+      "exit": 0,
+      "step": "init"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "ingest docs/adr-007-retries.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "ingest docs/adr-019-attribution.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "ingest notes/memo-2026-09-01-window-change.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "ingest config/analytics.prod.json"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "ingest config/analytics.sandbox.json"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "ingest notes/meeting-2026-09-10.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "ingest docs/adr-001-postgres.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "stage docs/adr-019-attribution.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "reconcile docs/adr-019-attribution.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "stage config/analytics.prod.json"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "reconcile config/analytics.prod.json"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "stage config/analytics.sandbox.json"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "reconcile config/analytics.sandbox.json"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "stage docs/adr-007-retries.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "reconcile docs/adr-007-retries.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "stage notes/meeting-2026-09-10.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "reconcile notes/meeting-2026-09-10.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "stage docs/adr-001-postgres.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "reconcile docs/adr-001-postgres.md"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "stage notes/memo-2026-09-01-window-change.md correction"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "reconcile notes/memo-2026-09-01-window-change.md correction"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "build-pages"
+    },
+    {
+      "err": "",
+      "exit": 0,
+      "step": "verify"
+    }
+  ],
+  "context": {
+    "budget_compliance": true,
+    "compression_ratio": 6.52,
+    "pack_tokens_avg": 275.2
+  },
+  "engine": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/llmwiki-engine-bb7a51f-krknfmhr/skill/llm-wiki/scripts/wiki.py",
+  "guard": {
+    "near_dup_blocked": false,
+    "near_dup_write_exit": 0,
+    "seed_write_exit": 0,
+    "stray_orphan_detected_by_doctor": false
+  },
+  "hygiene": {
+    "doctor_findings_by_code": {
+      "missing_effective_date": 8,
+      "missing_scope": 8,
+      "possible_duplicate": 1,
+      "staging_leftover": 7,
+      "unregistered_page": 1
+    }
+  },
+  "label": "base2",
+  "retrieval": {
+    "gold_recall_at_5": 1.0,
+    "mrr": 0.7,
+    "precision_at_5": 0.24,
+    "refusals_correct": true
+  },
+  "topology": {
+    "dead_end_pages": 1,
+    "near_dup_pairs": 1,
+    "orphan_pages": 3,
+    "pages": 3,
+    "section_indexes_linked": 1
+  },
+  "twosource": {
+    "corroborated": 2,
+    "waiting": 2
+  }
+}

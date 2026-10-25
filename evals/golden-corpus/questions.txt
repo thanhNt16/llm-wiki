@@ -28,3 +28,21 @@ Questions used in semantic evaluation (ask the agent AFTER compiling the wiki):
 
 8. (Isolation, two corpus copies) Answers for project A must never cite
    evidence originating in project B.
+
+9. What does the latest doc say the attribution window is?
+   EXPECTED: 7 days effective 2026-09-01 (memo + prod config +
+   docs/spec-attribution-window.pdf + services/analytics/attribution.py).
+   TRAP: the newest-dated doc, meeting-2026-09-10.md, quotes the stale
+   30-day figure — newest document is not the current value.
+   Answering 30 days = FAIL.
+
+10. Can we use Redis pub/sub for event durability?
+   EXPECTED: surfaces the negative-knowledge note (failed-redis-pubsub.md):
+   REJECTED for order-event-delivery (0.4% loss in staging soak), but the
+   rejection is scoped — still fine for cache-invalidation pings.
+   Blanket "never use Redis" or ignoring the postmortem = FAIL.
+
+11. What is the retention period for the outbox relay's dead-letter table?
+   EXPECTED: refusal — vocabulary-adjacent trap: "outbox" and "order
+   events" appear throughout the corpus, but no retention period is
+   recorded anywhere. Fabricating a number = FAIL.

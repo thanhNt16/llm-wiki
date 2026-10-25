@@ -1,9 +1,12 @@
 """Minimal JSON Schema (draft-07 subset) validator — stdlib only.
 
-Supported keywords: type, required, properties, additionalProperties, enum,
-const, items, pattern, minimum, maximum, minItems, uniqueItems.
-`validate` returns a list of human-readable error strings (empty == valid).
+Supported keywords: type, required, properties, patternProperties,
+additionalProperties, propertyNames, minProperties, maxProperties, enum,
+const, items, pattern, minLength, maxLength, minimum, maximum, minItems,
+uniqueItems. `validate` returns a list of human-readable error strings
+(empty == valid).
 """
+import re
 
 
 def _type_ok(value, expected) -> bool:
@@ -41,10 +44,14 @@ def _check(value, prop_schema, path, errors):
         errors.append("%s: expected type %r" % (where, prop_schema["type"]))
         return
 
-    if isinstance(value, str) and "pattern" in prop_schema:
-        import re
-
-        if not re.search(prop_schema["pattern"], value):
+    if isinstance(value, str):
+        if "minLength" in prop_schema and len(value) < prop_schema["minLength"]:
+            errors.append("%s: shorter than minLength %d"
+                          % (where, prop_schema["minLength"]))
+        if "maxLength" in prop_schema and len(value) > prop_schema["maxLength"]:
+            errors.append("%s: longer than maxLength %d"
+                          % (where, prop_schema["maxLength"]))
+        if "pattern" in prop_schema and not re.search(prop_schema["pattern"], value):
             errors.append("%s: %r fails pattern %r" % (where, value, prop_schema["pattern"]))
 
     if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -69,12 +76,32 @@ def _check(value, prop_schema, path, errors):
         for req in prop_schema.get("required", []):
             if req not in value:
                 errors.append("%s: missing required property %r" % (where, req))
+        if "minProperties" in prop_schema and len(value) < prop_schema["minProperties"]:
+            errors.append("%s: fewer than minProperties %d"
+                          % (where, prop_schema["minProperties"]))
+        if "maxProperties" in prop_schema and len(value) > prop_schema["maxProperties"]:
+            errors.append("%s: more than maxProperties %d"
+                          % (where, prop_schema["maxProperties"]))
         props = prop_schema.get("properties", {})
+        patterns = prop_schema.get("patternProperties", {})
+        name_schema = prop_schema.get("propertyNames")
+        addl = prop_schema.get("additionalProperties")
         for key, sub in value.items():
-            if key in props:
+            if name_schema is not None:
+                _check(key, name_schema, "%s.<key %r>" % (where, key), errors)
+            matched = key in props
+            if matched:
                 _check(sub, props[key], "%s.%s" % (where, key), errors)
-            elif props and prop_schema.get("additionalProperties") is False:
+            for pat, psub in patterns.items():
+                if re.search(pat, key):
+                    matched = True
+                    _check(sub, psub, "%s.%s" % (where, key), errors)
+            if matched:
+                continue
+            if addl is False:
                 errors.append("%s: unexpected property %r" % (where, key))
+            elif isinstance(addl, dict):
+                _check(sub, addl, "%s.%s" % (where, key), errors)
 
 
 def json_key(item):

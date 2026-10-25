@@ -15,7 +15,8 @@ Queries go through the deterministic CLI shipped with the `llm-wiki` skill
 root:
 
 ```bash
-WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
+WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
+[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
 python3 "$WIKI" query-prepare --question "what is the current attribution window?"
 python3 "$WIKI" query-prepare --question "what was it in August?" --as-of 2026-08-15
 ```
@@ -32,6 +33,15 @@ python3 "$WIKI" query-prepare --question "what was it in August?" --as-of 2026-0
    "I don't have enough project evidence to answer this reliably," then state
    what is known, what is missing, and what evidence would resolve it.
 
+
+## Navigation ladder
+
+Where to look, cheapest first — stop at the first rung that answers:
+
+1. `wiki/index.md` and the section indexes.
+2. The matching `wiki/<kind>/<slug>.md` pages.
+3. The claims a page cites (`[[claim_id]]` → `claims/`).
+4. Raw sources as a last resort, via the claim's evidence locators.
 
 ## Optional post-answer step — record the gap as a question page
 

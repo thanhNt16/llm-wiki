@@ -1,0 +1,2 @@
+{"subject":"order.event.delivery","predicate":"mechanism","value":"transactional outbox","locator":"s:decided on a transactional outbox","authority":"doc"}
+{"subject":"order.event.delivery","predicate":"rationale","value":"durability: Redis pub/sub loses messages on subscriber disconnect","locator":"s:messages are not durable","authority":"doc"}

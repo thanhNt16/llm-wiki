@@ -1,10 +1,11 @@
 import os, sys, tempfile, unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from wikicore import claims, compile as wc_compile, deps, pages, review, sources
+from wikicore import claims, compile as wc_compile, deps, doctor, pages, review, sources, synthesize
 from wikicore.store import Wiki, init_wiki
-from wikicore.transaction import Transaction
+from wikicore.transaction import Transaction, TxnError
 
 
 def fresh():
@@ -12,6 +13,13 @@ def fresh():
     wiki = Wiki(root)
     init_wiki(wiki, "pages-test")
     return wiki
+
+def concept_md(subject="db", body="body text"):
+    return "\n".join([
+        "---", "type: concept", "subject: %s" % subject,
+        "title: %s" % subject.title(), "created: 2026-09-15T00:00:00Z",
+        "updated: 2026-09-15", "deps: []", "stale: false", "---",
+        "", body, ""])
 
 
 class TestPages(unittest.TestCase):
@@ -210,6 +218,182 @@ class TestPages(unittest.TestCase):
         self.assertFalse(v["ok"])
         self.assertTrue(any("wiki/nope/missing.md" in e for e in v["errors"]))
 
+    def test_verify_unknown_dep_id_errors_no_crash(self):
+        # Pinned AND unversioned deps to unknown ids are reported, not a
+        # TypeError crash on cur=None.
+        wiki, claim, d = self._wiki_with_claim_and_decision()
+        pages.build_pages(wiki, wiki.revision())
+        ghost = "claim_" + "B" * 26
+        for dep in ("%s@9" % ghost, ghost):
+            txn = Transaction(wiki, "concept")
+            txn.stage_write("wiki/concepts/ghost.md",
+                            "---\ntype: concept\ndeps:\n  - %s\n---\n\nx\n" % dep)
+            deps.register(txn, "wiki/concepts/ghost.md", [dep])
+            txn.commit(wiki.revision())
+            v = pages.verify(wiki)
+            self.assertTrue(
+                any("unknown dependency id" in e and ghost in e
+                    for e in v["errors"]),
+                "dep %r: %r" % (dep, v["errors"]))
+            txn = Transaction(wiki, "cleanup")
+            txn.stage_delete("wiki/concepts/ghost.md")
+
+            def _drop(data):
+                data["edges"].pop("wiki/concepts/ghost.md", None)
+
+            txn.stage_state(deps.DEPS_FILE, _drop)
+            txn.commit(wiki.revision())
+
+    def test_index_md_checked_like_other_pages(self):
+        wiki, claim, d = self._wiki_with_claim_and_decision()
+        pages.build_pages(wiki, wiki.revision())
+        ghost = "claim_" + "B" * 26
+        txn = Transaction(wiki, "evil")
+        txn.stage_write("wiki/index.md",
+                        "---\ntype: index\ndeps:\n  - %s@9\n---\n\nx\n" % ghost)
+        txn.commit(wiki.revision())
+        v = pages.verify(wiki)
+        self.assertTrue(any("index.md" in e for e in v["errors"]), v["errors"])
+
+    def test_review_dep_resolution(self):
+        wiki, claim, d = self._wiki_with_claim_and_decision()
+        rid = self._add_review_item(wiki, affected=[claim["id"]])
+        ghost = "review_" + "B" * 26
+        txn = Transaction(wiki, "concept")
+        txn.stage_write("wiki/concepts/rv.md",
+                        "---\ntype: concept\ndeps:\n  - %s\n---\n\nx\n" % rid)
+        deps.register(txn, "wiki/concepts/rv.md", [rid])
+        txn.commit(wiki.revision())
+        v = pages.verify(wiki)
+        self.assertFalse(any("rv.md" in e for e in v["errors"]), v["errors"])
+        for bad in (ghost, "%s@1" % rid, "review_NOTANID!!!"):
+            txn = Transaction(wiki, "edit")
+            txn.stage_write("wiki/concepts/rv.md",
+                            "---\ntype: concept\ndeps:\n  - %s\n---\n\nx\n" % bad)
+            txn.commit(wiki.revision())
+            v = pages.verify(wiki)
+            self.assertTrue(any("unresolved dependency" in e and "rv.md" in e
+                                for e in v["errors"]),
+                            "dep %r: %r" % (bad, v["errors"]))
+
+    def test_build_pages_replaces_stale_dep_edges(self):
+        # Rebuilding a page must REPLACE its dep set: stale edges accumulate
+        # forever under merge semantics.
+        wiki, claim, d = self._wiki_with_claim_and_decision()
+        pages.build_pages(wiki, wiki.revision())
+        rel = "wiki/decisions/%s.md" % d["id"]
+        txn = Transaction(wiki, "merge-sim")
+        deps.register(txn, rel, ["wiki/phantom/ghost.md"])
+        txn.commit(wiki.revision())
+        pages.build_pages(wiki, wiki.revision())
+        edges = deps.graph(wiki)["edges"][rel]
+        self.assertNotIn("wiki/phantom/ghost.md", edges)
+
+    def test_page_link_requires_dep_and_resolves(self):
+        # page A links [[wiki:concepts/other]]; write fails without the dep
+        # and succeeds once 'wiki/concepts/other.md' exists and is in deps
+        wiki, claim, d = self._wiki_with_claim_and_decision()
+        cdep = "%s@1" % claim["id"]
+        synthesize.write_page(wiki, "wiki/concepts/other.md",
+                              concept_md(subject="other"), [cdep],
+                              wiki.revision())
+        md = concept_md(body="see [[wiki:concepts/other]]")
+        with self.assertRaises(TxnError):
+            synthesize.write_page(wiki, "wiki/concepts/db.md", md, [cdep],
+                                  wiki.revision())
+        r = synthesize.write_page(wiki, "wiki/concepts/db.md", md,
+                                  [cdep, "wiki/concepts/other.md"],
+                                  wiki.revision())
+        self.assertIn("wiki/concepts/other.md", r["deps"])
+
+    def test_page_link_unresolved_rejected(self):
+        # [[wiki:concepts/ghost]] with no such file -> TxnError
+        wiki, claim, d = self._wiki_with_claim_and_decision()
+        cdep = "%s@1" % claim["id"]
+        md = concept_md(body="see [[wiki:concepts/ghost]]")
+        with self.assertRaises(TxnError) as ctx:
+            synthesize.write_page(wiki, "wiki/concepts/db.md", md, [cdep],
+                                  wiki.revision())
+        self.assertIn("unresolved [[wiki:", str(ctx.exception))
+
+    def test_verify_flags_unresolved_page_link(self):
+        # file exists at write time, dep registered; delete target file ->
+        # verify reports "unresolved wiki-link [[wiki:concepts/gone]]"
+        wiki, claim, d = self._wiki_with_claim_and_decision()
+        cdep = "%s@1" % claim["id"]
+        synthesize.write_page(wiki, "wiki/concepts/gone.md",
+                              concept_md(subject="gone"), [cdep],
+                              wiki.revision())
+        md = concept_md(body="see [[wiki:concepts/gone]]")
+        synthesize.write_page(wiki, "wiki/concepts/db.md", md,
+                              [cdep, "wiki/concepts/gone.md"], wiki.revision())
+        os.remove(wiki.p("wiki/concepts/gone.md"))
+        v = pages.verify(wiki)
+        self.assertFalse(v["ok"])
+        self.assertTrue(any("unresolved wiki-link [[wiki:concepts/gone]]" in e
+                            for e in v["errors"]), v["errors"])
+
+    def test_page_link_self_rejected(self):
+        # a page linking to itself is rejected — self-dep would suppress
+        # orphan/dead-end findings and add a self-edge
+        wiki, claim, d = self._wiki_with_claim_and_decision()
+        cdep = "%s@1" % claim["id"]
+        synthesize.write_page(wiki, "wiki/concepts/db.md",
+                              concept_md(), [cdep], wiki.revision())
+        md = concept_md(body="see [[wiki:concepts/db]]")
+        with self.assertRaises(TxnError) as ctx:
+            synthesize.write_page(wiki, "wiki/concepts/db.md", md,
+                                  [cdep, "wiki/concepts/db.md"],
+                                  wiki.revision())
+        self.assertIn("itself", str(ctx.exception))
+
+
+
+class FixIndexesTest(unittest.TestCase):
+    """rebuild_section_indexes regenerates the index fabric (unlisted_page
+    repair) through the build-pages renderer — byte-identical."""
+
+    def test_fix_repairs_unlisted_and_is_idempotent(self):
+        wiki = fresh()
+        pages.build_pages(wiki, wiki.revision())
+        # hand-plant a stray page — NOT via write_page
+        stray = wiki.p("wiki", "concepts", "stray-page.md")
+        os.makedirs(os.path.dirname(stray), exist_ok=True)
+        with open(stray, "w") as f:
+            f.write(concept_md(subject="stray page"))
+
+        before = [f["code"] for f in doctor.run(wiki)["findings"]]
+        self.assertIn("unlisted_page", before)
+
+        written = pages.rebuild_section_indexes(wiki)
+        self.assertEqual(written, sorted(written))
+        self.assertIn("wiki/concepts/index.md", written)
+        self.assertIn("wiki/overview.md", written)
+
+        after = [f["code"] for f in doctor.run(wiki)["findings"]]
+        self.assertNotIn("unlisted_page", after)
+        self.assertNotIn("section_index_unlinked", after)
+        with open(wiki.p("wiki", "concepts", "index.md")) as f:
+            self.assertIn("stray-page.md", f.read())
+
+        # same renderer as build_pages: byte-identical fabric output;
+        # _now frozen so `generated` cannot differ across calls
+        with mock.patch.object(pages, "_now",
+                               return_value="2026-10-25T00:00:00Z"):
+            def _bytes(rel):
+                with open(wiki.p(rel), "rb") as fh:
+                    return fh.read()
+            rebuild_a = pages.rebuild_section_indexes(wiki)
+            snap = {rel: _bytes(rel) for rel in rebuild_a}
+            pages.build_pages(wiki, wiki.revision())
+            for rel, blob in snap.items():
+                self.assertEqual(
+                    blob, _bytes(rel),
+                    "%s differs between rebuild and build-pages" % rel)
+            # idempotent: a second rebuild emits identical bytes
+            pages.rebuild_section_indexes(wiki)
+            for rel, blob in snap.items():
+                self.assertEqual(blob, _bytes(rel))
 
 if __name__ == "__main__":
     unittest.main()

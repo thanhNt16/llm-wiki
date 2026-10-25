@@ -1,0 +1,2028 @@
+{
+  "date": "2026-10-25",
+  "engine_refs": {
+    "base": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/llmwiki-engine-bb7a51f-lk_0zl02/skill/llm-wiki/scripts/wiki.py",
+    "unified": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/llmwiki-engine-HEAD-qva0s9vy/skill/llm-wiki/scripts/wiki.py"
+  },
+  "experiment": "E2+E3+E4",
+  "experiments": {
+    "E2": {
+      "cells": {
+        "unified/synthetic-100-s42": {
+          "build_ok": true,
+          "claims_count": 26,
+          "context": {
+            "budget_compliance": true,
+            "compression_ratio": 7.28,
+            "pack_tokens_avg": 549.8
+          },
+          "engine": "unified",
+          "lint_findings": {
+            "error": 0,
+            "info": 75,
+            "warn": 76
+          },
+          "lint_sweep_seconds": 0.06,
+          "n": 100,
+          "phase_seconds": {
+            "build-pages": 0.066,
+            "ingest": 0.334,
+            "init": 0.08,
+            "reconcile": 1.478,
+            "stage": 1.576,
+            "verify": 0.056
+          },
+          "questions": {
+            "cited": "27/27",
+            "correct": 25,
+            "forbidden_ok": "1/1",
+            "gold_recall_at_5": 1.0,
+            "gold_total": 25,
+            "mrr": 0.98,
+            "precision_at_5": 0.2,
+            "questions": 27,
+            "refusals_correct": true
+          },
+          "seed": 42,
+          "steps": [
+            {
+              "duration_s": 0.08,
+              "err": "",
+              "exit": 0,
+              "step": "init"
+            },
+            {
+              "duration_s": 0.334,
+              "err": "",
+              "exit": 0,
+              "step": "ingest --dir"
+            },
+            {
+              "duration_s": 0.059,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-008.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-008.md"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-020.md"
+            },
+            {
+              "duration_s": 0.062,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-020.md"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-032.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-032.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-044.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-044.md"
+            },
+            {
+              "duration_s": 0.059,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-056.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-056.md"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-068.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-068.md"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-080.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-080.md"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-092.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-092.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-012.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-012.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-024.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-024.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-036.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-036.md"
+            },
+            {
+              "duration_s": 0.063,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-048.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-048.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-060.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-060.md"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-072.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-072.md"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-084.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-084.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-096.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-096.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-004.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-004.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-016.md"
+            },
+            {
+              "duration_s": 0.058,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-016.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-028.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-028.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-040.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-040.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-052.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-052.md"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-064.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-064.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-076.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-076.md"
+            },
+            {
+              "duration_s": 0.061,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-088.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-088.md"
+            },
+            {
+              "duration_s": 0.062,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md correction"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md correction"
+            },
+            {
+              "duration_s": 0.066,
+              "err": "",
+              "exit": 0,
+              "step": "build-pages"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "verify"
+            }
+          ],
+          "wall_seconds": 3.59
+        },
+        "unified/synthetic-1000-s42": {
+          "build_ok": true,
+          "claims_count": 26,
+          "context": {
+            "budget_compliance": true,
+            "compression_ratio": 127.25,
+            "pack_tokens_avg": 302.0
+          },
+          "engine": "unified",
+          "lint_findings": {
+            "error": 0,
+            "info": 975,
+            "warn": 76
+          },
+          "lint_sweep_seconds": 0.094,
+          "n": 1000,
+          "phase_seconds": {
+            "build-pages": 0.095,
+            "ingest": 3.437,
+            "init": 0.055,
+            "reconcile": 1.486,
+            "stage": 2.802,
+            "verify": 0.057
+          },
+          "questions": {
+            "cited": "27/27",
+            "correct": 25,
+            "forbidden_ok": "1/1",
+            "gold_recall_at_5": 1.0,
+            "gold_total": 25,
+            "mrr": 0.96,
+            "precision_at_5": 0.2,
+            "questions": 27,
+            "refusals_correct": true
+          },
+          "seed": 42,
+          "steps": [
+            {
+              "duration_s": 0.055,
+              "err": "",
+              "exit": 0,
+              "step": "init"
+            },
+            {
+              "duration_s": 3.437,
+              "err": "",
+              "exit": 0,
+              "step": "ingest --dir"
+            },
+            {
+              "duration_s": 0.106,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-041.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-041.md"
+            },
+            {
+              "duration_s": 0.107,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-164.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-164.md"
+            },
+            {
+              "duration_s": 0.107,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-287.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-287.md"
+            },
+            {
+              "duration_s": 0.108,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-410.md"
+            },
+            {
+              "duration_s": 0.058,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-410.md"
+            },
+            {
+              "duration_s": 0.107,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-533.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-533.md"
+            },
+            {
+              "duration_s": 0.107,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-656.md"
+            },
+            {
+              "duration_s": 0.055,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-656.md"
+            },
+            {
+              "duration_s": 0.107,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-779.md"
+            },
+            {
+              "duration_s": 0.059,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-779.md"
+            },
+            {
+              "duration_s": 0.107,
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-902.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-902.md"
+            },
+            {
+              "duration_s": 0.108,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md"
+            },
+            {
+              "duration_s": 0.108,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-123.md"
+            },
+            {
+              "duration_s": 0.058,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-123.md"
+            },
+            {
+              "duration_s": 0.107,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-246.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-246.md"
+            },
+            {
+              "duration_s": 0.106,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-369.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-369.md"
+            },
+            {
+              "duration_s": 0.108,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-492.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-492.md"
+            },
+            {
+              "duration_s": 0.115,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-615.md"
+            },
+            {
+              "duration_s": 0.058,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-615.md"
+            },
+            {
+              "duration_s": 0.107,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-738.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-738.md"
+            },
+            {
+              "duration_s": 0.11,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-861.md"
+            },
+            {
+              "duration_s": 0.058,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-861.md"
+            },
+            {
+              "duration_s": 0.108,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-984.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-984.md"
+            },
+            {
+              "duration_s": 0.108,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-082.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-082.md"
+            },
+            {
+              "duration_s": 0.108,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-205.md"
+            },
+            {
+              "duration_s": 0.06,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-205.md"
+            },
+            {
+              "duration_s": 0.109,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-328.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-328.md"
+            },
+            {
+              "duration_s": 0.107,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-451.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-451.md"
+            },
+            {
+              "duration_s": 0.108,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-574.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-574.md"
+            },
+            {
+              "duration_s": 0.107,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-697.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-697.md"
+            },
+            {
+              "duration_s": 0.108,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-820.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-820.md"
+            },
+            {
+              "duration_s": 0.108,
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-943.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-943.md"
+            },
+            {
+              "duration_s": 0.106,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md correction"
+            },
+            {
+              "duration_s": 0.058,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md correction"
+            },
+            {
+              "duration_s": 0.095,
+              "err": "",
+              "exit": 0,
+              "step": "build-pages"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "verify"
+            }
+          ],
+          "wall_seconds": 7.932
+        },
+        "unified/synthetic-300-s42": {
+          "build_ok": true,
+          "claims_count": 26,
+          "context": {
+            "budget_compliance": true,
+            "compression_ratio": 11.44,
+            "pack_tokens_avg": 1020.8
+          },
+          "engine": "unified",
+          "lint_findings": {
+            "error": 0,
+            "info": 275,
+            "warn": 76
+          },
+          "lint_sweep_seconds": 0.069,
+          "n": 300,
+          "phase_seconds": {
+            "build-pages": 0.072,
+            "ingest": 0.956,
+            "init": 0.054,
+            "reconcile": 1.472,
+            "stage": 1.851,
+            "verify": 0.056
+          },
+          "questions": {
+            "cited": "27/27",
+            "correct": 24,
+            "forbidden_ok": "1/1",
+            "gold_recall_at_5": 0.96,
+            "gold_total": 25,
+            "mrr": 0.888,
+            "precision_at_5": 0.192,
+            "questions": 27,
+            "refusals_correct": true
+          },
+          "seed": 42,
+          "steps": [
+            {
+              "duration_s": 0.054,
+              "err": "",
+              "exit": 0,
+              "step": "init"
+            },
+            {
+              "duration_s": 0.956,
+              "err": "",
+              "exit": 0,
+              "step": "ingest --dir"
+            },
+            {
+              "duration_s": 0.068,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md"
+            },
+            {
+              "duration_s": 0.058,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md"
+            },
+            {
+              "duration_s": 0.072,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-012.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-012.md"
+            },
+            {
+              "duration_s": 0.07,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-024.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-024.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-036.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-036.md"
+            },
+            {
+              "duration_s": 0.07,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-048.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-048.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-060.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-060.md"
+            },
+            {
+              "duration_s": 0.07,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-072.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-072.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-084.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-084.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-096.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-096.md"
+            },
+            {
+              "duration_s": 0.073,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-108.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-108.md"
+            },
+            {
+              "duration_s": 0.072,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-120.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-120.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-132.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-132.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-144.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-144.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-156.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-156.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-168.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-168.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-180.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-180.md"
+            },
+            {
+              "duration_s": 0.073,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-192.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-192.md"
+            },
+            {
+              "duration_s": 0.072,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-204.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-204.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-216.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-216.md"
+            },
+            {
+              "duration_s": 0.073,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-228.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-228.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-240.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-240.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-252.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-252.md"
+            },
+            {
+              "duration_s": 0.072,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-264.md"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-264.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-276.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-276.md"
+            },
+            {
+              "duration_s": 0.071,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-288.md"
+            },
+            {
+              "duration_s": 0.057,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-288.md"
+            },
+            {
+              "duration_s": 0.072,
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md correction"
+            },
+            {
+              "duration_s": 0.058,
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md correction"
+            },
+            {
+              "duration_s": 0.072,
+              "err": "",
+              "exit": 0,
+              "step": "build-pages"
+            },
+            {
+              "duration_s": 0.056,
+              "err": "",
+              "exit": 0,
+              "step": "verify"
+            }
+          ],
+          "wall_seconds": 4.461
+        }
+      },
+      "sizes": [
+        100,
+        300,
+        1000
+      ]
+    },
+    "E3": {
+      "cells": {
+        "unified/maintenance": {
+          "build_ok": true,
+          "cycles": [
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-0.md",
+                "wiki/concepts/maint-orphan-0.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 0,
+              "findings_after": 362,
+              "findings_before": 364,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.069,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-000.md"
+                },
+                {
+                  "duration_s": 0.073,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.072,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.073,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-1.md",
+                "wiki/concepts/maint-orphan-1.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 1,
+              "findings_after": 375,
+              "findings_before": 377,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.068,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-001.md"
+                },
+                {
+                  "duration_s": 0.072,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.068,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.056,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.076,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-2.md",
+                "wiki/concepts/maint-orphan-2.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 2,
+              "findings_after": 390,
+              "findings_before": 392,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.07,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-002.md"
+                },
+                {
+                  "duration_s": 0.072,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.072,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.078,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-3.md",
+                "wiki/concepts/maint-orphan-3.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 3,
+              "findings_after": 407,
+              "findings_before": 409,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.07,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.063,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-003.md"
+                },
+                {
+                  "duration_s": 0.084,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.07,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.059,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.08,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-4.md",
+                "wiki/concepts/maint-orphan-4.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 4,
+              "findings_after": 426,
+              "findings_before": 428,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.07,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-004.md"
+                },
+                {
+                  "duration_s": 0.071,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.072,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.082,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-5.md",
+                "wiki/concepts/maint-orphan-5.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 5,
+              "findings_after": 447,
+              "findings_before": 449,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.072,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-005.md"
+                },
+                {
+                  "duration_s": 0.072,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.056,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.072,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.084,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-6.md",
+                "wiki/concepts/maint-orphan-6.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 6,
+              "findings_after": 470,
+              "findings_before": 472,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.072,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-006.md"
+                },
+                {
+                  "duration_s": 0.072,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.075,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.084,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-7.md",
+                "wiki/concepts/maint-orphan-7.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 7,
+              "findings_after": 495,
+              "findings_before": 497,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.071,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-007.md"
+                },
+                {
+                  "duration_s": 0.073,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.056,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.073,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.088,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-8.md",
+                "wiki/concepts/maint-orphan-8.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 8,
+              "findings_after": 522,
+              "findings_before": 524,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.073,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-008.md"
+                },
+                {
+                  "duration_s": 0.073,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.056,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.072,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.09,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-9.md",
+                "wiki/concepts/maint-orphan-9.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 9,
+              "findings_after": 551,
+              "findings_before": 553,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.072,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-009.md"
+                },
+                {
+                  "duration_s": 0.072,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.057,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.074,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.058,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.092,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            }
+          ],
+          "cycles_planned": 10,
+          "engine": "unified",
+          "forbidden_ok_total": 10,
+          "n": 300,
+          "query_ok_total": 10,
+          "staleness_caught_total": 10,
+          "staleness_missed_total": 0
+        }
+      },
+      "cycles": 10,
+      "n": 300
+    },
+    "E4": {
+      "cells": {
+        "base/clean": {
+          "build_ok": true,
+          "clean_false_positives": 76,
+          "clean_false_positives_by_code": {
+            "missing_effective_date": 25,
+            "missing_scope": 25,
+            "staging_leftover": 26
+          },
+          "engine": "base",
+          "fault": "clean",
+          "n": 100
+        },
+        "base/near_dup_flood": {
+          "build_ok": true,
+          "detected": 0,
+          "engine": "base",
+          "false_positives": 0,
+          "fault": "near_dup_flood",
+          "findings_by_code": {
+            "missing_effective_date": 25,
+            "missing_scope": 25,
+            "orphan_source": 75,
+            "staging_leftover": 26,
+            "unregistered_page": 7
+          },
+          "guard_drill": {
+            "attempted": 3,
+            "block_rate": 0.0,
+            "blocked": 0,
+            "probes": [
+              {
+                "exit": 0,
+                "subject": "near dup alpha notes"
+              },
+              {
+                "exit": 0,
+                "subject": "near dup beta notes"
+              },
+              {
+                "exit": 0,
+                "subject": "near dup gamma notes"
+              }
+            ]
+          },
+          "lint_recall": 0.0,
+          "n": 100,
+          "planted": 6,
+          "repair_plan": null
+        },
+        "base/orphan_farm": {
+          "build_ok": true,
+          "detected": 0,
+          "engine": "base",
+          "false_positives": 0,
+          "fault": "orphan_farm",
+          "findings_by_code": {
+            "missing_effective_date": 25,
+            "missing_scope": 25,
+            "orphan_source": 75,
+            "staging_leftover": 26,
+            "unregistered_page": 4
+          },
+          "lint_recall": 0.0,
+          "n": 100,
+          "planted": 4,
+          "repair_plan": null
+        },
+        "base/stale_ttl_farm": {
+          "build_ok": true,
+          "detected": 0,
+          "engine": "base",
+          "false_positives": 0,
+          "fault": "stale_ttl_farm",
+          "findings_by_code": {
+            "missing_effective_date": 25,
+            "missing_scope": 25,
+            "orphan_source": 75,
+            "staging_leftover": 26,
+            "unregistered_page": 3
+          },
+          "lint_recall": 0.0,
+          "n": 100,
+          "planted": 3,
+          "repair_plan": null
+        },
+        "base/walled_garden": {
+          "build_ok": true,
+          "detected": 0,
+          "engine": "base",
+          "false_positives": 0,
+          "fault": "walled_garden",
+          "findings_by_code": {
+            "missing_effective_date": 25,
+            "missing_scope": 25,
+            "orphan_source": 75,
+            "staging_leftover": 26,
+            "unregistered_page": 8
+          },
+          "lint_recall": 0.0,
+          "n": 100,
+          "planted": 3,
+          "repair_plan": null
+        },
+        "unified/clean": {
+          "build_ok": true,
+          "clean_false_positives": 76,
+          "clean_false_positives_by_code": {
+            "missing_effective_date": 25,
+            "missing_scope": 25,
+            "staging_leftover": 26
+          },
+          "engine": "unified",
+          "fault": "clean",
+          "n": 100
+        },
+        "unified/near_dup_flood": {
+          "build_ok": true,
+          "detected": 6,
+          "engine": "unified",
+          "false_positives": 0,
+          "fault": "near_dup_flood",
+          "findings_by_code": {
+            "missing_effective_date": 25,
+            "missing_scope": 25,
+            "near_duplicate_subject": 3,
+            "orphan_source": 75,
+            "staging_leftover": 26,
+            "unlisted_page": 7,
+            "unregistered_page": 7
+          },
+          "guard_drill": {
+            "attempted": 3,
+            "block_rate": 1.0,
+            "blocked": 3,
+            "probes": [
+              {
+                "exit": 3,
+                "subject": "near dup alpha notes"
+              },
+              {
+                "exit": 3,
+                "subject": "near dup beta notes"
+              },
+              {
+                "exit": 3,
+                "subject": "near dup gamma notes"
+              }
+            ]
+          },
+          "lint_recall": 1.0,
+          "n": 100,
+          "planted": 6,
+          "repair_plan": {
+            "coverage": 1.0,
+            "covered": 3,
+            "total": 3
+          }
+        },
+        "unified/orphan_farm": {
+          "build_ok": true,
+          "detected": 4,
+          "engine": "unified",
+          "false_positives": 0,
+          "fault": "orphan_farm",
+          "findings_by_code": {
+            "dead_end_page": 4,
+            "missing_effective_date": 25,
+            "missing_scope": 25,
+            "orphan_page": 4,
+            "orphan_source": 75,
+            "staging_leftover": 26,
+            "unlisted_page": 4,
+            "unregistered_page": 4
+          },
+          "lint_recall": 1.0,
+          "n": 100,
+          "planted": 4,
+          "repair_plan": {
+            "coverage": 1.0,
+            "covered": 4,
+            "total": 4
+          }
+        },
+        "unified/stale_ttl_farm": {
+          "build_ok": true,
+          "detected": 3,
+          "engine": "unified",
+          "false_positives": 0,
+          "fault": "stale_ttl_farm",
+          "findings_by_code": {
+            "dead_end_page": 3,
+            "missing_effective_date": 25,
+            "missing_scope": 25,
+            "orphan_page": 3,
+            "orphan_source": 75,
+            "staging_leftover": 26,
+            "stale_page_ttl": 3,
+            "unlisted_page": 3,
+            "unregistered_page": 3
+          },
+          "lint_recall": 1.0,
+          "n": 100,
+          "planted": 3,
+          "repair_plan": {
+            "coverage": 1.0,
+            "covered": 3,
+            "total": 3
+          }
+        },
+        "unified/walled_garden": {
+          "build_ok": true,
+          "detected": 3,
+          "engine": "unified",
+          "false_positives": 0,
+          "fault": "walled_garden",
+          "findings_by_code": {
+            "missing_effective_date": 25,
+            "missing_scope": 25,
+            "orphan_source": 75,
+            "staging_leftover": 26,
+            "unlisted_page": 8,
+            "unregistered_page": 8,
+            "walled_garden": 1
+          },
+          "lint_recall": 1.0,
+          "n": 100,
+          "planted": 3,
+          "repair_plan": {
+            "coverage": 1.0,
+            "covered": 1,
+            "total": 1
+          }
+        }
+      },
+      "faults": [
+        "near_dup_flood",
+        "orphan_farm",
+        "walled_garden",
+        "stale_ttl_farm"
+      ]
+    }
+  }
+}

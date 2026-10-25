@@ -1,0 +1,4 @@
+{"subject":"attribution.window","predicate":"click_lookback_days","value":7,"scope":{"environment":"production"},"valid_from":"2026-09-01","locator":"l:2","authority":"config"}
+{"subject":"attribution.window","predicate":"click_lookback_days","value":30,"scope":{"environment":"sandbox"},"locator":"l:3","authority":"config"}
+{"subject":"payment.gateway","predicate":"retries","value":5,"scope":{"environment":"production"},"locator":"l:4","authority":"config"}
+{"subject":"svc.order.db","predicate":"engine","value":"postgres","scope":{"environment":"production"},"locator":"l:5","authority":"config"}

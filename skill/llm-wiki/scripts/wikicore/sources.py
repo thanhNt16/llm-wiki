@@ -87,12 +87,24 @@ def resolve(wiki, kind: str, ref: str) -> Optional[str]:
     return aliases.get(origin_key(kind, ref))
 
 
+def _check_sid(sid: str) -> None:
+    """Source ids become path components; reject anything that is not a
+    well-formed engine-minted id (traversal guard, V11)."""
+    if not ids.validate(sid) or not sid.startswith("source_"):
+        raise TxnError("invalid source id: %r" % sid)
+
+
+def _versioned_rel(sid: str, version: int, stem: str, ext: str) -> str:
+    return "sources/%s/%s_v%d%s" % (sid, stem, version, ext)
+
+
 def _secret_gate(wiki, text: str, filename: Optional[str], warnings: list):
     cfg = wiki.load_config(); policy = cfg.get("secret_policy", "warn")
+    # every detector lives in secrets_mod._PATTERNS so scan/redact agree
     findings = secrets_mod.scan(text, filename=filename)
-    if re.search(r"sk-live-[A-Za-z0-9]{10,}", text): findings.append({"kind": "api_key"})
     if not findings: return text, {"findings": [], "redacted": 0}
     summary = {"findings": findings, "redacted": 0}
+    if policy == "allow": return text, summary
     if policy == "deny": raise TxnError("ingest denied: likely secrets detected (%s)" % ", ".join(f["kind"] for f in findings))
     if policy == "redact":
         text, n = secrets_mod.redact(text); summary["redacted"] = n; warnings.append("secrets redacted in normalized content (count=%d)" % n)
@@ -121,6 +133,8 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
     okey = origin_key(kind, ref)
     aliases = wiki.load_json(".state/aliases.json")
     sid = source_id or aliases.get(okey)
+    if sid:
+        _check_sid(sid)
     sha = _sha256(data)
     warnings = []
     filename = os.path.basename(ref) if kind in ("file", "directory") else None
@@ -168,13 +182,15 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
     raw_name = (filename or "content.bin").lstrip(".") or "dotfile"
     raw_rel = "raw/%s/%s/%s" % (kind, sha[:16], raw_name)
     txn.stage_write(raw_rel, data)
-    norm_rel = "sources/%s/content.md" % sid
+    norm_rel = _versioned_rel(sid, version, "content", ".md")
+    norm_alias_rel = "sources/%s/content.md" % sid  # latest-version alias
     assets = []
     coverage = {"text": "complete", "tables": "skipped", "images": "not_extracted" if _is_image(ref) else "skipped", "diagrams": "skipped", "formulas": "skipped"}
+    final_text = None
     if normalized_content is not None:
-        txn.stage_write(norm_rel, normalized_text); coverage["images"] = "complete" if _is_image(ref) else coverage["images"]
+        final_text = normalized_text; coverage["images"] = "complete" if _is_image(ref) else coverage["images"]
     elif text_like:
-        txn.stage_write(norm_rel, normalized_text)
+        final_text = normalized_text
     else:
         parsed, p_name = _parser_for_binary(_staging_raw_path(txn, raw_rel))
         if parsed is not None:
@@ -184,35 +200,76 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
                 warnings.append(
                     "possible_prompt_injection: content contains instruction-like text; "
                     "stored as evidence only — it has no authority over agent behavior")
-            parser = {"name": p_name, "version": "?"}; normalized_source = "markitdown"; coverage["text"] = "partial"; txn.stage_write(norm_rel, parsed); warnings.append("binary parsed with %s; verify coverage" % p_name)
+            parser = {"name": p_name, "version": "?"}; normalized_source = "markitdown"; coverage["text"] = "partial"; final_text = parsed; warnings.append("binary parsed with %s; verify coverage" % p_name)
         else:
-            coverage["text"] = "not_extracted"; warnings.append("%s preserved as raw bytes but not semantically extracted (no parser available); use a document parser to extract" % (filename or kind)); txn.stage_write(norm_rel, "")
+            coverage["text"] = "not_extracted"; warnings.append("%s preserved as raw bytes but not semantically extracted (no parser available); use a document parser to extract" % (filename or kind)); final_text = ""
+    txn.stage_write(norm_rel, final_text)
+    txn.stage_write(norm_alias_rel, final_text)
     manifest["versions"].append({"version": version, "sha256": sha, "captured_at": _now(), "raw_path": raw_rel, "normalized_path": norm_rel, "assets": assets, "adapter": "wikicore.%s" % kind, "bytes": len(data)})
     txn.stage_write("sources/%s/manifest.json" % sid, manifest)
     report = {"source_id": sid, "source_version": version, "coverage": coverage, "warnings": warnings, "parser": parser}
-    txn.stage_write("sources/%s/extraction.json" % sid, {"extraction_report": report, "candidates": [], "source_version": version})
+    extraction_doc = {"extraction_report": report, "candidates": [], "source_version": version}
+    txn.stage_write(_versioned_rel(sid, version, "extraction", ".json"), extraction_doc)
+    txn.stage_write("sources/%s/extraction.json" % sid, extraction_doc)
     txn.stage_state(".state/aliases.json", lambda a: a.update({okey: sid}))
     txn.changes = {"sources_registered": 1 if version == 1 else 0, "versions_added": 1}; txn.warnings = warnings; txn.commit(wiki.revision())
     return {"source_id": sid, "version": version, "sha256": sha, "deduplicated": False, "raw_path": raw_rel, "normalized_path": norm_rel, "coverage": coverage, "parser": parser, "normalized_source": normalized_source, "warnings": warnings, "secrets": secret_summary, "run_id": txn.run_id}
 
+
 def _fill_normalized(wiki, sid, version_entry, text, parser_name, ref, sha, warnings, secret_summary):
+    """Fill agent-supplied normalized text into a deduplicated raw-only version.
+
+    Works on THAT version's own artifacts (content_v{v}.md /
+    extraction_v{v}.json) so filling an older version no longer needs the
+    latest alias to point at it — the previous implementation silently
+    discarded the text whenever extraction.json tracked a newer version.
+    """
     v = version_entry["version"]
-    extraction = wiki.load_json("sources/%s/extraction.json" % sid)
+    extraction_rel = _versioned_rel(sid, v, "extraction", ".json")
+    extraction_path = wiki.p(extraction_rel)
+    if os.path.isfile(extraction_path):
+        extraction = wiki.load_json(extraction_rel)
+    else:
+        # legacy layout: only a shared extraction.json exists; trust it only
+        # when it actually describes version v, otherwise there is nothing
+        # recorded for v yet (coverage unknown -> fillable)
+        alias_rel = "sources/%s/extraction.json" % sid
+        extraction = (wiki.load_json(alias_rel)
+                      if os.path.isfile(wiki.p(alias_rel)) else {})
+        if extraction.get("source_version") != v:
+            extraction = {"candidates": [], "source_version": v}
     cur = extraction.get("extraction_report", {})
-    if extraction.get("source_version") != v or cur.get("coverage", {}).get("text") != "not_extracted":
+    if cur.get("coverage", {}).get("text") not in (None, "not_extracted"):
         return {"source_id": sid, "version": v, "sha256": sha, "deduplicated": True,
+                "normalized_status": "already_extracted",
                 "normalized_source": "agent",
                 "parser": {"name": parser_name or "agent", "version": "in-session"},
-                "warnings": warnings + ["normalized_content_ignored: version already text-extracted"],
+                "warnings": warnings + ["normalized_content_ignored: version %d already text-extracted" % v],
                 "secrets": secret_summary, "raw_path": version_entry["raw_path"]}
+    manifest = wiki.load_json("sources/%s/manifest.json" % sid)
+    is_latest = manifest["versions"] and manifest["versions"][-1]["version"] == v
     txn = Transaction(wiki, "wiki-ingest-fill")
-    txn.stage_write("sources/%s/content.md" % sid, text)
+    content_rel = _versioned_rel(sid, v, "content", ".md")
+    txn.stage_write(content_rel, text)
+    if is_latest:
+        txn.stage_write("sources/%s/content.md" % sid, text)
     coverage = dict(cur["coverage"])
     coverage["text"] = "complete"
     coverage["images"] = "complete" if _is_image(ref) else coverage["images"]
     report = {"source_id": sid, "source_version": v, "coverage": coverage, "warnings": warnings, "parser": {"name": parser_name or "agent", "version": "in-session"}}
     extraction["extraction_report"] = report
-    txn.stage_write("sources/%s/extraction.json" % sid, extraction)
+    extraction["source_version"] = v
+    txn.stage_write(extraction_rel, extraction)
+    if is_latest:
+        txn.stage_write("sources/%s/extraction.json" % sid, extraction)
+    # make sure the manifest entry points at this version's own content file
+    changed = False
+    for entry in manifest["versions"]:
+        if entry["version"] == v and entry.get("normalized_path") != content_rel:
+            entry["normalized_path"] = content_rel
+            changed = True
+    if changed:
+        txn.stage_write("sources/%s/manifest.json" % sid, manifest)
     def uncompile(state):
         done = state.get("compiled", {}).get(sid, [])
         if v in done: done.remove(v)
@@ -221,6 +278,7 @@ def _fill_normalized(wiki, sid, version_entry, text, parser_name, ref, sha, warn
     txn.warnings = warnings
     txn.commit(wiki.revision())
     return {"source_id": sid, "version": v, "sha256": sha, "deduplicated": False,
+            "normalized_status": "filled",
             "updated_normalized": True, "normalized_source": "agent",
             "parser": {"name": parser_name or "agent", "version": "in-session"},
             "raw_path": version_entry["raw_path"], "coverage": coverage,
@@ -230,8 +288,8 @@ def _fill_normalized(wiki, sid, version_entry, text, parser_name, ref, sha, warn
 def _staging_raw_path(txn: Transaction, raw_rel: str) -> str:
     return os.path.join(txn.staging_dir, raw_rel)
 
-
 def load_content(wiki, source_id: str, version: int) -> str:
+    _check_sid(source_id)
     manifest = wiki.load_json("sources/%s/manifest.json" % source_id)
     for v in manifest["versions"]:
         if v["version"] == version:
@@ -242,8 +300,8 @@ def load_content(wiki, source_id: str, version: int) -> str:
             return ""
     raise TxnError("unknown version %d of %s" % (version, source_id))
 
-
 def get_manifest(wiki, source_id: str) -> dict:
+    _check_sid(source_id)
     path = wiki.p("sources/%s/manifest.json" % source_id)
     if not os.path.isfile(path):
         return None
@@ -272,12 +330,128 @@ def pending_versions(wiki) -> list:
                 })
     return pending
 
-
 def mark_compiled(wiki, source_id: str, version: int) -> None:
+    _check_sid(source_id)
     txn = Transaction(wiki, "wiki-internal-mark-compiled")
 
     def _upd(state):
-        state.setdefault("compiled", {}).setdefault(source_id, []).append(version)
+        done = state.setdefault("compiled", {}).setdefault(source_id, [])
+        if version not in done:
+            done.append(version)
 
     txn.stage_state(".state/manifest.json", _upd)
     txn.commit(wiki.revision())
+
+LARGE_FILE_BYTES = 500 * 1024  # > 500 KB demotes to priority 3
+SESSION_NAME_RE = re.compile(r"session|transcript|chat", re.IGNORECASE)
+
+
+def _has_role_message(obj) -> bool:
+    """True when a decoded JSON value carries both role and message keys."""
+    if isinstance(obj, dict):
+        if "role" in obj and "message" in obj:
+            return True
+        return any(_has_role_message(v) for v in obj.values())
+    if isinstance(obj, list):
+        return any(_has_role_message(v) for v in obj)
+    return False
+
+
+def _session_shaped(path: str) -> bool:
+    """Sniff a .jsonl/.json file for conversation records (role + message keys)."""
+    try:
+        with open(path, "rb") as f:
+            chunk = f.read(1 << 20)
+    except OSError:
+        return False
+    text = chunk.decode("utf-8", "replace")
+    # JSONL first: any complete line that parses as a session record suffices.
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or not line.startswith("{"):
+            continue
+        try:
+            if _has_role_message(json.loads(line)):
+                return True
+        except json.JSONDecodeError:
+            continue
+    # Plain JSON (possibly truncated by the 1 MiB sniff cap).
+    try:
+        return _has_role_message(json.loads(text))
+    except json.JSONDecodeError:
+        return False
+
+
+def triage(dirpath: str) -> dict:
+    """Deterministic ingest proposals for a directory's top-level files.
+
+    No LLM in this pass: kind/priority come from extension, filename
+    patterns, content sniffing, and size. The returned manifest is meant
+    to be reviewed/edited before `ingest --triage` applies it.
+    """
+    entries = []
+    for name in sorted(os.listdir(dirpath)):
+        path = os.path.abspath(os.path.join(dirpath, name))
+        if not os.path.isfile(path) or os.path.islink(path):
+            continue
+        ext = _ext(name)
+        reasons = []
+        kind = None
+        session_named = bool(SESSION_NAME_RE.search(name))
+        if ext in (".jsonl", ".json"):
+            if _session_shaped(path):
+                kind = "session"
+                reasons.append("content carries role/message records")
+            elif session_named:
+                kind = "session"
+                reasons.append("filename suggests a session transcript")
+        if ext in (".md", ".txt"):
+            reasons.append("%s text/markdown" % ext)
+        elif ext:
+            reasons.append("%s file" % ext)
+            if kind is None:
+                reasons.append("kind undetermined; review")
+        else:
+            reasons.append("unknown file type; review manually")
+        priority = 2
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            size = -1
+        if size > LARGE_FILE_BYTES:
+            priority = 3
+            reasons.append("size %d bytes exceeds %d KB; review before ingest"
+                           % (size, LARGE_FILE_BYTES // 1024))
+        elif size < 0:
+            priority = 3
+            reasons.append("unreadable; verify before ingest")
+        elif kind == "session":
+            priority = 1
+        entries.append({"file": path, "kind": kind, "priority": priority,
+                        "rationale": "; ".join(reasons)})
+    return {"dir": os.path.abspath(dirpath), "files": entries}
+
+
+def ingest_triage(wiki, manifest: dict, *, force: bool = False) -> dict:
+    """Batch-ingest a triage manifest. One failure logs and continues.
+
+    Each entry ingests through the same path as `ingest --file` — a
+    manifest kind (e.g. "session") takes the place of the `--kind` flag.
+    """
+    ingested = []
+    failed = []
+    for entry in manifest.get("files", []):
+        path = entry.get("file")
+        kind = entry.get("kind") or "file"
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+            receipt = ingest(wiki, kind, path, data, force=force)
+            ingested.append({"file": path, "source_id": receipt["source_id"],
+                             "version": receipt["version"],
+                             "deduplicated": receipt["deduplicated"]})
+        except Exception as e:
+            failed.append({"file": path,
+                           "error": "%s: %s" % (type(e).__name__, e)})
+    return {"ingested": ingested, "failed": failed,
+            "total": len(manifest.get("files", []))}

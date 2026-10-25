@@ -68,6 +68,7 @@ skill/llm-wiki/      shared engine skill: wiki.py CLI + wikicore + schemas + ref
 skill/wiki-*/        nine thin command skills (init, ingest, compile, query, context, review, doctor, visualize, write)
 evals/golden-corpus/ fixture project with planted correction/conflict/scope cases
 evals/deterministic/ PRD §58 release gates: python3 evals/deterministic/run_gates.py
+evals/benchmark/     PRD §60 wiki-vs-baseline lane comparison: python3 evals/benchmark/run_benchmark.py
 evals/semantic/      agent-run scenarios + rubrics (PRD §57)
 ```
 
@@ -75,7 +76,7 @@ evals/semantic/      agent-run scenarios + rubrics (PRD §57)
 
 ```bash
 python3 -m unittest discover -s skill/llm-wiki/scripts/tests   # unit tests
-python3 evals/deterministic/run_gates.py                       # 9 release gates
+python3 evals/deterministic/run_gates.py                       # 10 release gates
 ./install.sh && omp -p --no-session 'Do you have skills named llm-wiki and wiki-init?'
 ```
 

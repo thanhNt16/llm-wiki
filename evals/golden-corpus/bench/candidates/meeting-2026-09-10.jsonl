@@ -1,0 +1,3 @@
+{"subject":"order.event.delivery","predicate":"mechanism","value":"transactional outbox","locator":"s:transactional outbox","authority":"decision"}
+{"subject":"order.event.delivery","predicate":"rationale","value":"durability: Redis pub/sub loses messages on subscriber disconnect","locator":"s:durability problems with Redis pub/sub","authority":"doc"}
+{"subject":"payment.gateway","predicate":"retries","value":5,"scope":{"environment":"production"},"locator":"s:effective retry count in production config is 5","authority":"doc"}

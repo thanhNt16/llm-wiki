@@ -1,0 +1,1 @@
+{"subject":"attribution.window","predicate":"click_lookback_days","value":30,"scope":{"environment":"production"},"valid_from":"2026-01-01","locator":"h:Decision","authority":"adr"}

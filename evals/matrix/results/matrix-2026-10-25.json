@@ -1,0 +1,1531 @@
+{
+  "date": "2026-10-25",
+  "engine_refs": {
+    "base": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/llmwiki-engine-bb7a51f-bj_oxfbi/skill/llm-wiki/scripts/wiki.py",
+    "skill-v2": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/llmwiki-engine-f42e7bc-qxese48a/skill/llm-wiki/scripts/wiki.py",
+    "unified": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/llmwiki-engine-HEAD-fu94mov5/skill/llm-wiki/scripts/wiki.py"
+  },
+  "experiment": "E1+E6",
+  "experiments": {
+    "E1": {
+      "cells": {
+        "base/golden": {
+          "build_ok": true,
+          "build_steps": [
+            {
+              "err": "",
+              "exit": 0,
+              "step": "init"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest docs/adr-007-retries.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest docs/adr-019-attribution.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest notes/memo-2026-09-01-window-change.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest config/analytics.prod.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest config/analytics.sandbox.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest notes/meeting-2026-09-10.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest docs/adr-001-postgres.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/adr-019-attribution.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/adr-019-attribution.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/analytics.prod.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/analytics.prod.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/analytics.sandbox.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/analytics.sandbox.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/adr-007-retries.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/adr-007-retries.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/meeting-2026-09-10.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/meeting-2026-09-10.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/adr-001-postgres.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/adr-001-postgres.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/memo-2026-09-01-window-change.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/memo-2026-09-01-window-change.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "build-pages"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "verify"
+            }
+          ],
+          "claims_count": 10,
+          "context": {
+            "budget_compliance": true,
+            "compression_ratio": 7.16,
+            "pack_tokens_avg": 250.8
+          },
+          "engine": "base",
+          "guard": {
+            "doctor_findings_by_code": {
+              "missing_effective_date": 8,
+              "missing_scope": 8,
+              "possible_duplicate": 1,
+              "staging_leftover": 7,
+              "unregistered_page": 1
+            },
+            "near_dup_blocked": false,
+            "near_dup_write_exit": 0,
+            "seed_write_exit": 0,
+            "stray_page_flagged": false
+          },
+          "questions": {
+            "cited": "6/6",
+            "correct": 6,
+            "forbidden_ok": "0/0",
+            "gold_recall_at_5": 1.0,
+            "gold_total": 6,
+            "mrr": 0.7,
+            "precision_at_5": 0.24,
+            "questions": 6,
+            "refusals_correct": true
+          },
+          "scenario": "golden",
+          "topology": {
+            "dead_end_pages": 0,
+            "near_dup_pairs": 0,
+            "orphan_pages": 0,
+            "pages": 0,
+            "section_indexes_linked": 1
+          },
+          "twosource": {
+            "corroborated": 2,
+            "waiting": 2
+          },
+          "wall_seconds": 1.321
+        },
+        "base/synthetic-100-s42": {
+          "build_ok": true,
+          "build_steps": [
+            {
+              "err": "",
+              "exit": 0,
+              "step": "init"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest --dir"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-008.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-008.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-020.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-020.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-032.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-032.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-044.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-044.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-056.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-056.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-068.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-068.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-080.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-080.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-092.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-092.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-012.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-012.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-024.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-024.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-036.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-036.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-048.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-048.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-060.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-060.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-072.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-072.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-084.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-084.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-096.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-096.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-004.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-004.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-016.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-016.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-028.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-028.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-040.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-040.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-052.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-052.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-064.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-064.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-076.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-076.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-088.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-088.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "build-pages"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "verify"
+            }
+          ],
+          "claims_count": 26,
+          "context": {
+            "budget_compliance": true,
+            "compression_ratio": 7.28,
+            "pack_tokens_avg": 549.8
+          },
+          "engine": "base",
+          "guard": {
+            "doctor_findings_by_code": {
+              "missing_effective_date": 25,
+              "missing_scope": 25,
+              "orphan_source": 75,
+              "staging_leftover": 26,
+              "unregistered_page": 1
+            },
+            "near_dup_blocked": false,
+            "near_dup_write_exit": 0,
+            "seed_write_exit": 0,
+            "stray_page_flagged": false
+          },
+          "questions": {
+            "cited": "27/27",
+            "correct": 25,
+            "forbidden_ok": "1/1",
+            "gold_recall_at_5": 1.0,
+            "gold_total": 25,
+            "mrr": 0.98,
+            "precision_at_5": 0.2,
+            "questions": 27,
+            "refusals_correct": true
+          },
+          "scenario": "synthetic-100-s42",
+          "topology": {
+            "dead_end_pages": 0,
+            "near_dup_pairs": 0,
+            "orphan_pages": 0,
+            "pages": 0,
+            "section_indexes_linked": 1
+          },
+          "twosource": {
+            "corroborated": 25,
+            "waiting": 0
+          },
+          "wall_seconds": 3.332
+        },
+        "skill-v2/golden": {
+          "build_ok": true,
+          "build_steps": [
+            {
+              "err": "",
+              "exit": 0,
+              "step": "init"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest docs/adr-007-retries.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest docs/adr-019-attribution.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest notes/memo-2026-09-01-window-change.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest config/analytics.prod.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest config/analytics.sandbox.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest notes/meeting-2026-09-10.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest docs/adr-001-postgres.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/adr-019-attribution.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/adr-019-attribution.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/analytics.prod.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/analytics.prod.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/analytics.sandbox.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/analytics.sandbox.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/adr-007-retries.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/adr-007-retries.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/meeting-2026-09-10.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/meeting-2026-09-10.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/adr-001-postgres.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/adr-001-postgres.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/memo-2026-09-01-window-change.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/memo-2026-09-01-window-change.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "build-pages"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "verify"
+            }
+          ],
+          "claims_count": 10,
+          "context": {
+            "budget_compliance": true,
+            "compression_ratio": 7.16,
+            "pack_tokens_avg": 250.8
+          },
+          "engine": "skill-v2",
+          "guard": {
+            "doctor_findings_by_code": {
+              "dead_end_page": 3,
+              "missing_effective_date": 8,
+              "missing_scope": 8,
+              "orphan_page": 3,
+              "possible_duplicate": 1,
+              "staging_leftover": 7,
+              "unregistered_page": 1
+            },
+            "near_dup_blocked": false,
+            "near_dup_write_exit": 0,
+            "seed_write_exit": 0,
+            "stray_page_flagged": true
+          },
+          "questions": {
+            "cited": "6/6",
+            "correct": 6,
+            "forbidden_ok": "0/0",
+            "gold_recall_at_5": 1.0,
+            "gold_total": 6,
+            "mrr": 0.7,
+            "precision_at_5": 0.24,
+            "questions": 6,
+            "refusals_correct": true
+          },
+          "scenario": "golden",
+          "topology": {
+            "dead_end_pages": 0,
+            "near_dup_pairs": 0,
+            "orphan_pages": 0,
+            "pages": 0,
+            "section_indexes_linked": 1
+          },
+          "twosource": {
+            "corroborated": 2,
+            "waiting": 2
+          },
+          "wall_seconds": 1.345
+        },
+        "skill-v2/synthetic-100-s42": {
+          "build_ok": true,
+          "build_steps": [
+            {
+              "err": "",
+              "exit": 0,
+              "step": "init"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest --dir"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-008.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-008.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-020.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-020.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-032.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-032.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-044.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-044.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-056.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-056.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-068.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-068.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-080.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-080.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-092.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-092.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-012.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-012.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-024.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-024.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-036.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-036.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-048.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-048.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-060.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-060.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-072.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-072.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-084.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-084.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-096.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-096.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-004.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-004.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-016.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-016.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-028.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-028.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-040.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-040.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-052.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-052.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-064.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-064.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-076.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-076.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-088.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-088.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "build-pages"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "verify"
+            }
+          ],
+          "claims_count": 26,
+          "context": {
+            "budget_compliance": true,
+            "compression_ratio": 7.28,
+            "pack_tokens_avg": 549.8
+          },
+          "engine": "skill-v2",
+          "guard": {
+            "doctor_findings_by_code": {
+              "dead_end_page": 3,
+              "missing_effective_date": 25,
+              "missing_scope": 25,
+              "orphan_page": 3,
+              "orphan_source": 75,
+              "staging_leftover": 26,
+              "unregistered_page": 1
+            },
+            "near_dup_blocked": false,
+            "near_dup_write_exit": 0,
+            "seed_write_exit": 0,
+            "stray_page_flagged": true
+          },
+          "questions": {
+            "cited": "27/27",
+            "correct": 25,
+            "forbidden_ok": "1/1",
+            "gold_recall_at_5": 1.0,
+            "gold_total": 25,
+            "mrr": 0.98,
+            "precision_at_5": 0.2,
+            "questions": 27,
+            "refusals_correct": true
+          },
+          "scenario": "synthetic-100-s42",
+          "topology": {
+            "dead_end_pages": 0,
+            "near_dup_pairs": 0,
+            "orphan_pages": 0,
+            "pages": 0,
+            "section_indexes_linked": 1
+          },
+          "twosource": {
+            "corroborated": 25,
+            "waiting": 0
+          },
+          "wall_seconds": 3.352
+        },
+        "unified/golden": {
+          "build_ok": true,
+          "build_steps": [
+            {
+              "err": "",
+              "exit": 0,
+              "step": "init"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest docs/adr-007-retries.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest docs/adr-019-attribution.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest notes/memo-2026-09-01-window-change.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest config/analytics.prod.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest config/analytics.sandbox.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest notes/meeting-2026-09-10.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest docs/adr-001-postgres.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/adr-019-attribution.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/adr-019-attribution.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/analytics.prod.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/analytics.prod.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/analytics.sandbox.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/analytics.sandbox.json"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/adr-007-retries.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/adr-007-retries.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/meeting-2026-09-10.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/meeting-2026-09-10.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/adr-001-postgres.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/adr-001-postgres.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/memo-2026-09-01-window-change.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/memo-2026-09-01-window-change.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "build-pages"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "verify"
+            }
+          ],
+          "claims_count": 10,
+          "context": {
+            "budget_compliance": true,
+            "compression_ratio": 7.16,
+            "pack_tokens_avg": 250.8
+          },
+          "engine": "unified",
+          "guard": {
+            "doctor_findings_by_code": {
+              "dead_end_page": 2,
+              "missing_effective_date": 8,
+              "missing_scope": 8,
+              "orphan_page": 2,
+              "possible_duplicate": 1,
+              "staging_leftover": 7,
+              "unlisted_page": 2,
+              "unregistered_page": 1
+            },
+            "near_dup_blocked": true,
+            "near_dup_write_exit": 3,
+            "seed_write_exit": 0,
+            "stray_page_flagged": true
+          },
+          "questions": {
+            "cited": "6/6",
+            "correct": 6,
+            "forbidden_ok": "0/0",
+            "gold_recall_at_5": 1.0,
+            "gold_total": 6,
+            "mrr": 0.7,
+            "precision_at_5": 0.24,
+            "questions": 6,
+            "refusals_correct": true
+          },
+          "scenario": "golden",
+          "topology": {
+            "dead_end_pages": 0,
+            "near_dup_pairs": 0,
+            "orphan_pages": 0,
+            "pages": 0,
+            "section_indexes_linked": 1
+          },
+          "twosource": {
+            "corroborated": 2,
+            "waiting": 2
+          },
+          "wall_seconds": 1.328
+        },
+        "unified/synthetic-100-s42": {
+          "build_ok": true,
+          "build_steps": [
+            {
+              "err": "",
+              "exit": 0,
+              "step": "init"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "ingest --dir"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-008.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-008.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-020.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-020.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-032.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-032.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-044.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-044.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-056.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-056.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-068.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-068.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-080.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-080.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage config/src-092.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile config/src-092.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-012.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-012.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-024.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-024.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-036.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-036.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-048.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-048.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-060.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-060.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-072.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-072.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-084.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-084.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-096.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-096.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-004.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-004.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-016.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-016.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-028.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-028.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-040.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-040.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-052.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-052.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-064.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-064.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-076.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-076.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage notes/src-088.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile notes/src-088.md"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "stage docs/src-000.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "reconcile docs/src-000.md correction"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "build-pages"
+            },
+            {
+              "err": "",
+              "exit": 0,
+              "step": "verify"
+            }
+          ],
+          "claims_count": 26,
+          "context": {
+            "budget_compliance": true,
+            "compression_ratio": 7.28,
+            "pack_tokens_avg": 549.8
+          },
+          "engine": "unified",
+          "guard": {
+            "doctor_findings_by_code": {
+              "dead_end_page": 2,
+              "missing_effective_date": 25,
+              "missing_scope": 25,
+              "orphan_page": 2,
+              "orphan_source": 75,
+              "staging_leftover": 26,
+              "unlisted_page": 2,
+              "unregistered_page": 1
+            },
+            "near_dup_blocked": true,
+            "near_dup_write_exit": 3,
+            "seed_write_exit": 0,
+            "stray_page_flagged": true
+          },
+          "questions": {
+            "cited": "27/27",
+            "correct": 25,
+            "forbidden_ok": "1/1",
+            "gold_recall_at_5": 1.0,
+            "gold_total": 25,
+            "mrr": 0.98,
+            "precision_at_5": 0.2,
+            "questions": 27,
+            "refusals_correct": true
+          },
+          "scenario": "synthetic-100-s42",
+          "topology": {
+            "dead_end_pages": 0,
+            "near_dup_pairs": 0,
+            "orphan_pages": 0,
+            "pages": 0,
+            "section_indexes_linked": 1
+          },
+          "twosource": {
+            "corroborated": 25,
+            "waiting": 0
+          },
+          "wall_seconds": 3.617
+        }
+      }
+    },
+    "E6": {
+      "cells_verified": [
+        "base/golden",
+        "base/synthetic-100-s42",
+        "skill-v2/golden",
+        "skill-v2/synthetic-100-s42",
+        "unified/golden",
+        "unified/synthetic-100-s42"
+      ],
+      "deterministic": true,
+      "drift": []
+    }
+  }
+}

@@ -9,9 +9,24 @@ import time
 from typing import Optional
 
 from . import claims, ids
+from .schema import validate as schema_validate
 from .transaction import Transaction, TxnError
 
 QUEUE = ".state/review-queue.jsonl"
+
+_REVIEW_ITEM_SCHEMA_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "..", "schemas", "review-item.schema.json"
+)
+_REVIEW_ITEM_SCHEMA = None
+
+
+def _review_item_schema() -> dict:
+    global _REVIEW_ITEM_SCHEMA
+    if _REVIEW_ITEM_SCHEMA is None:
+        with open(_REVIEW_ITEM_SCHEMA_PATH) as f:
+            _REVIEW_ITEM_SCHEMA = json.load(f)
+    return _REVIEW_ITEM_SCHEMA
+
 
 ACTIONS = (
     "accept", "reject", "merge", "mark_duplicate", "mark_authoritative",
@@ -33,6 +48,9 @@ def add_item(txn: Transaction, kind: str, problem: str, evidence: list,
         "risk": risk,
         "proposed_resolution": proposed,
     }
+    errors = schema_validate(item, _review_item_schema())
+    if errors:
+        raise TxnError("review item invalid: %s" % "; ".join(errors))
     queue = _txn_queue(txn)
     queue.append(item)
     txn.stage_write(QUEUE, _dump(queue))
@@ -82,9 +100,14 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
         raise TxnError("unknown review action: %r (valid: %s)" % (action, ", ".join(ACTIONS)))
     params = params or {}
     item = show(wiki, item_id)
+    if item["status"] == "resolved" and action != "reopen":
+        raise TxnError(
+            "review item %s is already resolved — reopen it first" % item_id)
 
     txn = Transaction(wiki, "wiki-review")
     claim = None
+    changed_claim_ids = []
+
     if action not in ("defer", "reopen", "set_topic_kind"):
         cid = params.get("claim_id")
         if not cid:
@@ -97,22 +120,28 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
         claim["status"] = "accepted"
         claim["acceptance"] = {"reason": "human_review", "accepted_at": _now()}
         claims.save_claim(txn, claim)
+        changed_claim_ids.append(claim["id"])
     elif action == "reject":
         claim["status"] = "rejected"
         claim["acceptance"] = {"reason": "human_review", "accepted_at": _now()}
         claims.save_claim(txn, claim)
+        changed_claim_ids.append(claim["id"])
     elif action in ("merge", "mark_duplicate"):
         merge_into = params.get("merge_into")
         if not merge_into:
             raise TxnError("action %r requires merge_into" % action)
+        if merge_into == claim["id"]:
+            raise TxnError("action %r: cannot merge a claim into itself" % action)
         target = claims.load_claim(wiki, merge_into)
         from .compile import _append_evidence
 
         _append_evidence(target, claim)
         claims.save_claim(txn, target)
+        changed_claim_ids.append(target["id"])
         claim["status"] = "rejected"
         claim["acceptance"] = {"reason": "duplicate_of:%s" % merge_into, "accepted_at": _now()}
         claims.save_claim(txn, claim)
+        changed_claim_ids.append(claim["id"])
     elif action == "mark_authoritative":
         claim["authority"] = {"type": "explicit_project_decision",
                               "source": "human_review:" + item_id}
@@ -120,23 +149,35 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
             claim["status"] = "accepted"
             claim["acceptance"] = {"reason": "human_review", "accepted_at": _now()}
         claims.save_claim(txn, claim)
+        changed_claim_ids.append(claim["id"])
     elif action == "mark_superseded":
         target_id = params.get("target")
         if not target_id:
             raise TxnError("mark_superseded requires target claim_id")
+        if target_id == claim["id"]:
+            raise TxnError("mark_superseded: cannot supersede a claim with itself")
+        survivor = claims.load_claim(wiki, target_id)
+        # `claim` is the superseded one: it gets superseded_by; the survivor
+        # records claim.id in its supersedes list.
         claims.supersede(txn, claim, target_id, policy_change=False, new_valid_from=None)
-        claim["supersedes"] = list(set(claim.get("supersedes", []) + [target_id]))
         claims.save_claim(txn, claim)
+        changed_claim_ids.append(claim["id"])
+        if claim["id"] not in survivor.get("supersedes", []):
+            survivor.setdefault("supersedes", []).append(claim["id"])
+        claims.save_claim(txn, survivor)
+        changed_claim_ids.append(survivor["id"])
     elif action == "set_scope":
         scope = params.get("scope")
         if not isinstance(scope, dict):
             raise TxnError("set_scope requires scope dict")
         claim["scope"] = scope
         claims.save_claim(txn, claim)
+        changed_claim_ids.append(claim["id"])
     elif action == "set_validity":
         claim["valid_from"] = params.get("valid_from", claim.get("valid_from"))
         claim["valid_to"] = params.get("valid_to", claim.get("valid_to"))
         claims.save_claim(txn, claim)
+        changed_claim_ids.append(claim["id"])
     elif action == "set_topic_kind":
         from . import deps as deps_mod, topics as topics_mod
         if item.get("kind") != "topic_kind_conflict":
@@ -171,8 +212,9 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
     elif action == "defer":
         pass
     elif action == "reopen":
-        if item["status"] != "deferred":
-            raise TxnError("reopen requires a deferred item (status=%s)" % item["status"])
+        if item["status"] not in ("deferred", "resolved"):
+            raise TxnError("reopen requires a deferred or resolved item (status=%s)"
+                           % item["status"])
 
     entry = {"action": action, "at": _now()}
     if note:
@@ -198,10 +240,10 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
     txn.stage_write(QUEUE, _dump(queue))
 
     # release gate: claim mutations invalidate dependent artifacts (PRD §58)
-    if claim is not None:
+    if changed_claim_ids:
         from . import deps as deps_mod
 
-        deps_mod.invalidate(wiki, [claim["id"]], txn=txn)
+        deps_mod.invalidate(wiki, changed_claim_ids, txn=txn)
 
     txn.changes = {"review_actions": 1}
     receipt = txn.commit(base_revision)

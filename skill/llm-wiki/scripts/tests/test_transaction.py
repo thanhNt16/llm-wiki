@@ -150,6 +150,89 @@ class TestTransaction(unittest.TestCase):
         journal = json.load(open(wiki.p(".state/journal.json")))
         self.assertEqual(journal["receipt"]["command"], "t2")
 
+    def test_raw_json_evidence_not_validated(self):
+        # raw/ evidence is arbitrary bytes: a non-JSON *.json file there
+        # must not trip the canonical-JSON validator
+        wiki = fresh()
+        txn = Transaction(wiki, "wiki-test")
+        txn.stage_write("raw/file/abc123/report.json", "{ not json at all")
+        receipt = txn.commit(0)
+        self.assertEqual(receipt["revision"]["after"], 1)
+        with open(wiki.p("raw/file/abc123/report.json")) as f:
+            self.assertEqual(f.read(), "{ not json at all")
+
+    def test_canonical_json_still_validated(self):
+        wiki = fresh()
+        txn = Transaction(wiki, "wiki-test")
+        txn.stage_write("claims/claim_x.json", "{ broken")
+        with self.assertRaises(TxnError):
+            txn.commit(0)
+
+    def test_failed_commit_writes_per_run_journal(self):
+        # a crashed commit leaves BOTH the doctor-visible journal.json and a
+        # run-scoped journal-<run>.json the next crash cannot clobber
+        wiki = fresh()
+        txn = Transaction(wiki, "t-crash")
+        txn.stage_write("notes/a.md", "a")
+        real_replace = os.replace
+
+        def boom(src, dst):
+            raise OSError("crash mid-commit")
+
+        from wikicore import transaction as tmod
+        tmod.os.replace = boom
+        try:
+            with self.assertRaises(OSError):
+                txn.commit(wiki.revision())
+        finally:
+            tmod.os.replace = real_replace
+        run_journal = wiki.p(".state/journal-%s.json" % txn.run_id)
+        self.assertTrue(os.path.isfile(run_journal))
+        self.assertTrue(os.path.isfile(wiki.p(".state/journal.json")))
+        journal = json.load(open(run_journal))
+        self.assertEqual(journal["receipt"]["command"], "t-crash")
+        # a second successful commit clears its own journals without touching
+        # the earlier crash's per-run record... (journal.json is the latest
+        # leftover alias and is removed on success)
+        txn2 = Transaction(wiki, "t-ok")
+        txn2.stage_write("notes/b.md", "b")
+        txn2.commit(wiki.revision())
+        self.assertTrue(os.path.isfile(run_journal))  # crash record survives
+        self.assertFalse(os.path.exists(wiki.p(".state/journal.json")))
+        self.assertFalse(
+            os.path.exists(wiki.p(".state/journal-%s.json" % txn2.run_id)))
+
+    def test_lock_symlink_refused(self):
+        # O_NOFOLLOW: a planted symlink at the lock path must not be followed
+        wiki = fresh()
+        lock = wiki.p(".state/locks/commit.lock")
+        os.makedirs(os.path.dirname(lock), exist_ok=True)
+        os.symlink("/tmp/commit.lock.target", lock)
+        txn = Transaction(wiki, "wiki-test")
+        txn.stage_write("notes/a.md", "a")
+        try:
+            with self.assertRaises(OSError):
+                txn.commit(0)
+        finally:
+            os.unlink(lock)
+
+    def test_operations_jsonl_torn_tail_repaired(self):
+        # a mid-append crash leaves a corrupt final line; the next commit
+        # amputates it so read_jsonl never sees it
+        wiki = fresh()
+        ops = wiki.p(".state/operations.jsonl")
+        txn = Transaction(wiki, "t1")
+        txn.stage_write("notes/a.md", "a")
+        txn.commit(0)
+        with open(ops, "a") as f:
+            f.write('{"run_id": "run_TORN", "comman')  # torn write
+        txn2 = Transaction(wiki, "t2")
+        txn2.stage_write("notes/b.md", "b")
+        txn2.commit(wiki.revision())
+        records = wiki.read_jsonl(".state/operations.jsonl")
+        self.assertEqual(len(records), 2)
+        self.assertEqual([r["command"] for r in records], ["t1", "t2"])
+
 
 if __name__ == "__main__":
     unittest.main()

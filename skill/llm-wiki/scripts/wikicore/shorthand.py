@@ -22,9 +22,6 @@ _AUTHORITY_SOURCE = {
     "code": "code", "verified": "verified", "inferred": "agent",
 }
 
-_AGENT_FIELDS = {"subject", "predicate", "value", "locator", "authority",
-                 "scope", "valid_from", "supersedes", "evidence"}
-
 
 def expand_locator(raw):
     if isinstance(raw, dict):
@@ -33,9 +30,9 @@ def expand_locator(raw):
         raise TxnError("locator must be a string shorthand or object, got %r" % type(raw))
     m = re.match(r"^([hls]):(.+)$", raw, re.S)
     if not m:
-        raise TxnError("bad locator shorthand %r — use h:<heading>, l:<lines>, s:<section>" % raw)
+        raise TxnError("bad locator shorthand %r — use h:<heading>, l:<lines>, s:<text>" % raw)
     kind, val = m.group(1), m.group(2).strip()
-    return {"type": {"h": "heading", "l": "line_range", "s": "section"}[kind],
+    return {"type": {"h": "heading", "l": "line_range", "s": "text"}[kind],
             "value": val}
 
 
@@ -62,24 +59,28 @@ def normalize_candidate(c, source_id, source_version, root_origin):
     out = dict(c)
     out["subject"] = str(out["subject"]).strip()
     out["predicate"] = str(out["predicate"]).strip()
-    out["locator_used"] = None
-    del out["locator_used"]
     if "evidence" not in out:
         loc = expand_locator(out.pop("locator", "s:whole-document"))
         out["evidence"] = [{"source_id": source_id, "source_version": source_version,
                             "locator": loc}]
     else:
-        out.pop("locator", None)
+        default_loc = expand_locator(out.pop("locator", "s:whole-document"))
+        for ev in out["evidence"]:
+            if isinstance(ev, dict):
+                ev.setdefault("locator", default_loc)
     out.setdefault("authority", {"type": "authoritative_source", "source": "document"})
     out["authority"] = expand_authority(out["authority"])
     out.setdefault("scope", {})
     out.setdefault("valid_from", None)
     out.setdefault("valid_to", None)
     out.setdefault("supersedes", [])
-    out["recorded_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    out["status"] = "candidate"
-    out["proposed_by"] = "agent"
-    out["root_origin"] = root_origin
+    # setdefault keeps normalize idempotent: staging also feeds already-
+    # normalized .json candidates through here (field completion only).
+    out.setdefault("recorded_at",
+                   time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+    out.setdefault("status", "candidate")
+    out.setdefault("proposed_by", "agent")
+    out.setdefault("root_origin", root_origin)
     return out
 
 

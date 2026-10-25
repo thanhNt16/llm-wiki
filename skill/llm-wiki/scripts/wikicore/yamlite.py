@@ -5,14 +5,52 @@ Canonical data never passes through here — canonical storage is JSON.
 """
 import re
 
-_FENCE_RE = re.compile(r"^---\s*\n(.*?)\n?---\s*$", re.S)
-_NEEDS_QUOTE_RE = re.compile(r"^(\\s.*|.*\\s$|.*:\\s.*|.*\\s#.*|.*)$")
+from .transaction import TxnError
+
+# Frontmatter fences must be lines containing only "---": a "---" mid-line
+# (e.g. inside a scalar value like `title: a---b`) never opens/closes a block.
+_FENCE_RE = re.compile(r"\A---\s*\n(.*?)^---[ \t]*\s*\Z", re.S | re.M)
 _QUOTE_IF = (": ", " #", "'")
+# Scalars that would re-parse as a non-string (int/float/bool/None/list) must
+# be emitted quoted so the string value survives the round trip.
+_NONSTRING_SCALAR_RE = re.compile(
+    r"^(?:null|true|false|-?\d+|-?\d+\.\d+|\[\]|\[''\])$")
+_UNESCAPE = {"n": "\n", "r": "\r", "\\": "\\"}
+
+
+def _escape(text: str) -> str:
+    return (text.replace("\\", "\\\\").replace("'", "''")
+            .replace("\n", "\\n").replace("\r", "\\r"))
+
+
+def _unescape(text: str) -> str:
+    out = []
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if ch == "'" and text[i + 1:i + 2] == "'":
+            out.append("'")
+            i += 2
+        elif ch == "\\" and i + 1 < len(text):
+            out.append(_UNESCAPE.get(text[i + 1], ch + text[i + 1]))
+            i += 2
+        else:
+            out.append(ch)
+            i += 1
+    return "".join(out)
 
 
 def _quote(value: str) -> str:
-    if value == "" or value.startswith((" ", "'", "#")) or any(t in value for t in _QUOTE_IF):
-        return "'" + value.replace("'", "''") + "'"
+    needs = (
+        value == ""
+        or value.startswith((" ", "'", "#"))
+        or value.endswith(" ")
+        or any(t in value for t in _QUOTE_IF)
+        or "\\" in value or "\n" in value or "\r" in value
+        or _NONSTRING_SCALAR_RE.match(value) is not None
+    )
+    if needs:
+        return "'" + _escape(value) + "'"
     return value
 
 
@@ -55,7 +93,7 @@ def _parse_scalar(text: str):
     if text == "false":
         return False
     if text.startswith("'") and text.endswith("'") and len(text) >= 2:
-        return text[1:-1].replace("''", "'")
+        return _unescape(text[1:-1])
     if re.match(r"^-?\d+$", text):
         return int(text)
     if re.match(r"^-?\d+\.\d+$", text):
@@ -78,11 +116,14 @@ def loads(text: str) -> dict:
             continue
         if line.startswith("  - "):
             if current_key is None:
-                raise ValueError("yamlite: list item without a key: %r" % line)
+                raise TxnError("yamlite: list item without a key: %r" % line)
+            if not isinstance(result.get(current_key), list):
+                raise TxnError("yamlite: list item under scalar key %r: %r"
+                               % (current_key, line))
             result[current_key].append(_parse_scalar(line[4:].strip()))
             continue
         if ":" not in line:
-            raise ValueError("yamlite: cannot parse line: %r" % line)
+            raise TxnError("yamlite: cannot parse line: %r" % line)
         key, _, raw = line.partition(":")
         key = key.strip()
         raw = raw.strip()

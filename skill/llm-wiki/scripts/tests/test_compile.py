@@ -105,6 +105,45 @@ class TestCompile(unittest.TestCase):
         self.assertTrue(deps.is_stale(wiki, "wiki/concepts/attribution.md"))
         self.assertEqual(rr["changes"]["claims_superseded"], 1)
 
+    def test_supersedes_double_count_named_txnerror(self):
+        # regression: target in BOTH candidate.supersedes and the
+        # classification used to produce a duplicate supersedes entry that
+        # surfaced as schema 'items not unique' — now a named TxnError
+        wiki = fresh()
+        r1 = ingest_text(wiki, "adr-old", "window is 30 days")
+        old_c = candidate(wiki, r1, value=30)
+        run_compile(wiki, r1, [old_c],
+                    [{"index": 0, "relationship": "UNRELATED",
+                      "target_claim_id": None, "valid_from": None,
+                      "valid_to": None,
+                      "authority": {"type": "explicit_project_decision"}}])
+        old = claims.list_claims(wiki)[0]
+
+        r2 = ingest_text(wiki, "memo", "changed to 7 days")
+        new_c = candidate(wiki, r2, value=7)
+        new_c["supersedes"] = [old["id"]]  # double-counted with classification
+        report = {
+            "source_id": r2["source_id"], "source_version": r2["version"],
+            "coverage": {"text": "complete", "tables": "skipped",
+                         "images": "skipped", "diagrams": "skipped",
+                         "formulas": "skipped"},
+            "warnings": [], "parser": {"name": "wikicore-raw", "version": "1.0"},
+        }
+        for rel in ("CORRECTION", "POLICY_CHANGE"):
+            run_id = wc_compile.stage_candidates(
+                wiki, r2["source_id"], r2["version"], [dict(new_c)], report)
+            wc_compile.reconcile_prepare(wiki, run_id)
+            with self.assertRaises(TxnError) as ctx:
+                wc_compile.reconcile_apply(
+                    wiki, run_id,
+                    [{"index": 0, "relationship": rel,
+                      "target_claim_id": old["id"], "valid_from": "2026-09-01",
+                      "valid_to": None,
+                      "authority": {"type": "explicit_project_decision"}}],
+                    wiki.revision())
+            self.assertIn("supersedes double-count", str(ctx.exception))
+            self.assertNotIn("items not unique", str(ctx.exception))
+
     def test_policy_change_sets_valid_to(self):
         wiki = fresh()
         r1 = ingest_text(wiki, "old", "30 days before")
@@ -186,6 +225,167 @@ class TestCompile(unittest.TestCase):
         self.assertEqual(rr["changes"]["claims_updated"], 1)
         merged = claims.load_claim(wiki, target["id"])
         self.assertEqual(len(merged["evidence"]), 2)
+
+    def test_duplicate_invalidates_target_dependents(self):
+        # regression: DUPLICATE bumped target version without invalidating
+        # artifacts that depend on the target claim
+        wiki = fresh()
+        r1 = ingest_text(wiki, "orig", "original statement")
+        c1 = candidate(wiki, r1)
+        run_compile(wiki, r1, [c1],
+                    [{"index": 0, "relationship": "UNRELATED", "target_claim_id": None,
+                      "valid_from": None, "valid_to": None,
+                      "authority": {"type": "explicit_project_decision"}}])
+        target = claims.list_claims(wiki)[0]
+        txn = Transaction(wiki, "page")
+        deps.register(txn, "wiki/dup.md", ["%s@%d" % (target["id"], target["version"])])
+        txn.commit(wiki.revision())
+        self.assertFalse(deps.is_stale(wiki, "wiki/dup.md"))
+        r2 = ingest_text(wiki, "dup", "same statement repeated")
+        c2 = candidate(wiki, r2)
+        run_compile(wiki, r2, [c2],
+                    [{"index": 0, "relationship": "DUPLICATE",
+                      "target_claim_id": target["id"], "valid_from": None,
+                      "valid_to": None,
+                      "authority": {"type": "explicit_project_decision"}}])
+        self.assertTrue(deps.is_stale(wiki, "wiki/dup.md"))
+
+    def test_corroboration_invalidates_target_dependents(self):
+        # regression: CORROBORATION bumped target version without invalidating
+        wiki = fresh()
+        r1 = ingest_text(wiki, "one", "first origin")
+        c1 = candidate(wiki, r1, authority="agent_inference")
+        run_compile(wiki, r1, [c1],
+                    [{"index": 0, "relationship": "UNRELATED", "target_claim_id": None,
+                      "valid_from": None, "valid_to": None,
+                      "authority": {"type": "agent_inference"}}])
+        target = claims.list_claims(wiki)[0]
+        txn = Transaction(wiki, "page")
+        deps.register(txn, "wiki/corr.md", ["%s@%d" % (target["id"], target["version"])])
+        txn.commit(wiki.revision())
+        self.assertFalse(deps.is_stale(wiki, "wiki/corr.md"))
+        r2 = ingest_text(wiki, "two", "second independent origin")
+        c2 = candidate(wiki, r2)
+        run_compile(wiki, r2, [c2],
+                    [{"index": 0, "relationship": "CORROBORATION",
+                      "target_claim_id": target["id"], "valid_from": None,
+                      "valid_to": None,
+                      "authority": {"type": "independent_corroboration"}}])
+        self.assertTrue(deps.is_stale(wiki, "wiki/corr.md"))
+
+    def test_apply_rejects_out_of_range_index(self):
+        wiki = fresh()
+        r = ingest_text(wiki, "x", "body")
+        run_id = wc_compile.stage_candidates(wiki, r["source_id"], r["version"],
+                                             [candidate(wiki, r)], {})
+        with self.assertRaises(TxnError):
+            wc_compile.reconcile_apply(
+                wiki, run_id,
+                [{"index": 7, "relationship": "UNRELATED"}],
+                wiki.revision())
+        with self.assertRaises(TxnError):
+            wc_compile.reconcile_apply(
+                wiki, run_id,
+                [{"index": -1, "relationship": "UNRELATED"}],
+                wiki.revision())
+
+    def test_apply_requires_target_for_targeted_relationships(self):
+        wiki = fresh()
+        r1 = ingest_text(wiki, "a", "body a")
+        run_compile(wiki, r1, [candidate(wiki, r1)],
+                    [{"index": 0, "relationship": "UNRELATED", "target_claim_id": None,
+                      "valid_from": None, "valid_to": None,
+                      "authority": {"type": "explicit_project_decision"}}])
+        r2 = ingest_text(wiki, "b", "body b")
+        run_id = wc_compile.stage_candidates(wiki, r2["source_id"], r2["version"],
+                                             [candidate(wiki, r2)], {})
+        for rel in ("DUPLICATE", "CORROBORATION", "CORRECTION",
+                    "POLICY_CHANGE", "CONTRADICTION"):
+            with self.assertRaises(TxnError):
+                wc_compile.reconcile_apply(
+                    wiki, run_id, [{"index": 0, "relationship": rel}],
+                    wiki.revision())
+        with self.assertRaises(TxnError):
+            wc_compile.reconcile_apply(
+                wiki, run_id,
+                [{"index": 0, "relationship": "DUPLICATE",
+                  "target_claim_id": "claim_" + "A" * 26}],
+                wiki.revision())
+
+    def test_apply_does_not_mutate_caller_classifications(self):
+        wiki = fresh()
+        r = ingest_text(wiki, "x", "body")
+        run_id = wc_compile.stage_candidates(wiki, r["source_id"], r["version"],
+                                             [candidate(wiki, r)], {})
+        wc_compile.reconcile_prepare(wiki, run_id)
+        cls = []
+        wc_compile.reconcile_apply(wiki, run_id, cls, wiki.revision())
+        self.assertEqual(cls, [])
+
+    def test_apply_rejects_target_changed_since_prepare(self):
+        # a claim mutated between reconcile-prepare and reconcile-apply is a
+        # stale snapshot — the apply must conflict, not mutate blindly
+        wiki = fresh()
+        r1 = ingest_text(wiki, "a", "body a")
+        run_compile(wiki, r1, [candidate(wiki, r1)],
+                    [{"index": 0, "relationship": "UNRELATED", "target_claim_id": None,
+                      "valid_from": None, "valid_to": None,
+                      "authority": {"type": "explicit_project_decision"}}])
+        target = claims.list_claims(wiki)[0]
+        r2 = ingest_text(wiki, "b", "body b")
+        run_id = wc_compile.stage_candidates(wiki, r2["source_id"], r2["version"],
+                                             [candidate(wiki, r2)], {})
+        wc_compile.reconcile_prepare(wiki, run_id)
+        # intervening mutation: supersede the target
+        r3 = ingest_text(wiki, "c", "body c")
+        run_compile(wiki, r3, [candidate(wiki, r3, value=99)],
+                    [{"index": 0, "relationship": "CORRECTION",
+                      "target_claim_id": target["id"], "valid_from": None,
+                      "valid_to": None,
+                      "authority": {"type": "explicit_project_decision"}}])
+        with self.assertRaises(ConflictError):
+            wc_compile.reconcile_apply(
+                wiki, run_id,
+                [{"index": 0, "relationship": "CORROBORATION",
+                  "target_claim_id": target["id"]}],
+                wiki.revision())
+
+    def test_run_dir_rejects_bad_run_id(self):
+        wiki = fresh()
+        with self.assertRaises(TxnError):
+            wc_compile.reconcile_prepare(wiki, "run_../../escape")
+        with self.assertRaises(TxnError):
+            wc_compile.reconcile_prepare(wiki, "../etc")
+        with self.assertRaises(TxnError):
+            wc_compile.reconcile_prepare(wiki, "not-a-run")
+
+    def test_auto_verdict_disjoint_temporal_needs_review(self):
+        m = [{"same_scope": True, "same_value": True, "status": "accepted",
+              "temporal": "disjoint", "root_origins": ["o2"]}]
+        self.assertIsNone(wc_compile.auto_verdict({"root_origin": "o1"}, m))
+
+    def test_stage_candidates_completes_raw_json_candidates(self):
+        # --file *.json path bypasses CLI normalization; staging must fill
+        # evidence/recorded_at/status/root_origin itself
+        wiki = fresh()
+        r = ingest_text(wiki, "doc", "body")
+        run_id = wc_compile.stage_candidates(
+            wiki, r["source_id"], r["version"],
+            [{"subject": "s", "predicate": "p", "value": 1}], {})
+        with open(os.path.join(wiki.p(".state", "staging", run_id),
+                               "compile.json")) as f:
+            staged = json.load(f)["candidates"][0]
+        self.assertEqual(staged["status"], "candidate")
+        self.assertEqual(staged["root_origin"], r["source_id"])
+        self.assertIn("recorded_at", staged)
+        self.assertEqual(staged["evidence"][0]["source_id"], r["source_id"])
+        self.assertEqual(staged["evidence"][0]["locator"]["type"], "text")
+        _, _, rr = run_compile(wiki, r, [
+            {"subject": "s2", "predicate": "p2", "value": 2}],
+            [{"index": 0, "relationship": "UNRELATED", "target_claim_id": None,
+              "valid_from": None, "valid_to": None,
+              "authority": {"type": "explicit_project_decision"}}])
+        self.assertEqual(rr["changes"]["claims_created"], 1)
 
     def test_corroboration_auto_accepts_at_threshold(self):
         wiki = fresh()
@@ -491,6 +691,110 @@ class TestUmbrella(unittest.TestCase):
                          out1["pending"][0]["run_id"])
         self.assertTrue(out2["pending"][0]["resumed_run"])
         self.assertEqual(len(os.listdir(wiki.p(".state", "staging"))), 1)
+
+
+class ResumeFingerprintTest(unittest.TestCase):
+    def test_mutation_invalidates_resume(self):
+        wiki = fresh()
+        r = ingest_text(wiki, "ki1-src", "v1")
+        rid = wc_compile.stage_candidates(
+            wiki, r["source_id"], r["version"], [candidate(wiki, r)],
+            {"coverage": {"text": "complete"}, "warnings": [], "parser": {}})
+        fp1 = wc_compile.compute_corpus_fingerprint(wiki)
+        ingest_text(wiki, "ki1-src-2", "v2")  # corpus changes
+        fp2 = wc_compile.compute_corpus_fingerprint(wiki)
+        self.assertNotEqual(fp1, fp2)
+        out = wc_compile.compile_umbrella(wiki, resume=True)
+        self.assertIn(rid, out.get("stale_invalidated", []))
+        self.assertFalse(os.path.isdir(wiki.p(".state", "staging", rid)))
+
+    def test_resume_reports_no_stale_runs(self):
+        wiki = fresh()
+        r = ingest_text(wiki, "ki1-src", "v1")
+        wc_compile.stage_candidates(
+            wiki, r["source_id"], r["version"], [candidate(wiki, r)],
+            {"coverage": {"text": "complete"}, "warnings": [], "parser": {}})
+        out = wc_compile.compile_umbrella(wiki, resume=True)
+        self.assertEqual(out["stale_invalidated"], [])
+
+class AutoDecisionStubTest(unittest.TestCase):
+    """reconcile-apply mints decision_<id>.json stubs for accepted
+    explicit_project_decision claims (lane-fill spec §3)."""
+
+    def _reconcile_one(self, wiki, authority="explicit_project_decision",
+                       value=7, subject="project.analytics.attribution",
+                       relationship="UNRELATED", target_claim_id=None,
+                       ref=None):
+        r = ingest_text(wiki, ref or "stub-src-%s-%s" % (subject, value), "body")
+        c = candidate(wiki, r, subject=subject, value=value, authority=authority)
+        _, _, rr = run_compile(wiki, r, [c],
+                               [{"index": 0, "relationship": relationship,
+                                 "target_claim_id": target_claim_id,
+                                 "valid_from": None, "valid_to": None,
+                                 "authority": {"type": authority}}])
+        return rr
+
+    def test_decision_authority_claim_mints_stub(self):
+        wiki = fresh()
+        out = self._reconcile_one(wiki)
+        ds = claims.list_decisions(wiki)
+        self.assertEqual(len(ds), 1)
+        claim = claims.list_claims(wiki)[0]
+        self.assertTrue(ds[0]["auto_materialized"])
+        self.assertEqual(ds[0]["status"], "accepted")
+        self.assertEqual(ds[0]["claims"], [claim["id"]])
+        self.assertEqual(ds[0]["evidence"], claim["evidence"])
+        self.assertEqual(ds[0]["title"], claim["subject"])
+        self.assertEqual(ds[0]["body"],
+                         "%s = %s" % (claim["predicate"], claim["value"]))
+        self.assertEqual(ds[0]["decided_on"], claim["recorded_at"][:10])
+        self.assertEqual(ds[0]["authority"]["type"], "explicit_project_decision")
+        self.assertEqual(out["changes"]["decisions_materialized"], 1)
+        # landed on disk, loadable, schema-conformant
+        self.assertEqual(claims.load_decision(wiki, ds[0]["id"]), ds[0])
+
+    def test_idempotent_reaccept(self):
+        wiki = fresh()
+        self._reconcile_one(wiki)
+        claim = claims.list_claims(wiki)[0]
+        # helper no-ops once a decision links the claim id
+        txn = Transaction(wiki, "reaccept")
+        self.assertIsNone(claims.auto_decision_stub(wiki, txn, claim))
+        self.assertEqual(len(claims.list_decisions(wiki)), 1)
+        # DUPLICATE re-apply of the same statement mints nothing further
+        r2 = ingest_text(wiki, "stub-dup", "same statement repeated")
+        c2 = candidate(wiki, r2)
+        _, _, rr2 = run_compile(wiki, r2, [c2],
+                                [{"index": 0, "relationship": "DUPLICATE",
+                                  "target_claim_id": claim["id"],
+                                  "valid_from": None, "valid_to": None,
+                                  "authority": {"type": "explicit_project_decision"}}])
+        self.assertEqual(rr2["changes"]["decisions_materialized"], 0)
+        self.assertEqual(len(claims.list_decisions(wiki)), 1)
+
+    def test_no_stub_for_authoritative_source(self):
+        wiki = fresh()
+        out = self._reconcile_one(wiki, authority="authoritative_source")
+        self.assertEqual(claims.list_decisions(wiki), [])
+        self.assertEqual(out["changes"]["decisions_materialized"], 0)
+
+    def test_correction_mints_stub_for_new_claim(self):
+        wiki = fresh()
+        self._reconcile_one(wiki)
+        target = claims.list_claims(wiki)[0]
+        r2 = ingest_text(wiki, "stub-correction", "14 days")
+        c2 = candidate(wiki, r2, value=14, valid_from="2026-10-01")
+        _, _, rr = run_compile(wiki, r2, [c2],
+                               [{"index": 0, "relationship": "CORRECTION",
+                                 "target_claim_id": target["id"],
+                                 "valid_from": "2026-10-01", "valid_to": None,
+                                 "authority": {"type": "explicit_project_decision"}}])
+        self.assertEqual(rr["changes"]["decisions_materialized"], 1)
+        ds = claims.list_decisions(wiki)
+        self.assertEqual(len(ds), 2)
+        linked = {d["claims"][0] for d in ds}
+        self.assertEqual(linked, {c["id"] for c in claims.list_claims(wiki)})
+
 
 if __name__ == "__main__":
     unittest.main()

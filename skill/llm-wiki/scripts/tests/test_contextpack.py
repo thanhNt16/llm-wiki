@@ -1,10 +1,10 @@
-import json, math, os, sys, tempfile, unittest
+import json, math, os, sys, tempfile, time, unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from wikicore import claims, compile as wc_compile, contextpack, deps, sources
 from wikicore.store import Wiki, init_wiki
-from wikicore.transaction import Transaction
+from wikicore.transaction import Transaction, TxnError
 
 def fresh(budget_default=6000):
     root = tempfile.mkdtemp()
@@ -161,6 +161,134 @@ class TestContextPack(unittest.TestCase):
         with open(wiki.p(out["pack_path"])) as f:
             pack = f.read()
         self.assertIn("b / y", pack)  # claim b/y appears as changed
+
+class TestBriefingReference(unittest.TestCase):
+    def test_changes_since_matches_requested_receipt(self):
+        # regression: the OLDEST eligible receipt used to win; the pack whose
+        # id was passed must be the diff base
+        wiki = fresh()
+        add_claim(wiki, "a", "x")
+        first = contextpack.build(wiki, task="a x", budget=4000)
+        add_claim(wiki, "b", "y")
+        second = contextpack.build(wiki, task="b y", budget=4000)
+        out = contextpack.build(wiki, task="", budget=4000,
+                                changes_since=second["context_id"])
+        with open(wiki.p(out["pack_path"])) as f:
+            pack = f.read()
+        # the requested receipt is the diff base, not the oldest eligible one
+        self.assertIn(second["context_id"], pack)
+        self.assertNotIn(first["context_id"], pack)
+
+    def test_changes_since_accepts_timestamp(self):
+        wiki = fresh()
+        add_claim(wiki, "db", "engine", value="postgres")
+        out = contextpack.build(wiki, task="", budget=4000,
+                                changes_since="2000-01-01T00:00:00Z")
+        with open(wiki.p(out["pack_path"])) as f:
+            pack = f.read()
+        self.assertNotIn("No committed wiki operations", pack)
+        self.assertIn("db / engine", pack)
+
+    def test_changes_since_future_timestamp_reports_no_ops(self):
+        # previously a timestamp fell through to project-start and diffed
+        # everything; now it is the actual reference
+        wiki = fresh()
+        add_claim(wiki, "db", "engine", value="postgres")
+        out = contextpack.build(wiki, task="", budget=4000,
+                                changes_since="2999-01-01")
+        with open(wiki.p(out["pack_path"])) as f:
+            pack = f.read()
+        self.assertIn("2999-01-01", pack)
+        self.assertIn("No committed wiki operations", pack)
+
+    def test_superseded_resolution_uses_superseded_by(self):
+        wiki = fresh()
+        add_claim(wiki, "seed", "s")  # one committed op so the briefing runs
+        old_id, new_id = "claim_" + "A" * 26, "claim_" + "B" * 26
+        base = {"scope": {}, "valid_from": None, "valid_to": None,
+                "recorded_at": "2026-09-15T00:00:00Z", "proposed_by": "agent",
+                "authority": {"type": "explicit_project_decision"},
+                "supersedes": [], "version": 1,
+                "evidence": [{"source_id": "source_" + "A" * 26,
+                              "source_version": 1,
+                              "locator": {"type": "text", "value": "x"}}]}
+        old = dict(base, id=old_id, subject="cache", predicate="ttl",
+                   value=60, status="superseded", superseded_by=new_id,
+                   updated_at=time.strftime("%Y-%m-%dT%H:%M:%SZ",
+                                            time.gmtime()))
+        new = dict(base, id=new_id, subject="cache", predicate="ttl", value=30,
+                   status="accepted", supersedes=[])
+        for c in (old, new):
+            with open(wiki.p("claims/%s.json" % c["id"]), "w") as f:
+                json.dump(c, f)
+        out = contextpack.build(wiki, task="", budget=4000,
+                                changes_since="2000-01-01")
+        with open(wiki.p(out["pack_path"])) as f:
+            pack = f.read()
+        self.assertIn("was 60 → now 30", pack)
+
+    def test_superseded_resolution_guards_self_reference(self):
+        wiki = fresh()
+        add_claim(wiki, "seed", "s")
+        c = add_claim(wiki, "loop", "self")
+        path = wiki.p("claims/%s.json" % c["id"])
+        with open(path) as f:
+            data = json.load(f)
+        data["status"] = "superseded"
+        data["superseded_by"] = data["id"]  # self-reference must not resolve
+        with open(path, "w") as f:
+            json.dump(data, f)
+        out = contextpack.build(wiki, task="", budget=4000,
+                                changes_since="2000-01-01")
+        with open(wiki.p(out["pack_path"])) as f:
+            pack = f.read()
+        self.assertIn("now ?", pack)
+
+class TestBudgetAndTruncation(unittest.TestCase):
+    def test_budget_zero_is_error(self):
+        wiki = fresh()
+        with self.assertRaises(TxnError):
+            contextpack.build(wiki, task="", budget=0)
+
+    def test_tiny_budget_error_names_minimum(self):
+        wiki = fresh()
+        add_claim(wiki, "db", "engine", value="postgres")
+        try:
+            contextpack.build(wiki, task="", budget=10)
+            self.fail("expected TxnError")
+        except TxnError as e:
+            self.assertIn("minimum required", str(e))
+
+    def test_decision_deps_pin_real_versions(self):
+        wiki = fresh()
+        d = add_decision(wiki, "Use PostgreSQL", body="We chose Postgres.")
+        txn = Transaction(wiki, "t2")
+        claims.save_decision(txn, d)  # bump to version 2
+        txn.commit(wiki.revision())
+        out = contextpack.build(wiki, task="", budget=4000)
+        with open(wiki.p(out["pack_path"])) as f:
+            pack = f.read()
+        self.assertIn("%s@2" % d["id"], pack)
+
+    def test_deps_truncation_recorded_edges_complete(self):
+        wiki = fresh()
+        for i in range(6):
+            add_claim(wiki, "claim%02d" % i, "p", value=i)
+        old_limit = contextpack._DEPS_LIMIT
+        contextpack._DEPS_LIMIT = 3
+        try:
+            out = contextpack.build(wiki, task="", budget=4000)
+        finally:
+            contextpack._DEPS_LIMIT = old_limit
+        receipt = out["receipt"]
+        self.assertEqual(receipt["deps_truncated"], 3)
+        # registration must keep the FULL dep set so any later claim edit
+        # still marks this pack stale
+        edges = deps.graph(wiki)["edges"][out["pack_path"]]
+        self.assertEqual(len(edges), 6)
+        all_claim_ids = {c["id"] for c in claims.list_claims(wiki)}
+        self.assertTrue(all(dep.split("@")[0] in all_claim_ids
+                            for dep in edges))
 
 if __name__ == "__main__":
     unittest.main()

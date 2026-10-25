@@ -127,6 +127,74 @@ class TestClaims(unittest.TestCase):
         # 4 references but 3 independent origins (PRD §7)
         self.assertEqual(len(c["evidence"]), 4)
 
+    def test_load_claim_rejects_malformed_cid(self):
+        """Regression: raw cid must match claim_<ulid> before path formation."""
+        wiki = fresh()
+        for bad in ("../x", "claim_/../manifest", "source_" + "A" * 26,
+                    "claim_short", "", None):
+            with self.assertRaises(TxnError):
+                claims.load_claim(wiki, bad)
+
+    def test_create_forces_version_one(self):
+        """Regression: callers may not inject a version on creation."""
+        wiki = fresh()
+        txn = Transaction(wiki, "t")
+        c = claim(wiki)
+        c["version"] = 99
+        claims.save_claim(txn, c)
+        txn.commit(0)
+        self.assertEqual(claims.load_claim(wiki, c["id"])["version"], 1)
+
+    def test_statusless_claim_gets_txnerror_not_keyerror(self):
+        """Regression: missing status reaches schema validation as TxnError."""
+        wiki = fresh()
+        txn = Transaction(wiki, "t")
+        c = claim(wiki)
+        del c["status"]
+        with self.assertRaises(TxnError):
+            claims.save_claim(txn, c)
+
+    def test_terminal_guard_works_when_status_present(self):
+        wiki = fresh()
+        txn = Transaction(wiki, "t")
+        c = claim(wiki, status="rejected",
+                  authority={"type": "agent_inference"})
+        c["acceptance"] = {"reason": "bad data"}
+        claims.save_claim(txn, c)
+        txn.commit(0)
+        # reopening a terminal claim must fail
+        txn2 = Transaction(wiki, "t2")
+        c2 = claims.load_claim(wiki, c["id"])
+        c2["status"] = "accepted"
+        with self.assertRaises(TxnError):
+            claims.save_claim(txn2, c2)
+
+    def test_independence_missing_source_id_is_txnerror(self):
+        wiki = fresh()
+        c = claim(wiki)
+        c["evidence"] = [{"source_version": 1, "locator": {"type": "text"}}]
+        with self.assertRaises(TxnError):
+            claims.independence(wiki, c)
+
+    def test_independence_corrupt_manifest_fails_closed(self):
+        """Regression: unreadable manifest must NOT count as an independent
+        origin (old fallback inflated corroboration)."""
+        wiki = fresh()
+        c = claim(wiki, evidence_sources=((SID, 1),))
+        # claim carries no root_origin and the manifest doesn't exist at all:
+        # nothing can be attributed, so independence is 0
+        self.assertEqual(claims.independence(wiki, c), 0)
+        # a corrupt manifest is likewise excluded, not counted as its own origin
+        os.makedirs(wiki.p("sources", SID), exist_ok=True)
+        with open(wiki.p("sources", SID, "manifest.json"), "w") as f:
+            f.write("{not json")
+        self.assertEqual(claims.independence(wiki, c), 0)
+        # while a second evidence WITH a root_origin still counts
+        c["evidence"].append({"source_id": SID, "source_version": 1,
+                              "locator": {"type": "text"},
+                              "root_origin": "real-origin"})
+        self.assertEqual(claims.independence(wiki, c), 1)
+
 
 class TestDecisions(unittest.TestCase):
     def test_decision_round_trip(self):
