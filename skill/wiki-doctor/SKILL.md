@@ -15,32 +15,47 @@ skill (installed alongside this one). Resolve it once, then run from the
 project root:
 
 ```bash
-WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
+WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
+[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
 python3 "$WIKI" doctor
 ```
 
 Findings have `severity` (error/warn/info), `code`, `detail`, `fix`.
 Categories:
 
-- Schema validity of canonical claim/decision files; broken references
-  (evidence source ids, supersedes chains, decision claim lists).
-- Derived-dependency integrity: every registered dep must be a current
-  claim, decision, or registered `wiki/` artifact; malformed or stale
-  versions and unknown namespaces are reported, as are edges pointing at
-  missing artifacts (orphan edges) and dependency cycles.
-- Page integrity: frontmatter `subject` vs artifact slug mismatches,
-  subjects colliding on the same `(kind, slug)`, pages depending on
-  disputed claims without the required labeling, duplicate `page-targets`
-  artifacts, and ambiguous `page-kinds.json` routing (shadowed rules).
-- Interrupted commits: operation receipts disagreeing with canonical files.
-  Recommend recovery — never auto-delete canonical data.
-- `staging_leftover` entries can be deleted after inspection.
-- Semantic debt: unsupported claims, disputed claims, unresolved
-  contradictions, stale derived artifacts, stale or dangling context packs,
-  low extraction coverage. Report to the user — do not auto-resolve.
+- Schema validity of canonical claim/decision files (including file↔`id`
+  field mismatches); broken references (evidence source ids, cited source
+  versions beyond the manifest, supersedes chains, decision claim lists).
+- Derived-dependency integrity: artifacts registered stale in
+  `.state/dependencies.json`, dep edges whose target is missing or
+  unresolvable (`unresolved_dependency`), registered artifacts whose file is
+  absent (`missing_artifact`), and derived `wiki/**` pages with no
+  dependency registration at all (`unregistered_page`).
+- Interrupted transactions: leftover `.state/journal.json`, stale
+  `.state/.backup-<rev>/` directories, and stale/unexpected lock files
+  (`stale_lock`). Recommend recovery — never auto-delete canonical data.
+- `staging_leftover` run dirs can be deleted after inspection.
+- Review-queue hygiene: malformed JSONL lines, items missing required
+  fields, `affected` ids that no longer exist, and items deferred >7 days.
+- Orphan sources (never cited by any claim) and invalid source-dir ids.
+- Decisions: `stale_decision` (cites a superseded/rejected claim) and
+  `orphan_decision` (no claims and no evidence).
+- Semantic debt: accepted claims with no independent evidence or missing
+  `scope`/`valid_from`, disputed claims and open `possible_contradiction`
+  review items, claims with no evidence, `possible_duplicate` claims
+  (same subject+predicate+scope+value, both non-terminal), `stale_candidate`
+  claims unreviewed >14 days, and text sources whose extraction report still
+  says `not_extracted`. Report to the user — do not auto-resolve.
+- Page-graph lint (all warn): `orphan_page` (no inbound `[[wiki:]]` links),
+  `dead_end_page` (links to no other page), `walled_garden` (≥3 pages whose
+  links stay inside the cluster — the largest component is never flagged),
+  `near_duplicate_subject` (two pages whose subject tokens overlap
+  Jaccard ≥0.7 with no link between them), `stale_page_ttl` (frontmatter
+  `stale_after` date has passed).
 
 Fix errors first — usually broken references from out-of-band edits. Report
-unresolved semantic debt to the user.
+unresolved semantic debt and page-graph findings to the user — retargeting
+links, splitting, or deleting pages are user decisions, never silent edits.
 
 ## Hard rules
 

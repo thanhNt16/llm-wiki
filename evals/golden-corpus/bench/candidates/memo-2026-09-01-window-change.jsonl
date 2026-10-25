@@ -1,0 +1,2 @@
+{"subject":"attribution.window","predicate":"click_lookback_days","value":7,"scope":{"environment":"production"},"valid_from":"2026-09-01","locator":"s:changed from 30 days","authority":"decision"}
+{"subject":"attribution.window","predicate":"supersedes_adr_019_for","value":"production","scope":{"environment":"production"},"locator":"s:supersedes ADR-019","authority":"decision"}

@@ -60,8 +60,10 @@ and do not merge subjects to manufacture eligibility.
 
 ## Kind routing (which dir a subject lands in)
 
-`page-targets` picks the page kind via `.llm-wiki/page-kinds.json` — extend
-by adding rules, no code changes:
+`page-targets` resolves each subject's kind in this order: `--kind` on the
+CLI wins outright; then ordered file rules in `.llm-wiki/page-kinds.json`;
+then built-in heuristics; then `default`. Extend file rules by adding
+entries — no code changes:
 
 ```json
 {
@@ -81,9 +83,24 @@ by adding rules, no code changes:
   (regex against the subject's claim predicates). `when.min_claims` gates on
   eligible claim count.
 - `--kind <dir>` on the command line overrides rules for every target.
-- Missing/malformed file → everything routes to `concepts` (a `warnings`
-  entry reports why). Invalid `kind` or matcher-less rules are skipped with
-  a warning. Each target reports `matched_rule` (rule index or null).
+- Built-in heuristics run per subject *after* file rules — a matching
+  file rule wins, a non-matching one falls through to the heuristics.
+  `init` writes a starter `{"rules": [], "default": "concepts"}` —
+  heuristics handle everything until rules are added. In order: (1) a
+  predicate matching `^(step|procedure|runbook|how[ _-]?to)` → `procedures`;
+  (2) a subject matching `^[a-z]+-\d+$` (ticket ids) or
+  `\.(api|service|ui|db|cli)$` → `entities`; (3) a single-token
+  code-identifier subject (snake/kebab/camel, no spaces) with ≥2 claims →
+  `entities`; (4) subject or predicate matching
+  `open[ _-]?question|unresolved|tbd` → `questions`; (5) else `default`.
+  To pin everything to concepts, add a catch-all
+  `{"kind": "concepts", "regex": ".*"}`.
+- Each target reports `matched_rule`: an integer index into `rules[]`
+  when a file rule matched, `"heuristic:N"` for a heuristic hit, `null`
+  when it fell to `default`. A wrong-looking `matched_rule` is overridden
+  by adding a file rule and re-running `page-targets`.
+- Malformed files and skipped rules (invalid `kind`, no matcher key)
+  produce `warnings` entries; routing continues on whatever remains.
 - Kinds: `concepts`, `entities`, `procedures`, `questions`, `sources`,
   `changes` — the artifact is `wiki/<kind>/<slug>.md` and frontmatter `type`
   must equal the singular (`entity`, `procedure`, …).
@@ -97,6 +114,49 @@ by adding rules, no code changes:
   version). Any other N is a hard rejection. Unknown claim ids likewise.
 - `deps` citing `rejected` or `superseded` claims is a hard rejection; cite
   the successor claim instead.
+
+## Page links (`[[wiki:…]]`)
+
+- Body links to other pages use `[[wiki:<kind>/<slug>]]` (kinds:
+  `concepts|entities|procedures|questions|sources|changes`). Each maps to
+  dep path `wiki/<kind>/<slug>.md`: it MUST appear in `deps` AND the target
+  file must exist at write time — an unresolved or undeclared page link is
+  a hard rejection, same as claim links.
+- Concept and entity pages SHOULD end with a `## See also` section — see
+  the dedicated section below; it is the primary defense against
+  `orphan_page`/`dead_end_page` doctor findings.
+- Circular first-creation needs two passes: write page B without the link,
+  write page A linking B, then re-write B linking A.
+- Run `wiki.py subjects` before authoring — if a near-duplicate subject
+  already has a page, refresh it instead of minting a twin (doctor flags
+  unlinked near-dupes as `near_duplicate_subject`).
+- Optional frontmatter `stale_after: YYYY-MM-DD` gives a page a TTL; doctor
+  reports `stale_page_ttl` once the date passes.
+
+## See also (cross-linking pages)
+
+Authored pages SHOULD cross-link related pages in the body — it keeps the
+page graph traversable and, over time, drains two whole classes of doctor
+findings: `orphan_page` (nothing links in) and `dead_end_page` (the page
+links nowhere).
+
+- End every concept/entity page with a `## See also` section carrying 1–3
+  `[[wiki:<kind>/<slug>]]` links to genuinely related pages — not filler.
+- Every link still needs its dep (`wiki/<kind>/<slug>.md` in `deps`; the
+  auto-derive adds them for you) and the target file must exist at write
+  time.
+- Pick links that make the graph bidirectional: link the sibling pages the
+  reader would want next, and when you notice a related page pointing
+  nowhere, refresh it to point back.
+
+Example tail of `wiki/concepts/attribution-window.md`:
+
+```markdown
+## See also
+
+- [[wiki:concepts/click-lookback]]
+- [[wiki:procedures/monthly-attribution-audit]]
+```
 
 ## Status handling
 

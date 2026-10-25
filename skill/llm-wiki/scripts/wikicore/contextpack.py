@@ -5,6 +5,7 @@ a pack is itself a registered artifact so staleness propagates (PRD §17).
 import json
 import math
 import os
+import re
 import time
 from typing import Optional
 
@@ -18,6 +19,32 @@ that the this to was we what when where which who why will with you our us do do
 
 _PAGE_LIMIT = 10
 _SOURCE_LIMIT = 10
+# Pack frontmatter deps and receipt sources are bounded to keep receipts
+# readable, but the bound is deliberately high; any truncation is recorded
+# explicitly in the receipt instead of dropped silently.
+_DEPS_LIMIT = 500
+_RECEIPT_SOURCES_LIMIT = 500
+
+# Loose ISO-8601 "YYYY-MM-DD[ T]HH:MM[:SS]" recognizer for --changes-since;
+# the trailing "Z"/offset is tolerated and dropped (wiki timestamps are UTC).
+_TS_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?$")
+
+
+def _norm_since_ts(value: str) -> Optional[str]:
+    """Normalize an ISO-8601 timestamp for lexicographic comparison with
+    operations' finished_at ("%Y-%m-%dT%H:%M:%SZ"). Returns None when the
+    value is a context id or anything unrecognized."""
+    v = (value or "").strip()
+    if not _TS_RE.match(v):
+        return None
+    date = v[:10]
+    if len(v) == 10:
+        return date  # date-only: ops on that date compare after it
+    time_part = v[11:19]
+    if len(time_part) < 8:
+        time_part = (time_part + ":00:00"[:8 - len(time_part)])
+    return "%sT%sZ" % (date, time_part)
 
 
 def _est(text: str) -> int:
@@ -71,7 +98,10 @@ def _sections(wiki, task: str):
 
     omitted = []
     all_claims = claims.list_claims(wiki)
-    decisions = claims.list_decisions(wiki)
+    # auto-materialized stubs are claim-derived placeholders, not authored
+    # decisions — the claim itself already surfaces under Relevant claims
+    decisions = [d for d in claims.list_decisions(wiki)
+                 if not d.get("auto_materialized")]
     review = wiki.read_jsonl(".state/review-queue.jsonl")
     open_items = [r for r in review if r.get("status") == "open"]
 
@@ -169,7 +199,14 @@ def build(wiki, task: str, budget: Optional[int] = None, resume: bool = False,
     if not wiki.exists():
         raise TxnError("wiki not initialized")
     cfg = wiki.load_config()
-    budget = int(budget or cfg["context_budget_default"])
+    if budget is None:
+        budget = int(cfg["context_budget_default"])
+    else:
+        budget = int(budget)
+    if budget <= 0:
+        # 0 is an explicit (invalid) budget, not "unset": refuse rather than
+        # silently fall back to the configured default
+        raise TxnError("budget must be a positive token count (got %d)" % budget)
     context_id = ids.new("context")
     versions = _claim_version_map(wiki)
 
@@ -209,11 +246,13 @@ def build(wiki, task: str, budget: Optional[int] = None, resume: bool = False,
         seen = set()
         claim_ids = [c for c in claim_ids if not (c in seen or seen.add(c))]
         deps_list = ["%s@%s" % (c, versions.get(c, 1)) for c in claim_ids]
-        deps_list += ["%s@1" % d if "@" not in d else d for d in other_deps]
+        deps_list += [d if "@" in d else "%s@%s" % (d, versions.get(d, 1))
+                      for d in other_deps]
         seen2 = set()
         deps_list = [d for d in deps_list if not (d in seen2 or seen2.add(d))]
+        deps_truncated = max(0, len(deps_list) - _DEPS_LIMIT)
         front = yamldumps({"type": "context-pack", "context": context_id,
-                           "deps": deps_list[:25]})
+                           "deps": deps_list[:_DEPS_LIMIT]})
         pack_text = "---\n%s\n---\n\n%s" % (front, "\n".join(body) + "\n")
         if _est(pack_text) <= budget or not included:
             break
@@ -222,7 +261,8 @@ def build(wiki, task: str, budget: Optional[int] = None, resume: bool = False,
 
     est = _est(pack_text)
     if est > budget:
-        raise TxnError("cannot fit context pack in budget %d (smallest fit is %d)"
+        raise TxnError("cannot fit context pack in budget %d "
+                       "(minimum required is %d estimated tokens)"
                        % (budget, est))
 
     txn = Transaction(wiki, "wiki-context")
@@ -237,9 +277,11 @@ def build(wiki, task: str, budget: Optional[int] = None, resume: bool = False,
         "generated_at": _now(),
         "budget": {"requested": budget, "estimated": est},
         "claims": ["%s@%s" % (c, versions.get(c, 1)) for c in claim_ids],
-        "decisions": [d for d in other_deps if d.startswith("decision_")],
-        "sources": src_ids[:10],
-        "wiki_pages": [d for d in other_deps if d.startswith("wiki/")],
+        "decisions": ["%s@%s" % (d, versions.get(d, 1))
+                      for d in other_deps if d.startswith("decision_")],
+        "sources": src_ids[:_RECEIPT_SOURCES_LIMIT],
+        "sources_truncated": max(0, len(src_ids) - _RECEIPT_SOURCES_LIMIT),
+        "deps_truncated": deps_truncated,
         "omitted": ["%s (%s)" % (t, reason) for t, reason in omitted],
     }
     txn.stage_write("context/%s.receipt.json" % context_id, receipt)
@@ -259,20 +301,36 @@ def _ops_after(wiki, since_ts: str) -> list:
             if op.get("finished_at", "") >= since_ts and since_ts]
 
 def _last_receipt(wiki, before_id: Optional[str]) -> dict:
+    """Reference point for a change briefing. With a context id: the receipt
+    recorded for exactly that pack. With an ISO-8601 timestamp: a synthetic
+    reference at that time. Unset: the most recent receipt, falling back to
+    project start."""
     ctx_dir = wiki.p("context")
-    best = None
+    receipts = []
     if os.path.isdir(ctx_dir):
         for name in sorted(os.listdir(ctx_dir)):
             if not name.endswith(".receipt.json"):
                 continue
-            with open(os.path.join(ctx_dir, name)) as f:
-                r = json.load(f)
-            if before_id:
-                if r["context_id"] > before_id or (best and r["context_id"] > best["context_id"]):
-                    continue
-            if best is None or r["generated_at"] >= best["generated_at"]:
-                best = r
-    return best or {"generated_at": "", "context_id": "project-start"}
+            try:
+                with open(os.path.join(ctx_dir, name)) as f:
+                    r = json.load(f)
+            except (OSError, ValueError):
+                continue
+            if r.get("context_id") and r.get("generated_at"):
+                receipts.append(r)
+    if before_id:
+        # the requested pack's own receipt is the intended diff base
+        match = next((r for r in receipts if r["context_id"] == before_id), None)
+        if match:
+            return match
+        ts = _norm_since_ts(before_id)
+        if ts is not None:
+            return {"generated_at": ts, "context_id": before_id}
+        # unrecognized reference: diff everything rather than silently guess
+        return {"generated_at": "", "context_id": before_id}
+    if receipts:
+        return max(receipts, key=lambda r: (r["generated_at"], r["context_id"]))
+    return {"generated_at": "", "context_id": "project-start"}
 
 def _briefing(wiki, changes_since: Optional[str]) -> tuple:
     ref = _last_receipt(wiki, changes_since)
@@ -304,7 +362,7 @@ def _briefing(wiki, changes_since: Optional[str]) -> tuple:
     if superseded:
         lines += ["", "### Recently superseded assumptions"]
         for c in superseded:
-            repl = next((s for s in all_claims if c["id"] in (s.get("supersedes") or [])), None)
+            repl = _replacement_of(all_claims, c)
             lines.append("- %s (%s / %s, was %s → now %s)" % (
                 c["id"], c["subject"], c["predicate"], c.get("value"),
                 repl.get("value") if repl else "?"))
@@ -316,3 +374,15 @@ def _briefing(wiki, changes_since: Optional[str]) -> tuple:
     lines += ["", "### Snapshot",
               "- claims: %d, decisions: %d" % (len(all_claims), len(claims.list_decisions(wiki)))]
     return ref, {"lines": lines, "claim_ids": [c["id"] for c in changed]}
+
+def _replacement_of(all_claims: list, c: dict) -> Optional[dict]:
+    """Resolve the claim that replaced a superseded one. Prefer the explicit
+    superseded_by pointer; fall back to scanning supersedes lists for wikis
+    written before that field was populated. Self-references are ignored."""
+    by_id = {s["id"]: s for s in all_claims}
+    rid = c.get("superseded_by")
+    if rid and rid != c["id"] and rid in by_id:
+        return by_id[rid]
+    return next((s for s in all_claims
+                 if s["id"] != c["id"] and c["id"] in (s.get("supersedes") or [])),
+                None)

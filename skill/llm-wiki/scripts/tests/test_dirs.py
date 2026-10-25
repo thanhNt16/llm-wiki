@@ -52,10 +52,11 @@ class TestIngestDir(unittest.TestCase):
         by = {i["path"]: i for i in r["items"]}
         self.assertEqual(by["keep.md"]["status"], "ingested")
         self.assertEqual(by[".hidden.md"]["reason"], "hidden")
-        self.assertEqual(by["node_modules/x.js"]["reason"], "vcs/vendor dir")
-        self.assertEqual(by["big.bin"]["reason"], "oversize")
-        self.assertEqual(by["a.zip"]["reason"], "non-evidence binary")
-        self.assertEqual(by[".DS_Store"]["reason"], "non-evidence binary")
+        # skipped dirs are pruned: the dir is recorded once, never descended
+        self.assertEqual(by["node_modules"]["reason"], "vcs/vendor dir")
+        self.assertEqual(by[".git"]["reason"], "vcs/vendor dir")
+        self.assertNotIn("node_modules/x.js", by)
+        self.assertNotIn(".git/config", by)
 
     def test_include_hidden(self):
         wiki = fresh()
@@ -116,7 +117,7 @@ class TestIngestDir(unittest.TestCase):
         wiki = fresh()
         d = tree({"a.md": b"a\n"})
         r = dirs.ingest_dir(wiki, d)
-        p = wiki.p("state", "ingest-batches", "%s.json" % r["batch_id"])
+        p = wiki.p(".state", "ingest-batches", "%s.json" % r["batch_id"])
         self.assertTrue(os.path.isfile(p))
         with open(p) as f:
             saved = json.load(f)
@@ -127,6 +128,54 @@ class TestIngestDir(unittest.TestCase):
         d = tree({"a.md": b"a\n"})
         with self.assertRaises(TxnError):
             dirs.ingest_dir(wiki, os.path.join(d, "a.md"))
+
+    def test_pruned_skip_dir_is_not_traversed(self):
+        """Regression: _walk must remove skipped dirs from dirnames so
+        os.walk never descends (node_modules at scale must not be walked)."""
+        wiki = fresh()
+        d = tree({"node_modules/dep/index.js": b"x\n", "a.md": b"a\n"})
+        seen = []
+        real_walk = os.walk
+
+        def spy(*a, **kw):
+            for triple in real_walk(*a, **kw):
+                seen.append(triple[0])
+                yield triple
+
+        with mock.patch("os.walk", spy):
+            r = dirs.ingest_dir(wiki, d)
+        self.assertEqual(r["counts"]["ingested"], 1)
+        self.assertFalse(any("node_modules" in p for p in seen),
+                         "walk descended into a pruned skip dir")
+        by = {i["path"]: i for i in r["items"]}
+        self.assertEqual(by["node_modules"]["reason"], "vcs/vendor dir")
+
+    def test_symlink_swap_between_walk_and_open_is_skipped(self):
+        """Regression (TOCTOU): a file re-checked as a symlink at open time
+        is skipped, not ingested."""
+        wiki = fresh()
+        d = tree({"a.md": b"a\n", "target.md": b"t\n"})
+        real_walk = dirs._walk
+        swapped = {"done": False}
+
+        def walk_then_swap(*a, **kw):
+            items = real_walk(*a, **kw)
+            if not swapped["done"]:
+                swapped["done"] = True
+                os.unlink(os.path.join(d, "a.md"))
+                os.symlink(os.path.join(d, "target.md"),
+                           os.path.join(d, "a.md"))
+            return items
+
+        with mock.patch.object(dirs, "_walk", walk_then_swap):
+            r = dirs.ingest_dir(wiki, d)
+        by = {i["path"]: i for i in r["items"]}
+        self.assertEqual(by["a.md"]["status"], "skipped")
+        self.assertEqual(by["a.md"]["reason"], "symlink")
+        self.assertEqual(by["target.md"]["status"], "ingested")
+        # the symlinked bytes must NOT be registered as an a.md source
+        a_item = by["a.md"]
+        self.assertNotIn("source_id", a_item)
 
 
 if __name__ == "__main__":

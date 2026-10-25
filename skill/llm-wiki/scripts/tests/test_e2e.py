@@ -189,5 +189,117 @@ class TestEndToEnd(unittest.TestCase):
         return buf.getvalue()
 
 
+class TestDecideAndCliErrors(unittest.TestCase):
+    def _init(self):
+        root = tempfile.mkdtemp()
+        self.assertEqual(cli.main(["--root", root, "init", "--name", "t"]), 0)
+        return root
+
+    def _capture(self, argv):
+        import io
+        from contextlib import redirect_stdout
+
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = cli.main(argv)
+        return code, buf.getvalue()
+
+    def test_decide_writes_decision_via_cli(self):
+        """PRD §3: `wiki.py decide` is the live write path for decisions/."""
+        root = self._init()
+        tmp = tempfile.mkdtemp()
+        doc = os.path.join(tmp, "adr.md")
+        with open(doc, "w") as f:
+            f.write("# ADR\n\nChose Postgres.\n")
+        code, out = self._capture(["--root", root, "ingest", "--file", doc])
+        self.assertEqual(code, 0, out)
+        sid = json.loads(out)["source_id"]
+
+        code, out = self._capture(["--root", root, "decide",
+                                   "--title", "Use PostgreSQL",
+                                   "--evidence", "%s@1" % sid,
+                                   "--authority", "explicit_project_decision",
+                                   "--body", "Relational model fits."])
+        self.assertEqual(code, 0, out)
+        result = json.loads(out)
+        did = result["decision"]["id"]
+        self.assertTrue(did.startswith("decision_"))
+        self.assertTrue(result["run_id"].startswith("run_"))
+        self.assertEqual(result["revision"]["before"], result["revision"]["after"] - 1)
+        # landed on disk, loadable, and visible to list_decisions
+        wiki = Wiki(root)
+        d = claims.load_decision(wiki, did)
+        self.assertEqual(d["title"], "Use PostgreSQL")
+        self.assertEqual(d["status"], "accepted")
+        self.assertEqual(d["version"], 1)
+        self.assertEqual(d["authority"]["type"], "explicit_project_decision")
+        self.assertEqual(d["evidence"][0]["source_id"], sid)
+        self.assertEqual(len(claims.list_decisions(wiki)), 1)
+        # run receipt emitted under .state/operations/
+        receipts = os.listdir(wiki.p(".state", "operations"))
+        self.assertTrue(any(result["run_id"] in r for r in receipts))
+
+    def test_decide_validates_refs(self):
+        root = self._init()
+        code, out = self._capture(["--root", root, "decide", "--title", "x",
+                                   "--claims", "claim_" + "A" * 26])
+        self.assertEqual(code, 3)
+        self.assertIn("unknown claim", out)
+        code, out = self._capture(["--root", root, "decide", "--title", "x",
+                                   "--evidence", "source_" + "A" * 26 + "@1"])
+        self.assertEqual(code, 3)
+        self.assertIn("unknown evidence source", out)
+        code, out = self._capture(["--root", root, "decide", "--title", "x",
+                                   "--evidence", "garbage"])
+        self.assertEqual(code, 3)
+        self.assertIn("error", json.loads(out))
+        # decisions dir stays empty on validation failure
+        wiki = Wiki(root)
+        self.assertEqual(claims.list_decisions(wiki), [])
+
+    def test_ingest_url_rejects_non_http_schemes(self):
+        """SSRF regression: file://, ftp:// etc. never reach urlopen."""
+        root = self._init()
+        for url in ("file:///etc/passwd", "file://" + os.path.abspath(__file__),
+                    "ftp://example.com/x", "gopher://x/"):
+            code, out = self._capture(["--root", root, "ingest", "--url", url])
+            self.assertEqual(code, 3, url)
+            self.assertIn("only http/https", json.loads(out)["error"])
+
+    def test_bad_params_json_is_structured_error_not_traceback(self):
+        """Regression: non-TxnError exceptions emit error JSON + exit 3."""
+        root = self._init()
+        bad = os.path.join(tempfile.mkdtemp(), "bad.json")
+        with open(bad, "w") as f:
+            f.write("{not json")
+        code, out = self._capture(["--root", root, "review", "act",
+                                   "--item", "review_x", "--action", "accept",
+                                   "--params", bad])
+        self.assertEqual(code, 3)
+        err = json.loads(out)  # structured, parseable — not a traceback
+        self.assertIn("error", err)
+        self.assertEqual(err["exit_code"], 3)
+
+    def test_read_jsonl_tolerates_truncated_trailing_line(self):
+        """store.read_jsonl: a crash-truncated final line is dropped, a
+        corrupt middle line is a hard (structured) error."""
+        root = self._init()
+        wiki = Wiki(root)
+        q = wiki.p(".state", "review-queue.jsonl")
+        with open(q, "w") as f:
+            f.write(json.dumps({"id": "review_a", "status": "open"}) + "\n")
+            f.write('{"id": "review_truncated"')  # no newline, mid-write crash
+        code, out = self._capture(["--root", root, "review", "list"])
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(json.loads(out)["items"]), 1)
+        # but corruption mid-file still fails loudly
+        with open(q, "w") as f:
+            f.write("{garbage\n")
+            f.write(json.dumps({"id": "review_b", "status": "open"}) + "\n")
+        code, out = self._capture(["--root", root, "review", "list"])
+        self.assertEqual(code, 3)
+        self.assertIn("error", json.loads(out))
+
+
 if __name__ == "__main__":
     unittest.main()

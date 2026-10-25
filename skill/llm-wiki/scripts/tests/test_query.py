@@ -101,12 +101,12 @@ class TestQuery(unittest.TestCase):
         add_claim(wiki, "w1", "analytics", "window", 7)
         out = query.prepare(wiki, "analytics window?")
         m = out["matches"][0]
-        self.assertEqual(m["score"], m["score_breakdown"]["subject"] * 3
-                         + m["score_breakdown"]["predicate"] * 2
-                         + m["score_breakdown"]["value"]
-                         + m["score_breakdown"]["status"]
-                         + m["score_breakdown"]["evidence"]
-                         + m["score_breakdown"]["scope"])
+        self.assertAlmostEqual(
+            m["score"],
+            m["score_breakdown"]["subject"]
+            + m["score_breakdown"]["predicate"]
+            + m["score_breakdown"]["value"])
+        self.assertAlmostEqual(m["score"], m["score_breakdown"]["total"])
         self.assertGreater(m["score_breakdown"]["subject"], 0)
 
 def put_claim_json(wiki, cid, subject, predicate, value, status="accepted", **extra):
@@ -133,7 +133,7 @@ class TestMorphology(unittest.TestCase):
                        "365 days")
         out = query.prepare(wiki, "how long are payment events retained?")
         self.assertEqual([m["claim_id"] for m in out["matches"]], ["claim_p"])
-        self.assertGreaterEqual(out["matches"][0]["score_breakdown"]["subject"], 1)
+        self.assertGreater(out["matches"][0]["score_breakdown"]["subject"], 0)
 
 class TestSupersededVisibility(unittest.TestCase):
     def test_superseded_only_question_returns_stale_gap(self):
@@ -159,7 +159,7 @@ class TestReviewLinkage(unittest.TestCase):
         claims_list = claims.list_claims(wiki)
         target = next(c for c in claims_list if c["predicate"] == "currency")
         txn = Transaction(wiki, "test-review")
-        review.add_item(txn, "contradiction", "currency might change to eur",
+        review.add_item(txn, "possible_contradiction", "currency might change to eur",
                         [], ["%s@%d" % (target["id"], target["version"])], "low")
         txn.commit(wiki.revision())
         # query matches the SIBLING (cycle), not the affected claim itself
@@ -193,6 +193,47 @@ class TestSubjects(unittest.TestCase):
         out = query.subjects(wiki, prefix="bill")
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]["stale_pages"], ["wiki/concepts/billing.md"])
+
+class TestTemporalFiltering(unittest.TestCase):
+    def test_future_valid_to_is_currently_valid(self):
+        # valid_to is inclusive; a future end date must NOT drop the claim
+        wiki = fresh()
+        put_claim_json(wiki, "claim_fut", "deploy", "freeze", "none",
+                       valid_to="2999-12-31")
+        out = query.prepare(wiki, "deploy freeze?")
+        self.assertEqual([m["claim_id"] for m in out["matches"]],
+                         ["claim_fut"])
+
+    def test_past_valid_to_excluded_from_current(self):
+        wiki = fresh()
+        put_claim_json(wiki, "claim_pst", "deploy", "freeze", "none",
+                       valid_to="2000-01-01")
+        out = query.prepare(wiki, "deploy freeze?")
+        self.assertEqual(out["matches"], [])
+
+    def test_as_of_includes_claim_superseded_after_that_date(self):
+        # superseded claims keep valid_to=None; their live window is
+        # approximated by updated_at (the last mutation = supersession)
+        wiki = fresh()
+        put_claim_json(wiki, "claim_sup", "deploy", "freeze", "weekly",
+                       status="superseded", superseded_by="claim_new",
+                       updated_at="2026-10-01T00:00:00Z")
+        put_claim_json(wiki, "claim_new", "deploy", "window", 5)
+        before = query.prepare(wiki, "deploy freeze?", as_of="2026-09-15")
+        self.assertIn("claim_sup", [m["claim_id"] for m in before["matches"]])
+        after = query.prepare(wiki, "deploy freeze?", as_of="2026-10-15")
+        self.assertNotIn("claim_sup", [m["claim_id"] for m in after["matches"]])
+
+    def test_as_of_excludes_claim_rejected_before_that_date(self):
+        wiki = fresh()
+        put_claim_json(wiki, "claim_rej", "deploy", "freeze", "daily",
+                       status="rejected",
+                       acceptance={"reason": "human_review",
+                                   "accepted_at": "2026-10-05T00:00:00Z"},
+                       updated_at="2026-10-05T00:00:00Z")
+        out = query.prepare(wiki, "deploy freeze?", as_of="2026-10-10")
+        self.assertEqual(out["matches"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

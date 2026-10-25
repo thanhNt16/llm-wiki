@@ -2,7 +2,7 @@ import os, sys, tempfile, unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from wikicore import claims, compile as wc_compile, review, sources
+from wikicore import claims, compile as wc_compile, deps, review, sources
 from wikicore.store import Wiki, init_wiki
 from wikicore.transaction import ConflictError, Transaction, TxnError
 
@@ -88,7 +88,77 @@ class TestReview(unittest.TestCase):
                    wiki.revision())
         got = claims.load_claim(wiki, disputed["id"])
         self.assertEqual(got["status"], "superseded")
-        self.assertIn(target["id"], got["supersedes"])
+        # the superseded claim records WHO superseded it; the survivor
+        # records whom it supersedes — not the other way around
+        self.assertEqual(got["superseded_by"], target["id"])
+        self.assertNotIn(target["id"], got.get("supersedes", []))
+        survivor = claims.load_claim(wiki, target["id"])
+        self.assertIn(disputed["id"], survivor.get("supersedes", []))
+
+    def test_mark_superseded_no_mutual_supersede(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        review.act(wiki, item_id, "mark_superseded",
+                   {"claim_id": disputed["id"], "target": target["id"]},
+                   wiki.revision())
+        got = claims.load_claim(wiki, disputed["id"])
+        self.assertNotEqual(got.get("superseded_by"), None)
+        self.assertNotIn(got["superseded_by"], got.get("supersedes", []))
+
+    def test_merge_invalidates_merge_target_dependents(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        txn = Transaction(wiki, "page")
+        deps.register(txn, "wiki/x.md", ["%s@%d" % (target["id"], target["version"])])
+        txn.commit(wiki.revision())
+        self.assertFalse(deps.is_stale(wiki, "wiki/x.md"))
+        review.act(wiki, item_id, "merge",
+                   {"claim_id": disputed["id"], "merge_into": target["id"]},
+                   wiki.revision())
+        self.assertTrue(deps.is_stale(wiki, "wiki/x.md"))
+
+    def test_mark_superseded_invalidates_survivor_dependents(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        txn = Transaction(wiki, "page")
+        deps.register(txn, "wiki/s.md", ["%s@%d" % (target["id"], target["version"])])
+        txn.commit(wiki.revision())
+        review.act(wiki, item_id, "mark_superseded",
+                   {"claim_id": disputed["id"], "target": target["id"]},
+                   wiki.revision())
+        self.assertTrue(deps.is_stale(wiki, "wiki/s.md"))
+
+    def test_resolved_item_blocks_claim_actions(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        review.act(wiki, item_id, "accept", {"claim_id": disputed["id"]},
+                   wiki.revision())
+        self.assertEqual(review.show(wiki, item_id)["status"], "resolved")
+        with self.assertRaises(TxnError):
+            review.act(wiki, item_id, "set_scope",
+                       {"claim_id": disputed["id"], "scope": {}},
+                       wiki.revision())
+        with self.assertRaises(TxnError):
+            review.act(wiki, item_id, "accept",
+                       {"claim_id": disputed["id"]}, wiki.revision())
+
+    def test_reopen_resolved_item(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        review.act(wiki, item_id, "accept", {"claim_id": disputed["id"]},
+                   wiki.revision())
+        out = review.act(wiki, item_id, "reopen", {}, wiki.revision())
+        self.assertEqual(out["item"]["status"], "open")
+        # item is actionable again after reopen
+        review.act(wiki, item_id, "set_scope",
+                   {"claim_id": disputed["id"], "scope": {"env": "x"}},
+                   wiki.revision())
+
+    def test_add_item_validates_against_schema(self):
+        wiki = fresh()
+        txn = Transaction(wiki, "wiki-review")
+        with self.assertRaises(TxnError):
+            review.add_item(txn, "not_a_real_kind", "p", [], [], "low")
 
     def test_defer_keeps_claim_untouched(self):
         wiki = fresh()

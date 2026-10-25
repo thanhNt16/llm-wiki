@@ -2,7 +2,7 @@
 
 Traversal is deterministic (sorted); each member file goes through
 sources.ingest() unchanged (own source_id, sha256 dedup, secrets scan,
-extraction report). Skip rules are recorded per file in the batch receipt.
+extraction report). Skip rules are recorded per entry in the batch receipt.
 """
 import json
 import os
@@ -17,6 +17,10 @@ SKIP_DIRS = {
     "dist", "build", "target", "vendor", ".idea", ".llm-wiki",
 }
 DEFAULT_MAX_BYTES = 50 * 1024 * 1024
+
+
+class _BecameSymlink(Exception):
+    """Path became a symlink between walk-time classification and open."""
 
 
 def _now() -> str:
@@ -51,49 +55,31 @@ def _classify_skip(path: str, name: str, is_dir: bool,
 def _walk(root: str, include_hidden: bool, max_bytes: int) -> list:
     """Return (relpath, action, reason) for every entry encountered.
 
-    action is "file" (ingest) or "skipped" (record reason). Entries inside a
-    skipped directory inherit its skip reason so the receipt lists them
-    per-file.
+    action is "file" (ingest) or "skipped" (record reason). Skipped
+    directories are recorded once and pruned from traversal — their contents
+    are never walked (node_modules/.git scale) and never appear in the
+    receipt. A .llm-wiki store inside the tree is skipped like any other
+    store dir (it is the evidence database, not evidence).
     """
     items = []
-    skipped_dirs = {}  # relpath -> reason
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
         dirnames.sort()
         filenames.sort()
-        dr = os.path.relpath(dirpath, root)
-        inherited = next(
-            (reason for anc, reason in skipped_dirs.items()
-             if dr == anc or dr.startswith(anc + os.sep)),
-            None,
-        )
-        # A .llm-wiki store inside the tree is omitted entirely (it is the
-        # evidence database, not evidence); other skipped dirs report
-        # per-file skips so nothing vanishes silently.
-        omit_children = dr == ".llm-wiki" or \
-            dr.startswith(".llm-wiki" + os.sep) or \
-            os.sep + ".llm-wiki" + os.sep in dr or \
-            dr.endswith(os.sep + ".llm-wiki")
         for d in list(dirnames):
-            if omit_children:
-                continue  # inside .llm-wiki: omit descendants entirely
             p = os.path.join(dirpath, d)
             rel = os.path.relpath(p, root)
             if os.path.islink(p):
                 items.append((rel, "skipped", "symlink"))
                 dirnames.remove(d)
                 continue
-            reason = inherited or _classify_skip(
-                p, d, True, include_hidden, max_bytes)
+            reason = _classify_skip(p, d, True, include_hidden, max_bytes)
             if reason:
                 items.append((rel, "skipped", reason))
-                skipped_dirs[rel] = reason
+                dirnames.remove(d)  # prune: never descend into skipped dirs
         for f in filenames:
-            if omit_children:
-                continue
             p = os.path.join(dirpath, f)
             rel = os.path.relpath(p, root)
-            reason = inherited or _classify_skip(
-                p, f, False, include_hidden, max_bytes)
+            reason = _classify_skip(p, f, False, include_hidden, max_bytes)
             if reason:
                 items.append((rel, "skipped", reason))
             else:
@@ -121,10 +107,30 @@ def ingest_dir(wiki, path: str, *, include_hidden: bool = False,
             continue
         full = os.path.join(root, rel)
         try:
-            with open(full, "rb") as fh:
+            # re-check at open time: the path may have been swapped for a
+            # symlink between _walk() and now (TOCTOU); O_NOFOLLOW where the
+            # OS supports it, islink() as the portable fallback
+            fd = os.open(full, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            with os.fdopen(fd, "rb") as fh:
                 data = fh.read()
+            if os.path.islink(full):
+                raise _BecameSymlink()
             r = sources.ingest(wiki, "file", full, data,
                                force=force, root_origin=root_origin)
+        except _BecameSymlink:
+            items.append({"path": rel, "status": "skipped", "reason": "symlink"})
+            counts["skipped"] += 1
+            continue
+        except OSError as e:
+            if os.path.islink(full):
+                # O_NOFOLLOW refused a symlink (ELOOP): treat as skipped
+                items.append({"path": rel, "status": "skipped",
+                              "reason": "symlink"})
+                counts["skipped"] += 1
+            else:
+                items.append({"path": rel, "status": "error", "error": str(e)})
+                counts["errors"] += 1
+            continue
         except Exception as e:
             items.append({"path": rel, "status": "error", "error": str(e)})
             counts["errors"] += 1
@@ -145,10 +151,11 @@ def ingest_dir(wiki, path: str, *, include_hidden: bool = False,
         items.append(item)
     receipt = {"batch_id": batch_id, "dir": root, "captured_at": _now(),
                "counts": counts, "items": items}
-    out_dir = wiki.p("state", "ingest-batches")
+    out_dir = wiki.p(".state", "ingest-batches")
     os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "%s.json" % batch_id), "w",
-              encoding="utf-8") as f:
+    tmp = os.path.join(out_dir, "%s.json.tmp" % batch_id)
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(receipt, f, indent=2, ensure_ascii=False)
         f.write("\n")
+    os.replace(tmp, os.path.join(out_dir, "%s.json" % batch_id))
     return receipt

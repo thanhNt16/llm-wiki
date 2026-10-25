@@ -29,7 +29,8 @@
         "duplicate_identity",
         "low_extraction_quality",
         "candidate_decision",
-        "source_retraction_impact"
+        "source_retraction_impact",
+        "topic_kind_conflict"
       ]
     },
     "status": {

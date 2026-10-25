@@ -13,9 +13,15 @@ import time
 
 from . import claims, deps, ids, review, synthesize
 from .transaction import Transaction, TxnError
-from .yamlite import dumps as yamldumps, loads as yamlloads
+from .yamlite import dumps as yamldumps
 
 LINK_RE = re.compile(r"\[\[([a-z]+_[0-9A-Za-z]+)\]\]")
+PAGE_LINK_RE = synthesize.PAGE_LINK_RE
+
+
+def page_links(body):
+    """[[wiki:<kind>/<slug>]] links -> wiki/<kind>/<slug>.md dep paths."""
+    return synthesize.page_links(body)
 
 
 def _now() -> str:
@@ -27,13 +33,11 @@ def _page(rel: str, front: dict, body: str) -> str:
 
 
 def _front(text: str) -> dict:
-    """Parse a page's fenced frontmatter block (yamlite needs closing --- at end)."""
-    if not text.startswith("---\n"):
+    """Parse a page's fenced frontmatter block; {} when absent/unparseable."""
+    try:
+        return synthesize._split_front(text)[0]
+    except TxnError:
         return {}
-    parts = text.split("---\n", 2)
-    if len(parts) < 3:
-        return {}
-    return yamlloads("---\n" + parts[1] + "\n---\n")
 
 
 def _page_title(path: str) -> str:
@@ -46,7 +50,7 @@ def _page_title(path: str) -> str:
     title = str(_front(text).get("title") or "").strip()
     if title:
         return title
-    for line in text.split("---", 2)[-1].splitlines():
+    for line in synthesize._split_front(text)[1].splitlines():
         line = line.strip()
         if line.startswith("# "):
             return line[2:].strip()
@@ -250,7 +254,7 @@ def build_pages(wiki, base_revision: int) -> dict:
     front = {"type": "index", "generated": _now(), "deps": []}
     txn.stage_write("wiki/index.md", _page("wiki/index.md", front, "\n".join(lines)))
     built.append("wiki/index.md")
-    deps.register(txn, "wiki/index.md", [])
+    deps.replace(txn, "wiki/index.md", [])
 
 
     # --- review.md (queue page, R1) ---------------------------------------
@@ -260,13 +264,13 @@ def build_pages(wiki, base_revision: int) -> dict:
     front = {"type": "review", "generated": _now(), "deps": []}
     txn.stage_write(rel, _page(rel, front, "\n".join(body)))
     built.append(rel)
-    deps.register(txn, rel, [])
+    deps.replace(txn, rel, [])
 
     # --- changes/index.md (R3, script-owned ops log) -----------------------
     rel = "wiki/changes/index.md"
     txn.stage_write(rel, write_changes_index(wiki))
     built.append(rel)
-    deps.register(txn, rel, [])
+    deps.replace(txn, rel, [])
 
     # --- log.md (OKF change history) --------------------------------------
     rel = "wiki/log.md"
@@ -294,7 +298,56 @@ def build_pages(wiki, base_revision: int) -> dict:
         front = {"type": "decision", "decision": d["id"], "generated": _now(), "deps": deps_list}
         txn.stage_write(rel, _page(rel, front, "\n".join(body)))
         built.append(rel)
-        deps.register(txn, rel, deps_list)
+        deps.replace(txn, rel, deps_list)
+
+    # --- section indexes + overview (progressive disclosure) --------------
+    built += _render_index_fabric(wiki, txn)
+
+    # agent-authored pages: mark stale in place, PRESERVING the prose body —
+    # regeneration is the agent's job; deterministic builds never clobber it
+    for sub in ("concepts", "entities", "procedures", "questions", "sources"):
+        subdir = wiki.p("wiki", sub)
+        if not os.path.isdir(subdir):
+            continue
+        for name in sorted(os.listdir(subdir)):
+            if not name.endswith(".md") or name == "index.md":
+                continue
+            rel = "wiki/%s/%s" % (sub, name)
+            if deps.is_stale(wiki, rel):
+                with open(os.path.join(subdir, name)) as f:
+                    text = f.read()
+                try:
+                    front, body = synthesize._split_front(text)
+                except TxnError:
+                    continue  # corrupt frontmatter: verify() reports it
+                front["stale"] = True
+                txn.stage_write(rel, _page(rel, front, body))
+
+    txn.changes = {"pages_built": len(built)}
+    receipt = txn.commit(base_revision)
+
+    # clear stale flags for artifacts we just rebuilt
+    cleared = [a for a in deps.stale_artifacts(wiki) if a in built]
+    if cleared:
+        txn2 = Transaction(wiki, "wiki-build-pages-clear")
+        deps.clear_stale(txn2, cleared)
+        txn2.commit(wiki.revision())
+    receipt["changes"]["pages_built"] = len(built)
+    return receipt
+
+
+def _render_index_fabric(wiki, txn) -> list:
+    """Render the progressive-disclosure fabric — every section index and
+    wiki/overview.md — and stage the writes into `txn`. Shared by
+    build_pages and rebuild_section_indexes so both emit byte-identical
+    output. Returns the sorted rel paths written (deletes excluded)."""
+    all_claims = claims.list_claims(wiki)
+    decisions = claims.list_decisions(wiki)
+    section_files = {sub: _section_files(wiki, sub) for sub in synthesize.PAGE_KINDS}
+    known_ids = {c["id"]: c["version"] for c in all_claims}
+    known_ids.update({d["id"]: d["version"] for d in decisions})
+    stale_set = set(deps.stale_artifacts(wiki))
+    built = []
 
     # --- section indexes (progressive disclosure) -------------------------
     for sub in synthesize.PAGE_KINDS:
@@ -319,7 +372,7 @@ def build_pages(wiki, base_revision: int) -> dict:
         front = {"type": "index", "section": sub, "generated": _now(), "deps": []}
         txn.stage_write(rel, _page(rel, front, "\n".join(rows)))
         built.append(rel)
-        deps.register(txn, rel, [])
+        deps.replace(txn, rel, [])
 
     # --- overview.md ------------------------------------------------------
     overview = ["# Overview", "", "| Section | Pages |", "|---|---|"]
@@ -374,7 +427,7 @@ def build_pages(wiki, base_revision: int) -> dict:
     overview += ["", "## Synthesis targets", ""]
     if ready or waiting:
         overview += ["| Subject | Kind | Claims | Origins | Artifact | Status |",
-                     "|---|---|---|---|---|---|"]
+                     "|---|---|---|---|---|---|---|"]
         for t in ready:
             link = t["artifact"][len("wiki/"):]
             status = ("stale — rebuild" if t["stale"]
@@ -392,36 +445,23 @@ def build_pages(wiki, base_revision: int) -> dict:
     front = {"type": "overview", "generated": _now(), "deps": []}
     txn.stage_write("wiki/overview.md", _page("wiki/overview.md", front, "\n".join(overview)))
     built.append("wiki/overview.md")
-    deps.register(txn, "wiki/overview.md", [])
+    deps.replace(txn, "wiki/overview.md", [])
+    return built
 
-    # agent-authored pages: mark stale in place, PRESERVING the prose body —
-    # regeneration is the agent's job; deterministic builds never clobber it
-    for sub in ("concepts", "entities", "procedures", "questions", "sources"):
-        subdir = wiki.p("wiki", sub)
-        if not os.path.isdir(subdir):
-            continue
-        for name in sorted(os.listdir(subdir)):
-            if not name.endswith(".md") or name == "index.md":
-                continue
-            rel = "wiki/%s/%s" % (sub, name)
-            if deps.is_stale(wiki, rel):
-                with open(os.path.join(subdir, name)) as f:
-                    text = f.read()
-                front = _front(text)
-                front["stale"] = True
-                txn.stage_write(rel, _page(rel, front, text.split("---", 2)[-1]))
 
-    txn.changes = {"pages_built": len(built)}
-    receipt = txn.commit(base_revision)
 
-    # clear stale flags for artifacts we just rebuilt
-    cleared = [a for a in deps.stale_artifacts(wiki) if a in built]
-    if cleared:
-        txn2 = Transaction(wiki, "wiki-build-pages-clear")
-        deps.clear_stale(txn2, cleared)
-        txn2.commit(wiki.revision())
-    receipt["changes"]["pages_built"] = len(built)
-    return receipt
+def rebuild_section_indexes(wiki) -> list:
+    """Regenerate every section index (wiki/<kind>/index.md) and
+    wiki/overview.md through the same rendering code as build_pages,
+    in one staged transaction (doctor --fix-indexes repair path, spec §3.1).
+    Returns the sorted rel paths written. wiki/changes/index.md is owned by
+    write_changes_index, not by the section fabric, and is not touched."""
+    txn = Transaction(wiki, "wiki-rebuild-section-indexes")
+    written = sorted(_render_index_fabric(wiki, txn))
+    txn.changes = {"indexes_written": len(written)}
+    txn.commit(wiki.revision())
+    return written
+
 
 
 def verify(wiki) -> dict:
@@ -442,21 +482,28 @@ def verify(wiki) -> dict:
             continue
         if artifact in stale:
             errors.append("stale artifact not rebuilt: %s" % artifact)
-        if artifact == "wiki/index.md":
-            continue
         with open(path) as f:
             text = f.read()
         if not text.startswith("---\n"):
             errors.append("missing frontmatter: %s" % artifact)
             continue
-        front = _front(text)
+        try:
+            front, body = synthesize._split_front(text)
+        except TxnError as e:
+            errors.append("invalid frontmatter in %s: %s" % (artifact, e))
+            continue
         for dep in front.get("deps", []) or []:
             err = _check_dep(wiki, dep, artifact, known_ids, edges)
             if err:
                 errors.append(err)
-        for target in LINK_RE.findall(text.split("---", 2)[-1]):
+        for target in LINK_RE.findall(body):
             if target not in known_ids:
                 errors.append("unresolved wiki-link [[%s]] in %s" % (target, artifact))
+        for pl_path in sorted(page_links(body)):
+            if not os.path.isfile(wiki.p(pl_path)):
+                kind, slug = pl_path[5:-3].split("/")
+                errors.append("unresolved wiki-link [[wiki:%s/%s]] in %s"
+                              % (kind, slug, artifact))
 
     # every derived page must be registered with a dependency set (PRD §17)
     for sub in ("sources", "concepts", "entities", "procedures", "questions",
@@ -481,15 +528,20 @@ def _check_dep(wiki, dep, artifact, known_ids, edges):
     dep = str(dep).strip()
     dep_id, _, ver = dep.partition("@")
     if dep_id.startswith("wiki/"):
+        if (not dep_id.endswith(".md") or ver
+                or ".." in dep_id.split("/") or "" in dep_id.split("/")):
+            return "malformed wiki dependency %r in %s" % (dep, artifact)
         if dep_id in edges or os.path.isfile(wiki.p(dep_id)):
             return None
         return "unresolved dependency %r in %s" % (dep, artifact)
     if dep_id.startswith("review_"):
         queue_ids = {i.get("id") for i in wiki.read_jsonl(review.QUEUE)}
-        if dep_id in queue_ids:
-            return None
-        return "unresolved dependency %r in %s" % (dep, artifact)
+        if not ids.validate(dep_id) or ver or dep_id not in queue_ids:
+            return "unresolved dependency %r in %s" % (dep, artifact)
+        return None
     cur = known_ids.get(dep_id)
+    if cur is None:
+        return "unknown dependency id %r in %s" % (dep_id, artifact)
     if ver and (not ver.isdigit() or int(ver) != cur):
         return ("dependency %s@%s in %s does not match current version %d"
                 % (dep_id, ver, artifact, cur))

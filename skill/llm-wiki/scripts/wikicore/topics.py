@@ -118,8 +118,8 @@ def merge_rows(txn: Transaction, rows: list, declared_by: dict) -> dict:
             review.add_item(
                 txn, "topic_kind_conflict",
                 "subject %r declared with conflicting kinds" % subj,
-                [dict(declared_by)], [subj],
-                "wrong kind routes the page to the wrong directory",
+                ["declared_by: %s" % json.dumps(declared_by, sort_keys=True)],
+                [subj], "medium",
                 proposed=reg["topics"][subj]["kind"])
     if rows:
         reg["version"] = int(reg.get("version", 0)) + 1

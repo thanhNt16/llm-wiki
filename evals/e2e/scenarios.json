@@ -1,0 +1,42 @@
+{
+ "S1": {
+  "instruction": "In {project}: run wiki-init, ingest docs/adr-007-retries.md, compile it, then answer 'How many retries are configured?' citing claim ids. The deterministic engine is `python3 {wiki}` \u2014 run every subcommand with --root {project} (or from {project}); skill reference docs are at {docs}.",
+  "assert": "s1",
+  "setup": "none"
+ },
+ "S2": {
+  "instruction": "In {project} (already built): write a new concept page 'Retry Policy Notes' \u2014 handle any refusal the engine gives you. Engine: `python3 {wiki}`; docs: {docs}.",
+  "assert": "s2",
+  "setup": "build"
+ },
+ "S3": {
+  "instruction": "In {project} (wiki already initialized): triage the directory {project}/inbox \u2014 it holds unclassified session transcripts and notes. First try `python3 {wiki} triage`; if that subcommand does not exist, classify the files yourself and write a manifest {project}/inbox-triage.json (a JSON list of file/kind/reason objects). Then ingest every file that is a session transcript with `python3 {wiki} ingest --file <f> --kind session`. Do NOT compile. Engine: `python3 {wiki}`; docs: {docs}.",
+  "assert": "s3",
+  "setup": "init+inbox"
+ },
+ "S4": {
+  "instruction": "In {project} (wiki built, one correction still pending): ingest notes/memo-2026-09-01-window-change.md if not already ingested, then apply its correction \u2014 create the new production attribution window claim (7 days, effective 2026-09-01) so that it supersedes the existing 30-day claim, using the engine's stage-candidates \u2192 reconcile-apply flow, then run `python3 {wiki} verify` and answer 'What is the current click lookback window in production?' citing claim ids. Engine: `python3 {wiki}`; docs: {docs}.",
+  "assert": "s4",
+  "setup": "build_uncorrected"
+ },
+ "S5": {
+  "instruction": "In {project} (already built): answer 'What is our 2028 pricing plan?' strictly from the wiki \u2014 cite claim ids for what you use, and if the wiki cannot answer, say so explicitly instead of guessing. Engine: `python3 {wiki}`; docs: {docs}.",
+  "assert": "s5",
+  "setup": "build"
+ },
+ "S6": {
+  "instruction": "In {project} (already built): using the wiki's query flow, answer 'Which database does the order service use?' citing the claim ids you relied on. Engine: `python3 {wiki}`; docs: {docs}.",
+  "assert": "s6",
+  "setup": "build"
+ },
+ "S7": {
+  "instruction": "In {project} (already built): using ONLY the wiki's query commands (query-prepare, subjects, context-pack, status \u2014 never grep/rg over source files), answer three things citing claim ids where used: (a) Which database does the order service use? (b) What retry max-attempts values are configured and where does each come from? (c) How many sources has this wiki ingested? Engine: `python3 {wiki}`; docs: {docs}.",
+  "assert": "s7",
+  "setup": "build"
+ },
+ "S8": {
+  "instruction": "In {project} (already built): run `python3 {wiki} graph-data --output graph.json`, then build a graph visualization at {project}/graph.html \u2014 a self-contained HTML file (inline JS/SVG/canvas, no external CDN) that renders the payload's nodes and links with visible labels. When done, tell me the 3 most-connected entities. Engine: `python3 {wiki}`; docs: {docs}.",
+  "assert": "s8",
+  "setup": "build"
+ }
+}

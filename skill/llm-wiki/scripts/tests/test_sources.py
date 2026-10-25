@@ -266,5 +266,213 @@ class TestNormalizedContent(unittest.TestCase):
         self.assertEqual(len(pending), 1)
         self.assertEqual(pending[0]["version"], 1)
 
+
+    def test_new_secret_kinds_detected(self):
+        from wikicore import secrets
+
+        text = "\n".join([
+            "sk-live-abcdef1234567890",
+            "sk-proj-abcdef1234567890",
+            "sk-abcdef1234567890abcdef12",
+            "github_pat_11ABCDEFG0abcdefghijklmnopqrstuvwx",
+            "xapp-1-A0abcdefghijklmnop",
+            "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.dbs12345abcd",
+            "key file: auth.p8 contains -----BEGIN PRIVATE KEY-----",
+        ])
+        findings = secrets.scan(text)
+        kinds = {f["kind"] for f in findings}
+        self.assertIn("api_key", kinds)
+        self.assertIn("github_token", kinds)
+        self.assertIn("slack_token", kinds)
+        self.assertIn("jwt", kinds)
+        self.assertIn("private_key", kinds)
+        for f in findings:
+            self.assertIn("count", f)
+            self.assertGreaterEqual(f["count"], 1)
+
+    def test_redact_preserves_separators(self):
+        from wikicore import secrets
+
+        out, _ = secrets.redact("password: supersecret99\napi_key = hunter2hunter2\ntoken abcdef123456\n")
+        self.assertIn("password: REDACTED", out)
+        self.assertIn("api_key = REDACTED", out)
+        self.assertIn("token REDACTED", out)
+        self.assertNotIn("supersecret99", out)
+        self.assertNotIn("hunter2hunter2", out)
+
+    def test_redact_count_matches_output(self):
+        from wikicore import secrets
+
+        # concrete token AND assignment pattern hit the same secret:
+        # it must be redacted once and counted once
+        out, n = secrets.redact("password=sk-live-abcdef1234567890")
+        self.assertEqual(out.count("REDACTED"), 1)
+        self.assertEqual(n, 1)
+
+    def test_redact_policy_removes_sk_live(self):
+        # regression: sk-live matched the ad-hoc sources.py finding but
+        # escaped redaction because it was not in secrets._PATTERNS
+        wiki = fresh(policy="redact")
+        r = sources.ingest(wiki, "text", "leak2", b"key sk-live-abcdef1234567890 end")
+        content = sources.load_content(wiki, r["source_id"], 1)
+        self.assertNotIn("sk-live-abcdef1234567890", content)
+        self.assertIn("REDACTED", content)
+
+
+class TestSecretPolicyAllow(unittest.TestCase):
+    def test_allow_means_allow(self):
+        wiki = fresh(policy="allow")
+        r = sources.ingest(wiki, "text", "leak3", b"password: hunter2hunter2\n")
+        self.assertEqual(r["warnings"], [])
+        self.assertTrue(r["secrets"]["findings"])
+        self.assertEqual(r["secrets"]["redacted"], 0)
+        content = sources.load_content(wiki, r["source_id"], 1)
+        self.assertIn("hunter2hunter2", content)
+
+
+class TestVersionedArtifacts(unittest.TestCase):
+    def test_versioned_content_files(self):
+        wiki = fresh()
+        r1 = sources.ingest(wiki, "text", "ver", b"first version")
+        r2 = sources.ingest(wiki, "text", "ver", b"second version")
+        sid = r1["source_id"]
+        self.assertTrue(os.path.isfile(wiki.p("sources/%s/content_v1.md" % sid)))
+        self.assertTrue(os.path.isfile(wiki.p("sources/%s/content_v2.md" % sid)))
+        self.assertEqual(r2["normalized_path"],
+                         "sources/%s/content_v2.md" % sid)
+        # v1 text survives: claims citing version 1 keep their evidence basis
+        self.assertIn("first", sources.load_content(wiki, sid, 1))
+        self.assertIn("second", sources.load_content(wiki, sid, 2))
+        # latest alias tracks the newest version
+        with open(wiki.p("sources/%s/content.md" % sid)) as f:
+            self.assertIn("second", f.read())
+
+    def test_versioned_extraction_files(self):
+        wiki = fresh()
+        r1 = sources.ingest(wiki, "text", "ver", b"one")
+        sources.ingest(wiki, "text", "ver", b"two")
+        sid = r1["source_id"]
+        e1 = wiki.load_json("sources/%s/extraction_v1.json" % sid)
+        e2 = wiki.load_json("sources/%s/extraction_v2.json" % sid)
+        self.assertEqual(e1["source_version"], 1)
+        self.assertEqual(e2["source_version"], 2)
+        self.assertEqual(wiki.load_json("sources/%s/extraction.json" % sid)
+                         ["source_version"], 2)
+
+    def test_fill_in_older_version(self):
+        # regression: a fill targeting a non-latest version was silently
+        # discarded because extraction.json tracked the newer version
+        wiki = fresh()
+        png = _png_bytes()
+        with mock.patch.object(sources, "_parser_for_binary",
+                               return_value=(None, None)):
+            r1 = sources.ingest(wiki, "file", "d.png", png)
+        sid = r1["source_id"]
+        r2 = sources.ingest(wiki, "text", "ver2", b"two", source_id=sid)
+        self.assertEqual(r2["version"], 2)
+        r3 = sources.ingest(wiki, "file", "d.png", png,
+                            normalized_content="# d.png\nfilled text\n",
+                            parser_name="agent-vision")
+        self.assertEqual(r3["version"], 1)
+        self.assertEqual(r3["normalized_status"], "filled")
+        self.assertTrue(r3["updated_normalized"])
+        self.assertIn("filled text", sources.load_content(wiki, sid, 1))
+        self.assertEqual(sources.load_content(wiki, sid, 2), "two")
+        # latest alias still tracks version 2
+        with open(wiki.p("sources/%s/content.md" % sid)) as f:
+            self.assertEqual(f.read(), "two")
+        self.assertEqual(
+            wiki.load_json("sources/%s/extraction.json" % sid)["source_version"], 2)
+        self.assertEqual(
+            wiki.load_json("sources/%s/extraction_v1.json" % sid)
+            ["extraction_report"]["coverage"]["text"], "complete")
+
+    def test_fill_in_extracted_returns_honest_status(self):
+        wiki = fresh()
+        r1 = sources.ingest(wiki, "text", "doc", b"body one")
+        r2 = sources.ingest(wiki, "text", "doc", b"body one",
+                            normalized_content="replacement")
+        self.assertTrue(r2["deduplicated"])
+        self.assertEqual(r2["normalized_status"], "already_extracted")
+        self.assertTrue(any("ignored" in w for w in r2["warnings"]))
+        # original text untouched
+        self.assertEqual(sources.load_content(wiki, r1["source_id"], 1),
+                         "body one")
+
+    def test_mark_compiled_dedups(self):
+        wiki = fresh()
+        r = sources.ingest(wiki, "text", "doc", b"body")
+        sources.mark_compiled(wiki, r["source_id"], 1)
+        sources.mark_compiled(wiki, r["source_id"], 1)
+        state = wiki.state()
+        self.assertEqual(state["compiled"][r["source_id"]], [1])
+
+    def test_source_id_traversal_rejected(self):
+        wiki = fresh()
+        with self.assertRaises(TxnError):
+            sources.load_content(wiki, "../secrets/x", 1)
+        with self.assertRaises(TxnError):
+            sources.get_manifest(wiki, "..%2Fetc")
+        with self.assertRaises(TxnError):
+            sources.mark_compiled(wiki, "not-an-id", 1)
+
+
+class TriageTest(unittest.TestCase):
+    def test_proposal_and_roundtrip(self):
+        wiki = fresh()
+        d = tempfile.mkdtemp()
+        with open(os.path.join(d, "agent-session.jsonl"), "w") as f:
+            f.write('{"role":"user","message":"hi"}\n')
+        with open(os.path.join(d, "notes.md"), "w") as f:
+            f.write("# Notes\n")
+        manifest = sources.triage(d)
+        self.assertEqual([f["file"] for f in manifest["files"]],
+                         sorted(f["file"] for f in manifest["files"]))
+        by_name = {f["file"].split("/")[-1]: f for f in manifest["files"]}
+        self.assertEqual(by_name["agent-session.jsonl"]["kind"], "session")
+        self.assertEqual(by_name["agent-session.jsonl"]["priority"], 1)
+        self.assertIsNone(by_name["notes.md"]["kind"])
+        self.assertEqual(by_name["notes.md"]["priority"], 2)
+        out = sources.ingest_triage(wiki, manifest)
+        self.assertEqual(len(out["ingested"]), 2)
+        self.assertEqual(out["failed"], [])
+        self.assertTrue(all("source_id" in r for r in out["ingested"]))
+        # kind applied: the session file lands in a session-kind source
+        for r in out["ingested"]:
+            m = sources.get_manifest(wiki, r["source_id"])
+            if r["file"].endswith(".jsonl"):
+                self.assertEqual(m["kind"], "session")
+            else:
+                self.assertEqual(m["kind"], "file")
+
+    def test_oversize_file_priority_3(self):
+        d = tempfile.mkdtemp()
+        big = os.path.join(d, "big-session.jsonl")
+        with open(big, "w") as f:
+            f.write('{"role":"user","message":"%s"}\n' % ("x" * (501 * 1024)))
+        manifest = sources.triage(d)
+        entry = manifest["files"][0]
+        self.assertEqual(entry["priority"], 3)
+        self.assertEqual(entry["kind"], "session")  # kind combines with size demotion
+        self.assertIn("size", entry["rationale"])
+
+    def test_missing_file_fails_batch_continues(self):
+        wiki = fresh()
+        d = tempfile.mkdtemp()
+        good = os.path.join(d, "good.md")
+        with open(good, "w") as f:
+            f.write("# Good\n")
+        missing = os.path.join(d, "gone.md")
+        manifest = {"files": [
+            {"file": missing, "kind": None, "priority": 2, "rationale": ""},
+            {"file": good, "kind": None, "priority": 2, "rationale": ""},
+        ]}
+        out = sources.ingest_triage(wiki, manifest)
+        self.assertEqual(len(out["failed"]), 1)
+        self.assertEqual(out["failed"][0]["file"], missing)
+        self.assertEqual(len(out["ingested"]), 1)
+        self.assertTrue(out["ingested"][0]["source_id"].startswith("source_"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,647 @@
+{
+  "date": "2026-10-25",
+  "engine_refs": {
+    "unified": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/llmwiki-engine-HEAD-luvaky8r/skill/llm-wiki/scripts/wiki.py"
+  },
+  "experiment": "E3",
+  "experiments": {
+    "E3": {
+      "cells": {
+        "unified/maintenance": {
+          "build_ok": true,
+          "cycles": [
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-0.md",
+                "wiki/concepts/maint-orphan-0.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 0,
+              "findings_after": 362,
+              "findings_before": 364,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.075,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.063,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-000.md"
+                },
+                {
+                  "duration_s": 0.077,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.061,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.075,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.062,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.078,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-1.md",
+                "wiki/concepts/maint-orphan-1.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 1,
+              "findings_after": 375,
+              "findings_before": 377,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.074,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.062,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-001.md"
+                },
+                {
+                  "duration_s": 0.077,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.062,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.076,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.061,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.082,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-2.md",
+                "wiki/concepts/maint-orphan-2.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 2,
+              "findings_after": 390,
+              "findings_before": 392,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.074,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.061,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-002.md"
+                },
+                {
+                  "duration_s": 0.075,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.06,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.075,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.061,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.082,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-3.md",
+                "wiki/concepts/maint-orphan-3.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 3,
+              "findings_after": 407,
+              "findings_before": 409,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.076,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.064,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-003.md"
+                },
+                {
+                  "duration_s": 0.076,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.06,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.075,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.062,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.086,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-4.md",
+                "wiki/concepts/maint-orphan-4.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 4,
+              "findings_after": 426,
+              "findings_before": 428,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.075,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.062,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-004.md"
+                },
+                {
+                  "duration_s": 0.076,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.06,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.076,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.061,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.088,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-5.md",
+                "wiki/concepts/maint-orphan-5.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 5,
+              "findings_after": 447,
+              "findings_before": 449,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.075,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.061,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-005.md"
+                },
+                {
+                  "duration_s": 0.076,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.061,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.076,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.079,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.089,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-6.md",
+                "wiki/concepts/maint-orphan-6.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 6,
+              "findings_after": 470,
+              "findings_before": 472,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.077,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.063,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-006.md"
+                },
+                {
+                  "duration_s": 0.076,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.062,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.081,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.063,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.092,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-7.md",
+                "wiki/concepts/maint-orphan-7.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 7,
+              "findings_after": 495,
+              "findings_before": 497,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.076,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.062,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-007.md"
+                },
+                {
+                  "duration_s": 0.076,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.062,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.075,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.063,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.094,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-8.md",
+                "wiki/concepts/maint-orphan-8.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 8,
+              "findings_after": 522,
+              "findings_before": 524,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.076,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.075,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-008.md"
+                },
+                {
+                  "duration_s": 0.082,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.063,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.075,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.061,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.096,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            },
+            {
+              "churned": [
+                "wiki/concepts/maint-cyc-9.md",
+                "wiki/concepts/maint-orphan-9.md"
+              ],
+              "compile_ok": true,
+              "correction_ok": true,
+              "cycle": 9,
+              "findings_after": 551,
+              "findings_before": 553,
+              "forbidden_ok": true,
+              "ingest_exit": 0,
+              "lint_exit": 0,
+              "lint_seconds": 0.076,
+              "ops": 8,
+              "query_ok": true,
+              "recompile_exit": 0,
+              "repair_exit": 0,
+              "repaired": {
+                "unlisted_page": 2
+              },
+              "staleness_caught": 1,
+              "staleness_missed": 0,
+              "steps": [
+                {
+                  "duration_s": 0.06,
+                  "err": "",
+                  "exit": 0,
+                  "step": "ingest docs/maint-009.md"
+                },
+                {
+                  "duration_s": 0.076,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage compile"
+                },
+                {
+                  "duration_s": 0.059,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile compile"
+                },
+                {
+                  "duration_s": 0.075,
+                  "err": "",
+                  "exit": 0,
+                  "step": "stage correction"
+                },
+                {
+                  "duration_s": 0.062,
+                  "err": "",
+                  "exit": 0,
+                  "step": "reconcile correction"
+                },
+                {
+                  "duration_s": 0.097,
+                  "err": "",
+                  "exit": 0,
+                  "step": "build-pages"
+                }
+              ]
+            }
+          ],
+          "cycles_planned": 10,
+          "engine": "unified",
+          "forbidden_ok_total": 10,
+          "n": 300,
+          "query_ok_total": 10,
+          "staleness_caught_total": 10,
+          "staleness_missed_total": 0
+        }
+      },
+      "cycles": 10,
+      "n": 300
+    }
+  }
+}

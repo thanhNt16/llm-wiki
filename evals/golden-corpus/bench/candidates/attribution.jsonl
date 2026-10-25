@@ -1,0 +1,2 @@
+{"subject":"attribution.window","predicate":"click_lookback_days","value":7,"scope":{"environment":"production"},"valid_from":"2026-09-01","locator":"s:CLICK_LOOKBACK_DAYS = 7","authority":"code"}
+{"subject":"attribution.window","predicate":"click_lookback_days","value":30,"scope":{"environment":"sandbox"},"locator":"s:SANDBOX_CLICK_LOOKBACK_DAYS = 30","authority":"code"}

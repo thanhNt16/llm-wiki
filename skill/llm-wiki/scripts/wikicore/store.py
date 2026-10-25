@@ -52,9 +52,11 @@ class Wiki:
         return cfg
 
     def save_config(self, cfg: dict) -> None:
-        with open(self.p("wiki.json"), "w") as f:
+        tmp = self.p("wiki.json.tmp")
+        with open(tmp, "w") as f:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
             f.write("\n")
+        os.replace(tmp, self.p("wiki.json"))
 
     def state(self) -> dict:
         with open(self.p(".state/manifest.json")) as f:
@@ -83,10 +85,20 @@ class Wiki:
             return []
         out = []
         with open(path) as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    out.append(json.loads(line))
+            lines = f.read().splitlines()
+        last = len(lines) - 1
+        while last >= 0 and not lines[last].strip():
+            last -= 1  # tolerate trailing blank lines
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                out.append(json.loads(line))
+            except json.JSONDecodeError:
+                if i == last:
+                    continue  # crash-truncated trailing append; drop it
+                raise
         return out
 
 
@@ -103,9 +115,8 @@ def init_wiki(wiki: Wiki, name: str) -> dict:
     ]
     for d in dirs:
         os.makedirs(wiki.p(d), exist_ok=True)
-    cfg = json.loads(json.dumps(DEFAULT_CONFIG))
-    cfg["project"] = name
-    wiki.save_config(cfg)
+    # wiki.json is written LAST: exists() checks it, so a crash mid-init can
+    # only leave a partial scaffold that a later `init` completes cleanly.
     with open(wiki.p("README.md"), "w") as f:
         f.write(README)
     for rel, body in [
@@ -113,8 +124,20 @@ def init_wiki(wiki: Wiki, name: str) -> dict:
         (".state/dependencies.json", {"edges": {}, "stale": []}),
         (".state/graph.json", {"relations": []}),
     ]:
-        with open(wiki.p(rel), "w") as f:
+        tmp = wiki.p(rel + ".tmp")
+        with open(tmp, "w") as f:
             json.dump(body, f, indent=2)
+            f.write("\n")
+        os.replace(tmp, wiki.p(rel))
+    # Kind-routing scaffold: empty rules activate synthesize's built-in
+    # heuristics and give agents a documented file to extend. Guarded — a
+    # pre-existing file (e.g. init completing a partial scaffold) is kept.
+    if not os.path.isfile(wiki.p("page-kinds.json")):
+        with open(wiki.p("page-kinds.json"), "w") as f:
+            json.dump(
+                {"rules": [], "default": "concepts",
+                 "_comment": "ordered rules; matchers: subject|prefix|suffix|regex|predicate; when.min_claims; empty rules -> built-in heuristics"},
+                f, indent=2)
             f.write("\n")
     for rel in [".state/operations.jsonl", ".state/review-queue.jsonl"]:
         open(wiki.p(rel), "a").close()
@@ -126,4 +149,7 @@ def init_wiki(wiki: Wiki, name: str) -> dict:
             "compiled": {},
         }
     )
+    cfg = json.loads(json.dumps(DEFAULT_CONFIG))
+    cfg["project"] = name
+    wiki.save_config(cfg)  # atomic; last write = exists() sentinel
     return {"initialized": True, "revision": 0, "root": wiki.root}

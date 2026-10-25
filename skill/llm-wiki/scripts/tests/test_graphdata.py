@@ -279,7 +279,7 @@ class TestReviewSurface(unittest.TestCase):
         put_claim(wiki, "claim_d", "demo.billing.sum", "x", 1, status="disputed")
         put_source(wiki, "source_aaa")  # linked via claim_a evidence
         txn = Transaction(wiki, "t")
-        review.add_item(txn, "contradiction", "role may change", [],
+        review.add_item(txn, "possible_contradiction", "role may change", [],
                         ["claim_a@1"], "low")
         txn.commit(wiki.revision())
         p = payload(wiki)

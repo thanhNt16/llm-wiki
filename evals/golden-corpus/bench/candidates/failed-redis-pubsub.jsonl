@@ -1,0 +1,3 @@
+{"subject":"event.delivery.redis-pubsub","predicate":"status","value":"rejected","scope":{"component":"order-event-delivery"},"locator":"h:Result","authority":"doc"}
+{"subject":"event.delivery.redis-pubsub","predicate":"status","value":"acceptable","scope":{"component":"cache-invalidation"},"locator":"h:Scope boundary","authority":"doc"}
+{"subject":"event.delivery.redis-pubsub","predicate":"loss_rate","value":"0.4% of order events lost in staging soak","scope":{"component":"order-event-delivery"},"locator":"s:0.4% of order events","authority":"doc"}

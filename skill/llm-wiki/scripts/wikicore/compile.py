@@ -7,15 +7,21 @@ references/RECONCILIATION.md.
 """
 import json
 import os
+import shutil
 
-from . import claims, deps, ids
-from .transaction import Transaction, TxnError
+from . import claims, deps, hashing, ids
+from .transaction import ConflictError, Transaction, TxnError
 from .text import slugify
 
 RELATIONSHIPS = (
     "CORRECTION", "POLICY_CHANGE", "SCOPE_DIFFERENCE", "CONTRADICTION",
     "CORROBORATION", "DUPLICATE", "UNRELATED",
 )
+
+# relationships that mutate an existing claim and therefore require
+# target_claim_id
+_TARGETED = ("CORRECTION", "POLICY_CHANGE", "CONTRADICTION",
+             "CORROBORATION", "DUPLICATE")
 
 
 def compile_plan(wiki) -> dict:
@@ -25,6 +31,11 @@ def compile_plan(wiki) -> dict:
 
 
 def _run_dir(wiki, run_id: str) -> str:
+    # run_id becomes a path segment — refuse anything that is not a real
+    # run id (ids.new("run") shape) before joining it under .state/staging
+    if not (isinstance(run_id, str) and run_id.startswith("run_")
+            and ids.validate(run_id)):
+        raise TxnError("invalid run id: %r" % (run_id,))
     path = wiki.p(".state", "staging", run_id)
     if not os.path.isdir(path):
         raise TxnError("unknown compile run: %s" % run_id)
@@ -57,6 +68,7 @@ def _stage_payload(wiki, rundir, source_id, source_version, candidates, report):
         "source_version": source_version,
         "candidates": assigned,
         "report": report,
+        "corpus_fingerprint": compute_corpus_fingerprint(wiki),
     }
     with open(os.path.join(rundir, "compile.json"), "w") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
@@ -66,12 +78,21 @@ def stage_candidates(wiki, source_id: str, source_version: int,
                      candidates: list, report: dict) -> str:
     """Stage agent-extracted candidates. Staging only — nothing canonical yet."""
     from . import sources as sources_mod
+    from .shorthand import normalize_candidate
 
-    if sources_mod.get_manifest(wiki, source_id) is None:
+    manifest = sources_mod.get_manifest(wiki, source_id)
+    if manifest is None:
         raise TxnError("unknown source: %s" % source_id)
+    # normalize regardless of input format: .json files bypass the CLI's
+    # shorthand path, so field completion (evidence/recorded_at/status/
+    # root_origin) must happen here or downstream consumers see sparse
+    # candidates. normalize_candidate is idempotent over full candidates.
+    root_origin = manifest.get("root_origin") or source_id
+    normalized = [normalize_candidate(c, source_id, source_version, root_origin)
+                  for c in candidates]
     txn = Transaction(wiki, "wiki-stage-candidates")
     _stage_payload(wiki, txn.staging_dir, source_id, source_version,
-                   candidates, report)
+                   normalized, report)
     # keep staging dir for the next phase instead of committing
     return txn.run_id
 
@@ -105,6 +126,11 @@ def auto_verdict(cand, matches):
         return None
     m = matches[0]
     if m["same_scope"] and m["same_value"]:
+        if m.get("temporal") == "disjoint":
+            # same value but non-overlapping validity windows is not
+            # corroboration — route to the agent (POLICY_CHANGE or an
+            # explicit human decision), never auto-verdict
+            return None
         my_origin = cand.get("root_origin")
         if my_origin and my_origin in set(m.get("root_origins") or []):
             return "DUPLICATE"
@@ -143,6 +169,8 @@ def reconcile_prepare(wiki, run_id: str) -> dict:
                 "temporal": _temporal(ex, cand),
                 "status": ex["status"],
                 "current_value": ex.get("value"),
+                # snapshot for stale-apply detection at reconcile_apply
+                "version": ex.get("version"),
                 "root_origins": sorted(_root_origins_of(ex)),
             })
         comparisons.append({
@@ -155,7 +183,8 @@ def reconcile_prepare(wiki, run_id: str) -> dict:
             "auto": auto_verdict(cand, matches),
             "hint": _hint(matches),
         })
-    result = {"run_id": run_id, "comparisons": comparisons}
+    result = {"run_id": run_id, "base_revision": wiki.revision(),
+              "comparisons": comparisons}
     with open(os.path.join(_run_dir(wiki, run_id), "comparisons.json"), "w") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
     return result
@@ -163,26 +192,22 @@ def reconcile_prepare(wiki, run_id: str) -> dict:
 
 def _append_review_item(txn: Transaction, kind: str, problem: str, evidence: list,
                         affected: list, risk: str, proposed: str = "") -> str:
-    item = {
-        "id": ids.new("review"),
-        "created_at": _now(),
-        "kind": kind,
-        "status": "open",
-        "problem": problem,
-        "evidence": evidence,
-        "affected": affected,
-        "risk": risk,
-        "proposed_resolution": proposed,
-    }
-    queue = txn.wiki.read_jsonl(".state/review-queue.jsonl")
-    queue.append(item)
-    txn.stage_write(".state/review-queue.jsonl",
-                    "\n".join(json.dumps(x, ensure_ascii=False) for x in queue) + ("\n" if queue else ""))
-    return item["id"]
+    # review.add_item owns the queue writer and validates each item
+    # against review-item.schema.json before staging
+    from . import review as review_mod
+
+    return review_mod.add_item(txn, kind, problem, evidence, affected,
+                               risk, proposed)
 
 
 def _from_candidate(wiki, cand: dict, classification: dict, status: str,
                     acceptance_reason: str) -> dict:
+    tid = classification.get("target_claim_id")
+    if tid and tid in set(cand.get("supersedes", [])):
+        raise TxnError(
+            "supersedes double-count: claim target appears in "
+            "candidate.supersedes and classification; put it only in the "
+            "classification")
     claim = {
         "id": cand["id"],
         "subject": cand["subject"],
@@ -229,9 +254,56 @@ def _append_evidence(target: dict, cand: dict) -> bool:
 def json_key(obj) -> str:
     return json.dumps(obj, sort_keys=True, ensure_ascii=False)
 
+def _check_classification(cls: dict, n_candidates: int) -> None:
+    """Shape-check one caller-supplied classification; TxnError on bad input."""
+    if not isinstance(cls, dict):
+        raise TxnError("classification must be an object, got %r" % type(cls))
+    rel = cls.get("relationship")
+    if rel not in RELATIONSHIPS:
+        raise TxnError("bad relationship: %r (valid: %s)"
+                       % (rel, ", ".join(RELATIONSHIPS)))
+    idx = cls.get("index")
+    if not isinstance(idx, int) or isinstance(idx, bool) \
+            or not (0 <= idx < n_candidates):
+        raise TxnError("classification index out of range: %r (candidates: %d)"
+                       % (idx, n_candidates))
+    if rel in _TARGETED and not cls.get("target_claim_id"):
+        raise TxnError("relationship %s requires target_claim_id" % rel)
+
+
+def _assert_target_fresh(target_id: str, target: dict, comparisons) -> None:
+    """Reject an apply whose matched claim changed since reconcile_prepare.
+
+    prepare snapshots each match's version/status into comparisons.json;
+    if the claim moved in between (e.g. superseded by another commit) the
+    classification is stale, so fail as a conflict rather than mutate a
+    claim the classifier no longer recognizes.
+    """
+    if not comparisons:
+        return
+    snap = None
+    for row in comparisons:
+        for m in row.get("matches", []):
+            if m.get("claim_id") == target_id:
+                snap = m
+                break
+        if snap:
+            break
+    if snap is None:
+        return  # not a prepared match — nothing to compare against
+    if (snap.get("version") is not None and target.get("version") != snap["version"]) \
+            or target.get("status") != snap.get("status"):
+        raise ConflictError(
+            "claim %s changed since reconcile_prepare (was v%s/%s, now v%s/%s); "
+            "re-run reconcile-prepare and re-classify" % (
+                target_id, snap.get("version"), snap.get("status"),
+                target.get("version"), target.get("status")))
+
 
 def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int,
                     topics_rows=None, declared_by=None) -> dict:
+    # copy: auto-filled entries must not mutate the caller's list
+    classifications = [dict(c) for c in (classifications or [])]
     rundir = _run_dir(wiki, run_id)
     payload = _load_json(os.path.join(rundir, "compile.json"))
     candidates = payload["candidates"]
@@ -241,6 +313,10 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
     comparisons_path = os.path.join(rundir, "comparisons.json")
     comparisons = (_load_json(comparisons_path)["comparisons"]
                    if os.path.isfile(comparisons_path) else None)
+    # validate the caller's classifications before auto-filling: bad input
+    # must fail here with TxnError, not as IndexError/AttributeError mid-apply
+    for cls in classifications:
+        _check_classification(cls, len(candidates))
     classified = {c["index"] for c in classifications}
     auto_counts = {"unrelated": 0, "duplicate": 0, "corroboration": 0}
     for i, cand in enumerate(candidates):
@@ -278,28 +354,30 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
             {str(r["subject"]).strip() for r in (topics_rows or [])
              if topics_mod._norm_kind(r["kind"]) == "decision"})
     changes = {"claims_created": 0, "claims_updated": 0, "claims_superseded": 0,
-               "review_items": 0}
+               "review_items": 0, "decisions_materialized": 0}
     changes["review_items"] += len(topic_out.get("kind_conflicts") or [])
     conflicts = []
-
     for cls in classifications:
-        if cls.get("relationship") not in RELATIONSHIPS:
-            raise TxnError("bad relationship: %r" % cls.get("relationship"))
-        cand = candidates[cls["index"]]
         rel = cls["relationship"]
+        cand = candidates[cls["index"]]
         target = None
         if cls.get("target_claim_id"):
             target = claims.load_claim(wiki, cls["target_claim_id"])
+            _assert_target_fresh(cls["target_claim_id"], target, comparisons)
 
         if rel == "UNRELATED":
             status, reason = _auto_status(wiki, cand, cls)
-            claims.save_claim(txn, _from_candidate(wiki, cand, cls, status, reason))
+            saved = claims.save_claim(txn, _from_candidate(wiki, cand, cls, status, reason))
+            if claims.auto_decision_stub(wiki, txn, saved):
+                changes["decisions_materialized"] += 1
             changes["claims_created"] += 1
             deps.invalidate(wiki, [cand["id"]], txn=txn)
 
         elif rel == "SCOPE_DIFFERENCE":
             status, reason = _auto_status(wiki, cand, cls)
-            claims.save_claim(txn, _from_candidate(wiki, cand, cls, status, reason))
+            saved = claims.save_claim(txn, _from_candidate(wiki, cand, cls, status, reason))
+            if claims.auto_decision_stub(wiki, txn, saved):
+                changes["decisions_materialized"] += 1
             changes["claims_created"] += 1
             deps.invalidate(wiki, [cand["id"]], txn=txn)
 
@@ -307,6 +385,7 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
             if _append_evidence(target, cand):
                 claims.save_claim(txn, target)
                 changes["claims_updated"] += 1
+                deps.invalidate(wiki, [target["id"]], txn=txn)
             origins = {ev.get("root_origin") or ev["source_id"] for ev in target["evidence"]}
             if len(origins) > 1:
                 rid = _append_review_item(
@@ -328,12 +407,15 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
                                         "accepted_at": _now()}
             claims.save_claim(txn, target)
             changes["claims_updated"] += 1
+            deps.invalidate(wiki, [target["id"]], txn=txn)
 
         elif rel in ("CORRECTION", "POLICY_CHANGE"):
             status, reason = _auto_status(wiki, cand, cls)
             new_claim = _from_candidate(wiki, cand, cls, status, reason)
             new_claim["supersedes"].append(target["id"])
             claims.save_claim(txn, new_claim)
+            if claims.auto_decision_stub(wiki, txn, new_claim):
+                changes["decisions_materialized"] += 1
             old = claims.supersede(txn, target, new_claim["id"],
                                    policy_change=(rel == "POLICY_CHANGE"),
                                    new_valid_from=cls.get("valid_from"))
@@ -377,7 +459,11 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
         "candidates": candidates,
         "compiled": True,
     }
-    txn.stage_write("sources/%s/extraction.json" % source_id, extraction)
+    txn.stage_write("sources/%s/extraction_v%d.json" % (source_id, source_version),
+                    extraction)
+    manifest = wiki.load_json("sources/%s/manifest.json" % source_id)
+    if manifest["versions"] and manifest["versions"][-1]["version"] == source_version:
+        txn.stage_write("sources/%s/extraction.json" % source_id, extraction)
 
     def _mark(state):
         state.setdefault("compiled", {}).setdefault(source_id, [])
@@ -421,6 +507,45 @@ def _staging_state(wiki, run_id):
         return "staged"
     if os.path.isfile(os.path.join(d, "candidates.jsonl")):
         return "candidates_ready"
+    return None
+
+def compute_corpus_fingerprint(wiki) -> str:
+    """KI-1: SHA-256 hex[:16] over the sorted (relpath, sha256) of every
+    file under raw/ and claims/ plus .state/manifest.json. Any corpus
+    mutation since staging makes a staged run's stored fingerprint stale."""
+    entries = []
+    for top in ("raw", "claims"):
+        base = wiki.p(top)
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames.sort()
+            for name in filenames:
+                path = os.path.join(dirpath, name)
+                try:
+                    digest = hashing.sha256_file(path)
+                except OSError:
+                    continue  # vanished or unreadable mid-scan (TOCTOU)
+                entries.append((os.path.relpath(path, wiki.dot), digest))
+    manifest_p = wiki.p(".state", "manifest.json")
+    try:
+        entries.append((".state/manifest.json",
+                        hashing.sha256_file(manifest_p)))
+    except OSError:
+        pass
+    entries.sort()
+    return hashing.sha256_bytes(
+        hashing.canonical_json(entries).encode("utf-8"))[:16]
+
+
+def _staged_corpus_fingerprint(wiki, run_id):
+    """Fingerprint recorded when this run's staged state was written, or
+    None for staging predating KI-1. compile.json is the newer write."""
+    d = os.path.join(wiki.p(".state", "staging"), run_id)
+    for name in ("compile.json", "pending.json"):
+        path = os.path.join(d, name)
+        if os.path.isfile(path):
+            fp = _load_json(path).get("corpus_fingerprint")
+            if fp:
+                return fp
     return None
 
 
@@ -467,6 +592,7 @@ def compile_umbrella(wiki, resume=False):
                 "topics_path": os.path.join(d, "topics.jsonl"),
                 "candidates_path": os.path.join(d, "candidates.jsonl"),
                 "classifications_path": os.path.join(d, "classifications.json"),
+                "corpus_fingerprint": compute_corpus_fingerprint(wiki),
             }
             with open(os.path.join(d, "pending.json"), "w") as f:
                 json.dump(meta, f)
@@ -475,6 +601,26 @@ def compile_umbrella(wiki, resume=False):
 
     # resume: advance every run dir one phase
     runs = _staging_runs(wiki)
+
+    # KI-1: staged comparisons/embeddings reflect the corpus at stage time.
+    # If raw/, claims/, or .state/manifest.json changed since, the staging
+    # is stale — discard the run dir (equivalent to fresh staging on the
+    # next compile) instead of resuming against drifted evidence. Runs
+    # whose staging was already applied (receipt.json cached, compile.json
+    # consumed) are skipped so their receipt stays replayable; runs from
+    # before fingerprints existed carry no marker and are kept.
+    corpus_fp = compute_corpus_fingerprint(wiki)
+    stale_invalidated = []
+    for run_id in runs:
+        d = wiki.p(".state", "staging", run_id)
+        if (os.path.isfile(os.path.join(d, "receipt.json"))
+                and not os.path.isfile(os.path.join(d, "compile.json"))):
+            continue
+        staged_fp = _staged_corpus_fingerprint(wiki, run_id)
+        if staged_fp is not None and staged_fp != corpus_fp:
+            shutil.rmtree(d, ignore_errors=True)
+            stale_invalidated.append(run_id)
+
     needs_review_rows = []
     applied = []
     auto_totals = {"unrelated": 0, "duplicate": 0, "corroboration": 0}
@@ -580,7 +726,8 @@ def compile_umbrella(wiki, resume=False):
     if needs_review_rows:
         return {"phase": "classify", "needs_classifications": True,
                 "needs_review": needs_review_rows,
-                "auto": auto_totals}
+                "auto": auto_totals,
+                "stale_invalidated": stale_invalidated}
 
     if applied:
         pages_mod.build_pages(wiki, wiki.revision())
@@ -609,9 +756,11 @@ def compile_umbrella(wiki, resume=False):
                 "needs_review": needs_review_rows,
                 "auto": auto_totals, "changes": total,
                 "conflicts": conflicts, "verify": verify,
+                "stale_invalidated": stale_invalidated,
                 "topics": topics_total,
                 "receipts": applied}
 
     return {"phase": "waiting", "needs_classifications": False,
             "auto": auto_totals,
+            "stale_invalidated": stale_invalidated,
             "message": "no staged runs — run `compile` first or write candidates.jsonl"}

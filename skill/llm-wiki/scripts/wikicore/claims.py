@@ -33,6 +33,8 @@ def _claim_path(cid: str) -> str:
 
 
 def load_claim(wiki, cid: str) -> dict:
+    if not isinstance(cid, str) or not cid.startswith("claim_") or not ids.validate(cid):
+        raise TxnError("claim id invalid: %r" % cid)
     path = wiki.p(_claim_path(cid))
     if not os.path.isfile(path):
         raise TxnError("unknown claim: %s" % cid)
@@ -53,14 +55,16 @@ def save_claim(txn: Transaction, claim: dict) -> dict:
         claim["version"] = existing["version"] + 1
         claim["recorded_at"] = existing["recorded_at"]  # immutable
         claim["updated_at"] = _now()
-        if existing["status"] in TERMINAL and claim["status"] not in TERMINAL:
+        if existing.get("status") in TERMINAL and claim.get("status") not in TERMINAL:
             raise TxnError("claim %s is %s; cannot return to %s"
-                           % (cid, existing["status"], claim["status"]))
+                           % (cid, existing.get("status"), claim.get("status")))
     else:
-        claim.setdefault("version", 1)
+        # creation: callers may not inject a version; version bumps on update only
+        claim["version"] = 1
         claim.setdefault("recorded_at", _now())
-    if claim["status"] in TERMINAL and not (claim.get("supersedes") or claim.get("superseded_by")
-                                            or (claim.get("acceptance") or {}).get("reason")):
+    if claim.get("status") in TERMINAL and not (
+            claim.get("supersedes") or claim.get("superseded_by")
+            or (claim.get("acceptance") or {}).get("reason")):
         raise TxnError("terminal status on %s requires supersedes/superseded_by/reason" % cid)
     errors = schema_validate(claim, CLAIM_SCHEMA)
     if errors:
@@ -103,6 +107,8 @@ def _decision_path(did: str) -> str:
 
 
 def load_decision(wiki, did: str) -> dict:
+    if not isinstance(did, str) or not did.startswith("decision_") or not ids.validate(did):
+        raise TxnError("decision id invalid: %r" % did)
     path = wiki.p(_decision_path(did))
     if not os.path.isfile(path):
         raise TxnError("unknown decision: %s" % did)
@@ -121,7 +127,8 @@ def save_decision(txn: Transaction, decision: dict) -> dict:
         decision["version"] = existing["version"] + 1
         decision["recorded_at"] = existing["recorded_at"]
     else:
-        decision.setdefault("version", 1)
+        # creation: callers may not inject a version (same rule as save_claim)
+        decision["version"] = 1
         decision.setdefault("recorded_at", _now())
     errors = schema_validate(decision, DECISION_SCHEMA)
     if errors:
@@ -143,18 +150,51 @@ def list_decisions(wiki) -> list:
     return out
 
 
+def auto_decision_stub(wiki, txn: Transaction, claim: dict):
+    """Mint an accepted decision stub for an accepted claim whose authority is
+    explicit_project_decision (spec §3). Idempotent: a claim already linked
+    from any decision's claims[] mints nothing. Returns the decision dict or
+    None."""
+    authority = claim.get("authority") or {}
+    if authority.get("type") != "explicit_project_decision":
+        return None
+    if any(claim["id"] in d.get("claims", []) for d in list_decisions(wiki)):
+        return None
+    decision = {
+        "id": ids.new("decision"),
+        "title": claim["subject"],
+        "body": "%s = %s" % (claim.get("predicate"), claim.get("value")),
+        "status": "accepted",
+        "decided_on": (claim.get("recorded_at") or _now())[:10],
+        "claims": [claim["id"]],
+        "evidence": claim.get("evidence", []),
+        "authority": {"type": "explicit_project_decision"},
+        "auto_materialized": True,
+    }
+    return save_decision(txn, decision)
+
+
 def independence(wiki, claim: dict) -> int:
-    """Distinct independent evidence origins — NOT reference count (PRD §7)."""
+    """Distinct independent evidence origins — NOT reference count (PRD §7).
+
+    Fails closed: an evidence ref whose manifest is missing/corrupt cannot be
+    attributed to an origin, so it is EXCLUDED rather than counted as its own
+    origin (which would inflate corroboration on corrupt state).
+    """
     origins = set()
     for ev in claim.get("evidence", []):
         ro = ev.get("root_origin")
-        if not ro:
-            try:
-                manifest = wiki.load_json("sources/%s/manifest.json" % ev["source_id"])
-                ro = manifest.get("root_origin", ev["source_id"])
-            except Exception:
-                ro = ev["source_id"]
-        origins.add(ro)
+        if ro:
+            origins.add(ro)
+            continue
+        sid = ev.get("source_id")
+        if not sid:
+            raise TxnError("evidence ref missing source_id: %r" % ev)
+        try:
+            manifest = wiki.load_json("sources/%s/manifest.json" % sid)
+        except (OSError, ValueError):
+            continue  # unreadable manifest: unverifiable, not an origin
+        origins.add(manifest.get("root_origin") or sid)
     return len(origins)
 
 
@@ -184,7 +224,11 @@ def create_decision(wiki, data: dict) -> dict:
         if not isinstance(ev, dict):
             raise TxnError("evidence[%d] must be a JSON object" % i)
         sid = ev.get("source_id", "")
-        if sources_mod.get_manifest(wiki, sid) is None:
+        try:
+            manifest = sources_mod.get_manifest(wiki, sid)
+        except TxnError:
+            manifest = None  # malformed sid -> same "unknown source" surface
+        if manifest is None:
             raise TxnError("unknown source: %s" % sid)
     decision = dict(data)
     decision["id"] = ids.new("decision")

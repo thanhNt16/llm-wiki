@@ -15,12 +15,14 @@ class TestCorpus(unittest.TestCase):
             "docs/adr-001-postgres.md",
             "docs/adr-007-retries.md",
             "docs/adr-019-attribution.md",
+            "docs/spec-attribution-window.pdf",
             "notes/memo-2026-09-01-window-change.md",
             "notes/meeting-2026-09-10.md",
             "notes/failed-redis-pubsub.md",
             "transcripts/session-2026-09-12.md",
             "config/analytics.prod.json",
             "config/analytics.sandbox.json",
+            "services/analytics/attribution.py",
             "data/config-matrix.csv",
             "questions.txt",
         ]
@@ -64,6 +66,31 @@ class TestCorpus(unittest.TestCase):
 
     def test_contains_unanswerable_question(self):
         self.assertIn("2028 pricing plan", read("questions.txt"))
+        q = read("questions.txt")
+        self.assertIn("dead-letter table", q)  # vocabulary-adjacent fabrication trap
+
+    def test_contains_stale_note_trap_question(self):
+        q = read("questions.txt")
+        self.assertIn("latest doc say the attribution window", q)
+        self.assertIn("7 days", q)  # expected answer pins the corrected value
+
+    def test_contains_negative_knowledge_question(self):
+        q = read("questions.txt")
+        self.assertIn("Redis pub/sub for event durability", q)
+        self.assertIn("cache-invalidation", q)  # expected answer keeps scope
+
+    def test_contains_source_file_with_window_constant(self):
+        src = read("services", "analytics", "attribution.py")
+        self.assertIn("CLICK_LOOKBACK_DAYS = 7", src)
+        self.assertIn("2026-09-01", src)
+
+    def test_contains_pdf_with_correction_text(self):
+        path = os.path.join(CORPUS, "docs", "spec-attribution-window.pdf")
+        with open(path, "rb") as f:
+            raw = f.read()
+        self.assertTrue(raw.startswith(b"%PDF-"), "not a PDF: %s" % path)
+        self.assertIn(b"7 days", raw)
+        self.assertIn(b"2026-09-01", raw)
 
 
 if __name__ == "__main__":

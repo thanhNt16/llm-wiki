@@ -2,14 +2,73 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SemanticEvalResult",
   "type": "object",
-  "required": ["scenario", "timestamp", "pass", "answer", "citations"],
+  "required": [
+    "scenario",
+    "timestamp",
+    "pass",
+    "answer",
+    "citations",
+    "engine_commit"
+  ],
   "properties": {
-    "scenario": {"enum": ["direct_recall", "cross_source_synthesis", "correction",
-                           "historical", "scope", "conflict", "unanswerable", "isolation"]},
-    "timestamp": {"type": "string"},
-    "pass": {"type": "boolean"},
-    "answer": {"type": "string"},
-    "citations": {"type": "array", "items": {"type": "string"}},
-    "rubric_notes": {"type": "string"}
+    "scenario": {
+      "enum": [
+        "direct_recall",
+        "cross_source_synthesis",
+        "correction",
+        "historical",
+        "scope",
+        "conflict",
+        "unanswerable",
+        "isolation",
+        "injection"
+      ]
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "engine_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "description": "git SHA of the engine (skill/llm-wiki) under test"
+    },
+    "pass": {
+      "type": "boolean"
+    },
+    "answer": {
+      "type": "string"
+    },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rubric_notes": {
+      "type": "string"
+    },
+    "arm": {
+      "type": "string",
+      "enum": [
+        "grep",
+        "wiki",
+        "summary"
+      ]
+    },
+    "date": {
+      "type": "string"
+    },
+    "answerable": {
+      "type": "boolean"
+    },
+    "effort_notes": {
+      "type": "string"
+    },
+    "checks": {
+      "type": "object"
+    },
+    "kind": {
+      "type": "string"
+    }
   }
 }

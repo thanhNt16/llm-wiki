@@ -24,7 +24,8 @@ stats overview.
 Data comes from the deterministic CLI in the `llm-wiki` skill:
 
 ```bash
-WIKI=$(ls ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
+WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
+[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
 python3 "$WIKI" graph-data          # one JSON object on stdout
 ```
 
@@ -51,26 +52,32 @@ Never overwrite an existing `.llm-wiki/graph-ui` — it may be customized.
 python3 "$WIKI" graph-data > .llm-wiki/graph-ui/public/graph-data.json
 ```
 
-Data refreshes by rewriting this file — the app fetches it at runtime and
-computes the layout client-side; no rebuild needed.
+The app fetches `graph-data.json` at runtime and computes the layout
+client-side. Rewrite the file on every invocation BEFORE serving or
+building — stale data is the common failure. The dev server picks the file
+up on page reload; for `dist/` you must rebuild after regenerating (see
+below).
 
 ## Serve
 
 ```bash
 cd .llm-wiki/graph-ui
-npm run dev          # → http://localhost:5173/?tab=graph (auto-port if busy)
-# or static:
+npm run dev          # → http://localhost:5173 (auto-port if busy)
+# or static — regenerate public/graph-data.json FIRST, then:
 npm run build && npx serve dist
 ```
 
-Open the URL for the user and report it. Empty graph → likely no claims yet:
-check `wiki.py status` `counts.claims`.
+`npm run build` copies `public/` into `dist/`, so a static bundle ships the
+graph-data.json that existed at build time — always regenerate it before
+building. Open the URL for the user and report it. Empty graph → likely no
+claims yet: check `wiki.py status` `counts.claims`.
 
 ## Node types
 
 `wtype` derives from the second subject segment: `.llm-wiki/graph-types.json`
-(`{"pm97": "ticket", "sql": "migration"}`) overrides; else `pm-\d+`/`stc-\d+`
-→ `ticket`, everything else `domain`. Sources/decisions are fixed kinds.
+(`{"pm97": "ticket", "sql": "migration"}`) overrides; else segments matching
+`^(?:stc|pm)-?\d+$` (case-insensitive, dash optional) → `ticket`, everything
+else `domain`. Sources/decisions are fixed kinds.
 
 ## Hard rules
 

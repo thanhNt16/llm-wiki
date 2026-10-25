@@ -79,6 +79,46 @@ class TestValidator(unittest.TestCase):
         errors = schema.validate({"name": "a", "tags": [], "count": 0}, self.s)
         self.assertTrue(any("count" in e for e in errors))
 
+    def test_string_length_bounds(self):
+        s = {"type": "object", "properties": {
+            "name": {"type": "string", "minLength": 2, "maxLength": 3}}}
+        self.assertTrue(schema.validate({"name": "a"}, s))
+        self.assertTrue(schema.validate({"name": "abcd"}, s))
+        self.assertEqual(schema.validate({"name": "ab"}, s), [])
+
+    def test_property_count_bounds(self):
+        s = {"type": "object", "minProperties": 1, "maxProperties": 2}
+        self.assertTrue(schema.validate({}, s))
+        self.assertTrue(schema.validate({"a": 1, "b": 2, "c": 3}, s))
+        self.assertEqual(schema.validate({"a": 1}, s), [])
+
+    def test_additional_properties_without_properties(self):
+        # additionalProperties must apply even when `properties` is absent
+        s = {"type": "object", "additionalProperties": False}
+        self.assertTrue(schema.validate({"a": 1}, s))
+        self.assertEqual(schema.validate({}, s), [])
+
+    def test_additional_properties_schema(self):
+        s = {"type": "object",
+             "properties": {"keep": {"type": "string"}},
+             "additionalProperties": {"type": "integer"}}
+        self.assertEqual(schema.validate({"keep": "x", "n": 3}, s), [])
+        self.assertTrue(schema.validate({"keep": "x", "n": "bad"}, s))
+
+    def test_property_names(self):
+        s = {"type": "object",
+             "propertyNames": {"type": "string", "pattern": "^[a-z_]+$"}}
+        self.assertEqual(schema.validate({"good_key": 1}, s), [])
+        self.assertTrue(schema.validate({"Bad Key": 1}, s))
+
+    def test_pattern_properties(self):
+        s = {"type": "object",
+             "patternProperties": {"^x-": {"type": "integer"}},
+             "additionalProperties": False}
+        self.assertEqual(schema.validate({"x-a": 1}, s), [])
+        self.assertTrue(schema.validate({"x-a": "s"}, s))
+        self.assertTrue(schema.validate({"other": 1}, s))
+
 
 class TestCanonicalSchemas(unittest.TestCase):
     def test_good_claim_passes(self):

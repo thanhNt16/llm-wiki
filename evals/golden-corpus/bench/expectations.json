@@ -1,0 +1,17 @@
+{
+  "notes": "PRD §60 lane-comparison scenarios. answer_any: any substring (case-insensitive) in wiki matches[].value/subject or baseline top-3 text. answer_all: every substring must appear. forbid: substring must not appear in the wiki top match's value (top = highest score) or in baseline top file. subject: at least one match on that claim subject. conflict_expected: wiki conflicts non-empty; baseline = all answer_all/answer_any strings visible across top-3 files. expect_gap: wiki gaps non-empty and no matches; baseline never detects gaps.",
+  "scenarios": [
+    {"id": "direct_recall", "question": "Which database does the order service use?",
+     "answer_any": ["postgres"], "subject": "svc.order.db"},
+    {"id": "correction", "question": "What is the current click lookback window in production?",
+     "answer_any": ["7"], "forbid": ["30"], "subject": "attribution.window"},
+    {"id": "historical", "question": "What was the window before September 2026?",
+     "as_of": "2026-08-15", "answer_any": ["30"], "subject": "attribution.window"},
+    {"id": "scope", "question": "Does sandbox use the same window as production?",
+     "answer_all": ["30", "7"], "conflict_expected": false, "subject": "attribution.window"},
+    {"id": "conflict", "question": "How many retries are configured for the payment gateway?",
+     "answer_all": ["3", "5"], "conflict_expected": true, "subject": "payment.gateway"},
+    {"id": "unanswerable", "question": "What is our 2028 pricing plan?",
+     "expect_gap": true}
+  ]
+}

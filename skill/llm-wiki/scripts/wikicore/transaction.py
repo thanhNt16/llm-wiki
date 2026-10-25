@@ -30,6 +30,60 @@ class ConflictError(TxnError):
 class LockedError(TxnError):
     """Commit lock held by another writer. CLI exit code 5."""
 
+_O_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
+
+
+def _open_nofollow(path: str):
+    """Open for truncate-write without following a planted symlink."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | _O_NOFOLLOW, 0o644)
+    return os.fdopen(fd, "w", encoding="utf-8")
+
+
+def _reject_symlink_components(root: str, path: str) -> None:
+    """lstat-verify no existing component of path below root is a symlink."""
+    rel = os.path.relpath(path, root)
+    if rel == ".." or rel.startswith(".." + os.sep):
+        raise TxnError("path escapes wiki root: %r" % path)
+    cur = root
+    for part in rel.split(os.sep):
+        cur = os.path.join(cur, part)
+        if os.path.islink(cur):
+            raise TxnError("refusing symlinked path component: %s" % cur)
+
+
+def _append_operations_line(path: str, line: str) -> None:
+    """Append one JSONL record; first amputate a torn tail left by a
+    mid-append crash so readers never see a corrupt final line."""
+    if os.path.lexists(path):
+        with open(path, "rb") as f:
+            data = f.read()
+        body = data.rstrip(b"\n")
+        tail = body.rsplit(b"\n", 1)[-1] if body else b""
+        if tail:
+            try:
+                json.loads(tail)
+            except ValueError:
+                # torn final line: drop it before appending
+                data = data[:len(body) - len(tail)]
+                with open(path, "wb") as f:
+                    f.write(data)
+        if data and not data.endswith(b"\n"):
+            with open(path, "ab") as f:
+                f.write(b"\n")
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(line + "\n")
+
+
+def _canonical_json_path(rel: str) -> bool:
+    """True when rel is a canonical JSON file the engine owns — never raw/."""
+    if rel.startswith(("claims/", "decisions/", ".state/")):
+        return rel.endswith(".json")
+    if rel.startswith("sources/"):
+        base = rel.rsplit("/", 1)[-1]
+        return base == "manifest.json" or (
+            base.startswith("extraction") and base.endswith(".json"))
+    return False
+
 
 class Transaction:
     #: registry of fn(txn) -> None; raise TxnError to block commit
@@ -112,7 +166,7 @@ class Transaction:
         self.validate()
         lock_path = self.wiki.p(".state", "locks", "commit.lock")
         os.makedirs(os.path.dirname(lock_path), exist_ok=True)
-        lock_fd = open(lock_path, "w")
+        lock_fd = _open_nofollow(lock_path)
         try:
             try:
                 fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -145,14 +199,18 @@ class Transaction:
             errors = schema_validate(receipt, _run_receipt_schema())
             if errors:
                 raise TxnError("run receipt invalid: %s" % "; ".join(errors))
-            # (b) pre-write the receipt to a journal so an interrupted commit
-            # is discoverable (doctor flags leftover journals)
+            journal_payload = json.dumps(
+                {"receipt": receipt,
+                 "ops": [[op, rel] for op, rel, _ in self.staged]},
+                indent=2, ensure_ascii=False) + "\n"
             journal_path = self.wiki.p(".state", "journal.json")
-            with open(journal_path, "w") as f:
-                json.dump({"receipt": receipt,
-                           "ops": [[op, rel] for op, rel, _ in self.staged]},
-                          f, indent=2, ensure_ascii=False)
-                f.write("\n")
+            # per-run journal survives the next commit's crash; journal.json
+            # stays the "latest leftover" alias doctor already detects
+            run_journal_path = self.wiki.p(
+                ".state", "journal-%s.json" % self.run_id)
+            for jp in (run_journal_path, journal_path):
+                with _open_nofollow(jp) as f:
+                    f.write(journal_payload)
             backup_dir = self.wiki.p(".state", ".backup-%d" % current)
             try:
                 # (c) back up every existing target
@@ -162,7 +220,10 @@ class Transaction:
                     if os.path.lexists(dst):
                         bpath = os.path.join(backup_dir, rel)
                         os.makedirs(os.path.dirname(bpath), exist_ok=True)
-                        shutil.copy2(dst, bpath)
+                        _reject_symlink_components(self.wiki.root, bpath)
+                        if os.path.islink(bpath):
+                            os.unlink(bpath)
+                        shutil.copy2(dst, bpath, follow_symlinks=False)
                         backed_up = True
                 # (d) apply
                 for op, rel, src in self.staged:
@@ -179,15 +240,17 @@ class Transaction:
                 ) as f:
                     json.dump(receipt, f, indent=2, ensure_ascii=False)
                     f.write("\n")
-                with open(self.wiki.p(".state", "operations.jsonl"), "a") as f:
-                    f.write(canonical_json(receipt) + "\n")
+                _append_operations_line(self.wiki.p(".state", "operations.jsonl"),
+                                        canonical_json(receipt))
                 state = self.wiki.state()
                 state["revision"] = current + 1
                 state["content_hash"] = canonical_json(
                     [op[0] + ":" + op[1] for op in self.staged])[:64]
                 self.wiki.save_state(state)
-                # (f) clear journal + backups
+                # (f) clear journals + backups
                 os.unlink(journal_path)
+                if os.path.lexists(run_journal_path):
+                    os.unlink(run_journal_path)
                 if backed_up:
                     shutil.rmtree(backup_dir, ignore_errors=True)
                 shutil.rmtree(self.staging_dir, ignore_errors=True)
@@ -235,9 +298,13 @@ def _run_receipt_schema() -> dict:
 
 
 def _default_validator(txn: Transaction) -> None:
-    """Staged canonical JSON must parse and match its schema when identifiable."""
+    """Staged canonical JSON must parse and match its schema when identifiable.
+
+    Only canonical engine-owned paths are JSON-validated; raw/ evidence and
+    other non-canonical paths may legitimately contain arbitrary bytes.
+    """
     for op, rel, src in txn.staged:
-        if op != "write" or not rel.endswith(".json"):
+        if op != "write" or not _canonical_json_path(rel):
             continue
         with open(src) as f:
             try:

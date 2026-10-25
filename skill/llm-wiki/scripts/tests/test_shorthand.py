@@ -18,9 +18,16 @@ class TestShorthand(unittest.TestCase):
                          {"type": "line_range", "value": "557-559"})
 
     def test_section_locator_and_passthrough(self):
-        self.assertEqual(expand_locator("s:Body"), {"type": "section", "value": "Body"})
+        # claim.schema.json's locator enum has "text", not "section"
+        self.assertEqual(expand_locator("s:Body"), {"type": "text", "value": "Body"})
         d = {"type": "paragraph", "value": "3"}
         self.assertEqual(expand_locator(d), d)
+
+    def test_default_locator_whole_document_is_schema_valid(self):
+        c = normalize_candidate({"subject": "a", "predicate": "b", "value": 1},
+                                "source_X", 1, "origin_X")
+        self.assertEqual(c["evidence"][0]["locator"],
+                         {"type": "text", "value": "whole-document"})
 
     def test_bad_locator_rejected(self):
         with self.assertRaises(TxnError):
@@ -84,3 +91,18 @@ class TestShorthand(unittest.TestCase):
         with open(p, "w") as f:
             json.dump([{"subject": "a", "predicate": "b", "value": 1}], f)
         self.assertEqual(len(parse_candidates_file(p)), 1)
+
+    def test_normalize_idempotent_over_full_candidates(self):
+        # stage_candidates feeds already-complete .json candidates through
+        # normalize for field completion — caller-stamped fields must survive
+        full = {"subject": "s", "predicate": "p", "value": 1,
+                "evidence": [{"source_id": "s1", "source_version": 1,
+                              "locator": {"type": "text", "value": "x"}}],
+                "recorded_at": "2020-01-01T00:00:00Z", "status": "candidate",
+                "proposed_by": "human", "root_origin": "orig_A"}
+        c = normalize_candidate(dict(full), "s1", 1, "orig_B")
+        self.assertEqual(c["recorded_at"], "2020-01-01T00:00:00Z")
+        self.assertEqual(c["proposed_by"], "human")
+        self.assertEqual(c["root_origin"], "orig_A")
+        self.assertEqual(len(c["evidence"]), 1)
+        self.assertNotIn("locator", c)

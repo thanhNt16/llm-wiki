@@ -585,7 +585,7 @@ class TestReviewAndDoctor(unittest.TestCase):
         def _add(t):
             holder["id"] = review.add_item(
                 t, "ambiguous_scope", "scope unclear", [],
-                ["lake.d"], "risk")
+                ["lake.d"], "low")
         _commit(wiki, _add)
         with self.assertRaises(TxnError):
             review.act(wiki, holder["id"], "set_topic_kind",
