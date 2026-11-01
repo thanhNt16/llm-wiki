@@ -84,6 +84,35 @@ def _canonical_json_path(rel: str) -> bool:
             base.startswith("extraction") and base.endswith(".json"))
     return False
 
+_LOCK_POLL_S = 0.2
+
+
+def wait_for_lock(wiki, timeout_s: float) -> bool:
+    """Best-effort pre-check: True if the commit lock is free within
+    timeout_s, False on deadline. The lock is released before returning, so
+    a True verdict can go stale before the caller commits (TOCTOU) —
+    commit() still takes LOCK_EX|LOCK_NB itself and raises LockedError on
+    contention. Use this only to wait out a known in-flight commit, never
+    as a guarantee the next commit succeeds."""
+    lock_path = wiki.p(".state", "locks", "commit.lock")
+    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+    deadline = time.monotonic() + timeout_s
+    fd = _open_nofollow(lock_path)
+    try:
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError as e:
+                if e.errno not in (errno.EACCES, errno.EAGAIN):
+                    raise
+            else:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(_LOCK_POLL_S)
+    finally:
+        fd.close()
 
 class Transaction:
     #: registry of fn(txn) -> None; raise TxnError to block commit
@@ -130,12 +159,24 @@ class Transaction:
 
     def stage_delete(self, rel: str) -> None:
         rel = _clean_rel(rel)
+        data = self._state_overlay.pop(rel, None)
+        if data is not None:
+            # a pending stage_state write op stays in self.staged (apply runs
+            # write-then-delete); its file must exist for validate/apply, so
+            # materialize the popped overlay exactly once here — eager mode
+            # had already written it
+            for op, r, src in self.staged:
+                if op == "write" and r == rel:
+                    self._write_state_file(src, data)
+                    break
         self._replace_or_append(("delete", rel, None))
-        self._state_overlay.pop(rel, None)
 
     def stage_state(self, rel: str, update_fn) -> dict:
         """Read a canonical JSON state file (or earlier staged version), apply
-        update_fn(dict), stage the result. Repeated calls compose."""
+        update_fn(dict), stage the result. Repeated calls compose; the staged
+        file is materialized once by commit() (under the flock, after the
+        claims-index watermark patch) instead of being re-serialized per call
+        — avoids O(N^2) bytes on N-claim apply runs."""
         rel = _clean_rel(rel)
         if rel in self._state_overlay:
             data = self._state_overlay[rel]
@@ -149,14 +190,29 @@ class Transaction:
         update_fn(data)
         self._state_overlay[rel] = data
         dst = os.path.join(self.staging_dir, rel)
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        with open(dst, "w", encoding="utf-8") as f:
-            f.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         self._replace_or_append(("write", rel, dst))
         return data
 
+    def _write_state_file(self, src: str, data) -> None:
+        """Serialize an overlay dict to its staging path — the exact bytes
+        eager stage_state produced."""
+        os.makedirs(os.path.dirname(src), exist_ok=True)
+        with open(src, "w", encoding="utf-8") as f:
+            f.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+    def _materialize_state(self) -> None:
+        """Write each still-current overlay entry to its staged write op,
+        once. A later stage_write/stage_delete pops the overlay, so only
+        overlays whose last op is still this write are serialized."""
+        for op, rel, src in self.staged:
+            if op == "write" and rel in self._state_overlay:
+                self._write_state_file(src, self._state_overlay[rel])
+
     # ---- VALIDATE -------------------------------------------------------
     def validate(self) -> None:
+        # staged write files exist already (stage_write, or stage_delete's
+        # pop-materialization); stage_state overlay entries are validated
+        # from the dict _materialize_state will serialize byte-for-byte
         for check in list(Transaction.VALIDATORS):
             check(self)
         _default_validator(self)
@@ -180,6 +236,28 @@ class Transaction:
                     "stale commit: base_revision=%d but wiki is at %d; re-read and rebase"
                     % (base_revision, current)
                 )
+            # derived index watermark must equal the revision this commit
+            # creates, else readers fall back to full scans forever
+            from . import ftx  # lazy: ftx→claims→transaction circularity
+            from . import claims as _claims
+            for op, rel, src in self.staged:
+                if op == "write" and rel == _claims.INDEX_REL:
+                    if rel in self._state_overlay:
+                        # lazy: patch the overlay before it materializes
+                        idx = self._state_overlay[rel]
+                        if idx.get("revision") != current + 1:
+                            idx["revision"] = current + 1
+                    else:
+                        with open(src) as f:
+                            idx = json.load(f)
+                        if idx.get("revision") != current + 1:
+                            idx["revision"] = current + 1
+                            with open(src, "w", encoding="utf-8") as f:
+                                json.dump(idx, f, indent=2, ensure_ascii=False)
+                                f.write("\n")
+            # the watermark is in the overlay now: serialize every
+            # stage_state'd file exactly once, under the flock
+            self._materialize_state()
             # (a) every destination's parent must exist or be creatable
             for op, rel, src in self.staged:
                 os.makedirs(os.path.dirname(self.wiki.p(rel)), exist_ok=True)
@@ -233,6 +311,21 @@ class Transaction:
                     elif op == "delete":
                         if os.path.lexists(dst):
                             os.unlink(dst)
+                # SP2a: keep the FTS cache inside the same critical section.
+                # Stale/absent cache is rebuilt whole (stamped at the
+                # revision this commit creates); a usable one is patched.
+                # Failure aborts the commit loudly — JSON restores above,
+                # and readers fall back by revision stamp until
+                # doctor --rebuild-fts.
+                if any(op[1].startswith("claims/") for op in self.staged):
+                    if ftx.health(self.wiki)["usable"]:
+                        ftx.apply_txn(self.wiki, self.staged, current + 1)
+                    else:
+                        ftx.rebuild(self.wiki, revision=current + 1)
+                elif ftx.health(self.wiki)["usable"]:
+                    # claim-free commit: claim content unchanged, the stamp
+                    # advances with the manifest so readers stay on bm25
+                    ftx.restamp(self.wiki, current + 1)
                 # (e) receipt + state
                 os.makedirs(self.wiki.p(".state", "operations"), exist_ok=True)
                 with open(
@@ -305,6 +398,11 @@ def _default_validator(txn: Transaction) -> None:
     """
     for op, rel, src in txn.staged:
         if op != "write" or not _canonical_json_path(rel):
+            continue
+        if rel in txn._state_overlay:
+            # lazy stage_state rel: the overlay dict is exactly what
+            # _materialize_state serializes — validate it without re-parsing
+            _check_object(rel, txn._state_overlay[rel])
             continue
         with open(src) as f:
             try:

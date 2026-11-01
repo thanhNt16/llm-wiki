@@ -17,14 +17,15 @@ data means rewriting that JSON file — never editing `src/`.
 `graph-data.json` is produced by the llm-wiki engine, not by this repo:
 
 ```bash
-python3 "$WIKI" graph-data > public/graph-data.json
+python3 "$WIKI" graph-data --full > public/graph-data.json
 ```
 
 Payload shape: `{project, nodes, links, claim_count, source_count,
 decision_count, generated_at, warnings, meta}` — see `WikiPayload` in
 `src/lib/layout.ts` and `references/COMMANDS.md#graph-data` in the
-llm-wiki skill. A missing file surfaces a readable error in the UI telling
-you to regenerate.
+llm-wiki skill. `--full` is required: the detail panel reads the embedded
+per-claim dicts; the default payload emits only `claim_ids`. A missing file
+surfaces a readable error in the UI telling you to regenerate.
 
 ## Node types
 
@@ -49,7 +50,7 @@ reload the page for fresh data.
 ## Build / serve statically
 
 ```bash
-python3 "$WIKI" graph-data > public/graph-data.json   # refresh data first
+python3 "$WIKI" graph-data --full > public/graph-data.json   # refresh data first
 npm run build                                        # vite copies public/ → dist/
 npx serve dist
 ```
@@ -59,5 +60,5 @@ and rebuild to ship newer data.
 
 ## Regeneration checklist
 
-1. `python3 "$WIKI" graph-data > public/graph-data.json`
+1. `python3 "$WIKI" graph-data --full > public/graph-data.json`
 2. Dev server: reload the page. Static: `npm run build`, then serve `dist/`.

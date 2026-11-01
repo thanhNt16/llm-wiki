@@ -473,6 +473,5 @@ class TriageTest(unittest.TestCase):
         self.assertEqual(len(out["ingested"]), 1)
         self.assertTrue(out["ingested"][0]["source_id"].startswith("source_"))
 
-
 if __name__ == "__main__":
     unittest.main()

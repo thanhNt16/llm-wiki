@@ -111,6 +111,7 @@ def loads(text: str) -> dict:
     body = m.group(1)
     result = {}
     current_key = None
+    pending_block = None  # bare "key:" whose children may form a mapping
     for line in body.splitlines():
         if not line.strip() or line.strip().startswith("#"):
             continue
@@ -121,6 +122,14 @@ def loads(text: str) -> dict:
                 raise TxnError("yamlite: list item under scalar key %r: %r"
                                % (current_key, line))
             result[current_key].append(_parse_scalar(line[4:].strip()))
+            pending_block = None
+            continue
+        if line[:1] == " " and pending_block is not None and ":" in line:
+            # one-level nested mapping (e.g. OKF `generated: {by, at}`)
+            k, _, raw = line.strip().partition(":")
+            if not isinstance(result[pending_block], dict):
+                result[pending_block] = {}
+            result[pending_block][k.strip()] = _parse_scalar(raw.strip())
             continue
         if ":" not in line:
             raise TxnError("yamlite: cannot parse line: %r" % line)
@@ -128,6 +137,7 @@ def loads(text: str) -> dict:
         key = key.strip()
         raw = raw.strip()
         current_key = key
+        pending_block = key if raw == "" else None
         if raw == "":
             result[key] = []
         elif raw == "[]":

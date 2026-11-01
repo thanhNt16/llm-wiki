@@ -242,5 +242,89 @@ class TestReview(unittest.TestCase):
                          {"open": 0, "deferred": 1, "total": 1})
 
 
+
+class TestSaveClaimStagedReads(unittest.TestCase):
+    """SP3-F3: re-saving a claim inside one transaction must read the
+    staged copy — bump-once-per-commit, terminal guard on staged state."""
+
+    def test_resave_in_txn_bumps_version_once(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        txn = Transaction(wiki, "t")
+        c = claims.load_claim(wiki, disputed["id"])
+        base_version = c["version"]
+        claims.save_claim(txn, c)
+        c["scope"] = {"env": "x"}
+        claims.save_claim(txn, c)
+        txn.commit(wiki.revision())
+        got = claims.load_claim(wiki, disputed["id"])
+        self.assertEqual(got["version"], base_version + 1)
+        self.assertEqual(got["scope"], {"env": "x"})
+
+    def test_terminal_guard_sees_staged_status(self):
+        wiki = fresh()
+        item_id, target, disputed = seed_disputed(wiki)
+        txn = Transaction(wiki, "t")
+        c = claims.load_claim(wiki, disputed["id"])
+        c["status"] = "rejected"
+        c["acceptance"] = {"reason": "human_review",
+                           "accepted_at": "2026-10-31T00:00:00Z"}
+        claims.save_claim(txn, c)
+        c["status"] = "accepted"
+        with self.assertRaises(TxnError):
+            claims.save_claim(txn, c)
+
+class TestSaveDecisionStagedReads(unittest.TestCase):
+    """SP3-T10 (F3 follow-up): save_decision had the same live-disk read
+    gap save_claim had — a second save in one txn re-reads stale bytes.
+    Prefer the txn's staged copy: bump-once-per-commit and recorded_at
+    immutability hold across re-saves."""
+
+    def _decision(self, did=None):
+        from wikicore import ids
+        return {
+            "id": did or ids.new("decision"),
+            "title": "use postgres", "status": "accepted",
+            "decided_on": "2026-10-31",
+            "recorded_at": "2026-10-31T00:00:00Z",
+            "claims": [], "evidence": [],
+        }
+
+    def test_resave_in_txn_bumps_version_once(self):
+        wiki = fresh()
+        txn0 = Transaction(wiki, "seed")
+        d = claims.save_decision(txn0, self._decision())
+        txn0.changes = {"decisions_created": 1}
+        txn0.commit(wiki.revision())
+        base_version = d["version"]
+
+        txn = Transaction(wiki, "t")
+        d2 = claims.load_decision(wiki, d["id"])
+        claims.save_decision(txn, d2)
+        d2["body"] = "revised rationale"
+        claims.save_decision(txn, d2)
+        txn.commit(wiki.revision())
+        got = claims.load_decision(wiki, d["id"])
+        self.assertEqual(got["version"], base_version + 1)
+        self.assertEqual(got["body"], "revised rationale")
+        self.assertEqual(got["recorded_at"], d["recorded_at"])
+
+    def test_resave_preserves_staged_recorded_at(self):
+        """New decision saved twice in one txn: the second save must see
+        the FIRST save's staged fields, not fall through the live-disk
+        miss to caller-controlled values."""
+        wiki = fresh()
+        txn = Transaction(wiki, "t")
+        d = self._decision()
+        claims.save_decision(txn, d)
+        first_recorded_at = d["recorded_at"]
+        d.pop("recorded_at")
+        d["recorded_at"] = "1999-01-01T00:00:00Z"  # caller tampering
+        claims.save_decision(txn, d)
+        txn.commit(wiki.revision())
+        got = claims.load_decision(wiki, d["id"])
+        self.assertEqual(got["recorded_at"], first_recorded_at)
+
+
 if __name__ == "__main__":
     unittest.main()

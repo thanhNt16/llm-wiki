@@ -26,7 +26,7 @@ Data comes from the deterministic CLI in the `llm-wiki` skill:
 ```bash
 WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
 [ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
-python3 "$WIKI" graph-data          # one JSON object on stdout
+python3 "$WIKI" graph-data --full   # one JSON object on stdout (--full: UI detail panel reads embedded claim dicts)
 ```
 
 Full payload contract: `references/COMMANDS.md#graph-data` inside the
@@ -49,7 +49,7 @@ Never overwrite an existing `.llm-wiki/graph-ui` — it may be customized.
 ## Every invocation — regenerate data
 
 ```bash
-python3 "$WIKI" graph-data > .llm-wiki/graph-ui/public/graph-data.json
+python3 "$WIKI" graph-data --full > .llm-wiki/graph-ui/public/graph-data.json
 ```
 
 The app fetches `graph-data.json` at runtime and computes the layout
@@ -58,7 +58,20 @@ building — stale data is the common failure. The dev server picks the file
 up on page reload; for `dist/` you must rebuild after regenerating (see
 below).
 
-## Serve
+## Fast paths (no npm)
+
+If `wiki.py` offers `graph-export` / `viz-serve` (SP2b), skip the copy/build
+steps entirely:
+
+```bash
+python3 "$WIKI" graph-export .llm-wiki/viz-out   # static bundle, any static host
+python3 "$WIKI" viz-serve                        # live loopback server + auto reload
+```
+
+Both use the prebuilt dist inside this skill. Use the npm flow below only
+when developing the UI itself.
+
+## Serve (npm dev flow)
 
 ```bash
 cd .llm-wiki/graph-ui

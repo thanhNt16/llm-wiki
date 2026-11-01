@@ -161,7 +161,6 @@ class TestPageTargets(unittest.TestCase):
         self.assertEqual(t["distinct_origins"], 2)
 
 
-
 class TestWritePage(unittest.TestCase):
     def test_happy_path_writes_registers_and_receipts(self):
         wiki = fresh()

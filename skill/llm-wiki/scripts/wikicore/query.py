@@ -22,6 +22,7 @@ _K1 = 1.2
 _B = 0.75
 _FIELD_WEIGHTS = {"subject": 3.0, "predicate": 2.0, "value": 1.0}
 _MATCH_LIMIT = 10
+_FTS_LIMIT = 60  # headroom over _MATCH_LIMIT; widened pool feeds conflicts (PRD §34)
 _SUPERSEDED_LIMIT = 5
 _SUBJECTS_LIMIT = 100
 _PAGE_BOUND = 20
@@ -195,7 +196,6 @@ def _expand_subject_terms(wiki, question, q_tokens, claims_by_id, all_claims,
     return expanded - q_tokens, warnings
 
 
-
 def prepare(wiki, question: str, as_of: Optional[str] = None) -> dict:
     q_tokens = norm_tokens(question) - STOPWORDS
     all_claims = claims.list_claims(wiki)
@@ -289,7 +289,10 @@ def prepare(wiki, question: str, as_of: Optional[str] = None) -> dict:
                 "reason": "disputed claim matches the question",
             })
 
-    matches.sort(key=lambda m: (-m["score"], _text(m["claim_id"])))
+    # Deterministic content tie-break: claim ids are random ULIDs, so an
+    # id-only key would reorder ties per corpus build and flake Gate R.
+    matches.sort(key=lambda m: (-m["score"], _text(m["subject"]),
+                                _text(m["predicate"]), _text(m["claim_id"])))
     # precision floor: drop tail matches below 40% of the top score — the
     # first match always survives (it is the max), so this only trims
     # noise, never empties a result that found anything.
@@ -320,9 +323,12 @@ def prepare(wiki, question: str, as_of: Optional[str] = None) -> dict:
 
     # accepted claims that contradict each other (same subject+predicate+scope,
     # different values, overlapping validity) must surface as conflicts (PRD §34)
+    # widened contradiction window: a conflicting claim ranked past the
+    # truncated display window is precisely the knowledge the caller
+    pool = matches[:_FTS_LIMIT]
     seen_pairs = set()
-    for i, m1 in enumerate(matches):
-        for m2 in matches[i + 1:]:
+    for i, m1 in enumerate(pool):
+        for m2 in pool[i + 1:]:
             if m1["value"] == m2["value"]:
                 continue
             key = (m1["claim_id"], m2["claim_id"])
@@ -341,14 +347,32 @@ def prepare(wiki, question: str, as_of: Optional[str] = None) -> dict:
                 "claims": [m1["claim_id"], m2["claim_id"]],
                 "reason": "same subject/predicate/scope with different values",
             })
-
-    # knowledge gaps: content words with no coverage anywhere
+    # knowledge gaps: content words with no coverage anywhere — but only an
+    # honest gap signal: token gaps require a weak top match (zero field
+    # overlap, or no predicate overlap — SP3-T1 #18 / SP3-F6). Overlap is
+    # computed from the matched claim's fields; BM25 field scores replace
+    # the old integer counts, so predicate==0 is the same zero-overlap test.
     known = set()
     for c in all_claims:
         known |= norm_tokens("%s %s %s" % (_text(c.get("subject")),
                                            _text(c.get("predicate")),
                                            _text(c.get("value", ""))))
-    gaps = sorted(t for t in q_tokens if t not in known)
+    if matches:
+        top = matches[0]
+        top_overlap = len(q_tokens & norm_tokens(
+            "%s %s %s" % (_text(top["subject"]), _text(top["predicate"]),
+                          _text(top["value"]))))
+        # honest gap signal: token gaps require a weak top match — zero
+        # field-token overlap or no shared predicate token (SP3-T1 #18,
+        # SP3-F6: the predicate is the relation the question asks about; a
+        # strong-scoring match that only echoes subject/value tokens does
+        # not answer it). BM25 field scores replaced the old int counts,
+        # so predicate==0 is the same zero-overlap test on this scale.
+        weak = (top_overlap == 0
+                or top["score_breakdown"]["predicate"] == 0)
+    else:
+        weak = True
+    gaps = sorted(t for t in q_tokens if t not in known) if weak else []
     if excluded and not matches:
         gaps.append("stale_knowledge")  # only superseded knowledge answered
 

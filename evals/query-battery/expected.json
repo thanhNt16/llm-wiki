@@ -1,0 +1,230 @@
+{
+  "_refrozen": "SP3-F1b 2026-10-31: subject-signature value discount (v_w=1 when value token set equals a corpus subject's); re-generated via run_battery on fresh gen_corpus corpus.",
+  "ranker": "bm25",
+  "questions": {
+    "K00": {
+      "top1": "orders.service.00",
+      "top5": [
+        "orders.service.00",
+        "orders.queue.12",
+        "orders.store.18",
+        "orders.worker.06",
+        "auth.service.03"
+      ]
+    },
+    "K01": {
+      "top1": "billing.service.01",
+      "top5": [
+        "billing.service.01",
+        "billing.queue.13",
+        "billing.store.19",
+        "billing.worker.07",
+        "billing.service.01"
+      ]
+    },
+    "K02": {
+      "top1": "shipping.service.02",
+      "top5": [
+        "shipping.service.02",
+        "shipping.queue.14",
+        "shipping.store.20",
+        "shipping.worker.08",
+        "shipping.service.02"
+      ]
+    },
+    "K03": {
+      "top1": "auth.service.03",
+      "top5": [
+        "auth.service.03",
+        "auth.queue.15",
+        "auth.store.21",
+        "auth.worker.09",
+        "auth.service.03"
+      ]
+    },
+    "S00": {
+      "top1": "orders.service.00",
+      "top5": [
+        "orders.service.00",
+        "orders.service.00",
+        "orders.service.00",
+        "orders.service.00",
+        "orders.service.00"
+      ]
+    },
+    "S01": {
+      "top1": "billing.service.01",
+      "top5": [
+        "billing.service.01",
+        "billing.service.01",
+        "billing.service.01",
+        "billing.service.01",
+        "billing.service.01"
+      ]
+    },
+    "S02": {
+      "top1": "shipping.service.02",
+      "top5": [
+        "shipping.service.02",
+        "shipping.service.02",
+        "shipping.service.02",
+        "shipping.service.02",
+        "shipping.service.02"
+      ]
+    },
+    "S03": {
+      "top1": "auth.service.03",
+      "top5": [
+        "auth.service.03",
+        "auth.service.03",
+        "auth.service.03",
+        "auth.service.03",
+        "auth.service.03"
+      ]
+    },
+    "A00": {
+      "top1": "shipping.worker.08",
+      "top5": [
+        "shipping.worker.08"
+      ]
+    },
+    "A01": {
+      "top1": "auth.worker.09",
+      "top5": [
+        "auth.worker.09"
+      ]
+    },
+    "A02": {
+      "top1": "search.worker.10",
+      "top5": [
+        "search.worker.10"
+      ]
+    },
+    "A03": {
+      "top1": "notify.worker.11",
+      "top5": [
+        "notify.worker.11"
+      ]
+    },
+    "R00": {
+      "top1": "search.service.04",
+      "top5": [
+        "search.service.04",
+        "search.service.04",
+        "search.service.04",
+        "search.service.04",
+        "search.service.04"
+      ]
+    },
+    "R01": {
+      "top1": "notify.service.05",
+      "top5": [
+        "notify.service.05",
+        "notify.service.05",
+        "notify.service.05",
+        "notify.service.05",
+        "notify.service.05"
+      ]
+    },
+    "R02": {
+      "top1": "orders.worker.06",
+      "top5": [
+        "orders.worker.06",
+        "orders.worker.06",
+        "orders.worker.06",
+        "orders.worker.06",
+        "orders.worker.06"
+      ]
+    },
+    "R03": {
+      "top1": "billing.worker.07",
+      "top5": [
+        "billing.worker.07",
+        "billing.service.01",
+        "billing.worker.07",
+        "billing.worker.07",
+        "billing.worker.07"
+      ]
+    },
+    "H00": {
+      "top1": "orders.queue.12",
+      "top5": [
+        "orders.queue.12",
+        "orders.service.00",
+        "orders.store.18",
+        "orders.worker.06",
+        "auth.queue.15"
+      ]
+    },
+    "H01": {
+      "top1": "billing.queue.13",
+      "top5": [
+        "billing.queue.13",
+        "billing.queue.13",
+        "billing.service.01",
+        "billing.store.19",
+        "billing.worker.07"
+      ]
+    },
+    "H02": {
+      "top1": "shipping.queue.14",
+      "top5": [
+        "shipping.queue.14",
+        "shipping.queue.14",
+        "shipping.service.02",
+        "shipping.store.20",
+        "shipping.worker.08"
+      ]
+    },
+    "H03": {
+      "top1": "auth.queue.15",
+      "top5": [
+        "auth.queue.15",
+        "auth.queue.15",
+        "auth.service.03",
+        "auth.store.21",
+        "auth.worker.09"
+      ]
+    },
+    "D00": {
+      "top1": "search.queue.16",
+      "top5": [
+        "search.queue.16",
+        "search.queue.16",
+        "search.queue.16",
+        "search.queue.16",
+        "search.queue.16"
+      ]
+    },
+    "D01": {
+      "top1": "notify.queue.17",
+      "top5": [
+        "notify.queue.17",
+        "notify.queue.17",
+        "notify.queue.17",
+        "notify.queue.17",
+        "notify.queue.17"
+      ]
+    },
+    "D02": {
+      "top1": "orders.store.18",
+      "top5": [
+        "orders.store.18",
+        "orders.store.18",
+        "orders.store.18",
+        "orders.store.18",
+        "orders.store.18"
+      ]
+    },
+    "D03": {
+      "top1": "billing.store.19",
+      "top5": [
+        "billing.store.19",
+        "billing.store.19",
+        "billing.store.19",
+        "billing.store.19",
+        "billing.store.19"
+      ]
+    }
+  }
+}

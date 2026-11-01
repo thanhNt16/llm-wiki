@@ -3,6 +3,24 @@
 Run scripts from the project root via the `WIKI` variable resolved in the
 skill (`python3 "$WIKI" <cmd> …`). All commands print one JSON object.
 
+## global flags
+
+```bash
+python3 "$WIKI" --root <dir> --wait-lock 60 ingest --file notes.md
+python3 "$WIKI" --no-wait ingest --text "x" --text-ref t1   # fail fast instead of waiting
+```
+
+`--wait-lock SECONDS` (default 30) gates every mutating command: before it
+runs, the CLI waits up to SECONDS for `.state/locks/commit.lock` — the
+flock a `Transaction.commit` holds — so a second process rides out an
+in-flight commit instead of crashing. On timeout it exits 5 (`locked`)
+with the lock path in the error. `--no-wait` is `SECONDS=0`: one probe,
+fail immediately. Read-only commands (status, query-prepare, verify,
+check-evidence, review list/show/triage, graph-data, ingest
+--list-connectors) never wait. The check is best-effort — commit() takes
+the lock itself, so a lost race still exits 5. Exit codes: 3 validation,
+4 stale revision, 5 locked.
+
 ## init
 
 Idempotent, non-destructive. Creates `.llm-wiki/` layout, config, state.
@@ -42,10 +60,11 @@ wiki.py ingest --text "session notes: ..." --text-ref session-2026-10-25 --kind 
 ```
 
 Receipt fields: `source_id`, `version`, `sha256`, `deduplicated`, `warnings`,
-`secrets`, `coverage`. `--text-ref` is the identity of a `--text` ingest:
-without it the ref defaults to `inline` and every ref-less `--text` ingest
-lands in ONE shared source (manifest `origin: "inline-text"`) — always pass
-`--text-ref`. `--normalized-content` is per-file and is rejected with
+`secrets`, `coverage`. `--text-ref` pins a stable identity for `--text`
+ingests: repeat calls with the same ref land as versions of ONE source
+(same bytes still dedup). Without it the CLI auto-mints a fresh origin
+per invocation (`text_<ULID>`), so unrelated snippets become distinct
+sources. `--normalized-content` is per-file and is rejected with
 `--dir` (exit 3). Check receipts for:
 
 - `deduplicated: true` → same bytes already ingested; do NOT recompile it.
@@ -62,6 +81,48 @@ lands in ONE shared source (manifest `origin: "inline-text"`) — always pass
 - `--force` bypasses sha256 dedup and always appends a version — use when the
   extractor improved (markitdown installed, better vision pass).
 
+### Connectors (SP2c)
+
+```bash
+wiki.py ingest-git --repo . --max 200        # commit history as evidence
+wiki.py ingest-rss --url https://example.com/feed.xml
+wiki.py ingest-rss --file local-feed.xml --limit 50
+```
+
+Built-in connectors, stdlib-only, no third-party deps. Each item lands as
+an ordinary source with full dedup/secret-gate treatment:
+
+- `ingest-git`: one source per commit (`kind: git_commit`, origin
+  `git:<repo>@<sha>`, `root_origin git:<repo>` groups a repo) — header
+  (sha/author/date), subject, body, changed files; oldest-first, bounded
+  by `--max`. Exit 3 if the path is not a git repo. Re-runs dedup cleanly;
+  new commits ingest as +1.
+- `ingest-rss`: RSS 2.0 / RDF / Atom → one source per item (`kind:
+  `feed_item`, origin `feed:<ref>#<guid>`, `root_origin feed:<ref>`),
+  HTML-stripped, entity-decoded. `--url` fetches with the same http(s)
+  cap as `ingest --url`; `--file` reads offline. Exit 3 on malformed XML
+  or a non-feed document. Prompt-injection phrasing in items is flagged
+  in `warnings` and stored as evidence-only.
+
+Preset connectors (SP3): declarative JSON endpoints — no per-connector
+code. `ingest --list-connectors` prints the registry
+(`github-issues`, `rest`); `ingest --connector <preset> --ref <endpoint>`
+fetches and maps each item to one `feed_item` source
+(`ref preset:<preset>:<ref>#<item-id>`, dedup per item):
+
+```bash
+wiki.py ingest --list-connectors                          # → {"connectors": ["github-issues","rest"]}
+wiki.py ingest --connector rest --ref http://localhost:8080/items --limit 20
+wiki.py ingest --connector github-issues --ref https://api.github.com/repos/org/proj/issues
+```
+
+`rest` expects `{"items": [{id,title,body}, ...]}`; `github-issues`
+expects GitHub's issue array (`number/title/state` required, `body`
+optional, pull requests skipped) and reads `GITHUB_TOKEN` from the
+environment — the bearer goes only to `*.github.com`/`*.ghe.com` hosts and
+is stripped on cross-origin redirects. `--limit` caps items (default 50),
+`--force` bypasses per-item dedup. Unknown preset names exit 3 and list
+the valid set.
 ## triage
 
 Deterministic, read-only proposals for a directory of unknown files — the
@@ -126,6 +187,11 @@ invalidate it automatically.
 The low-level `compile-plan`, `stage-candidates`, `reconcile-prepare`, and
 `reconcile-apply` commands remain available. `stage-candidates --file` accepts
 `.json` arrays/objects and `.jsonl` shorthand files.
+`stage-candidates --run <run_id>` stages into an EXISTING pending run dir
+(e.g. the run a `build` pending[] entry's `candidates_path` lives in)
+instead of minting a new one — the run dir is the dirname of
+`candidates_path`. Re-staging a prepared run invalidates its
+comparisons/classifications; staging into an already-applied run exits 3.
 
 Gotcha: for a `supersedes` correction, put the target claim id ONLY in the
 reconcile classification (`mark_superseded` / `POLICY_CHANGE`), not also in
@@ -163,6 +229,39 @@ Then:
    error (unresolved links, stale pages) and re-verify.
 
 Report the run receipt: changes counts, conflicts (new review items).
+
+### One command (SP2d)
+
+```bash
+wiki.py build
+```
+
+Runs compile → build-pages → verify in one call and emits the combined
+receipt (`compile`, `pages`, `verify`). Exits 0 when `verify.ok` is true.
+Honest blocking — never invents content to finish: exit 3 with
+`"step": "extract"` + `pending[]` when candidates are not yet authored, or
+`"step": "classify"` + `needs_review[]` when classifications are required;
+`next` names the exact action. Re-run `build` after doing it — idempotent
+(applied runs replay their receipts). Gate: `evals/deterministic/test_build.py`.
+
+## check-evidence
+
+Mechanical evidence re-resolution for every claim (read-only). Re-reads each
+pinned source version, re-hashes it against the ingest-time sha256, and
+re-locates the cited locator (`s:` text substring, `l:` line range, `h:`
+heading):
+
+```bash
+wiki.py check-evidence [--details 100]
+```
+
+Per-claim verdict: `verified` (content intact + locator resolves), `stale`
+(hash differs from ingest-time sha256, or the locator no longer resolves —
+content drifted from what the claim cites), `unresolved` (manifest/pinned
+version/content file missing — fails closed). `ok` is true only when zero
+stale/unresolved. `details[]` lists the first `--details` offending claims
+with reasons. Nothing is mutated: re-ingest the drifted source or supersede
+the claim, then re-check. Gate: `evals/deterministic/test_evidence.py`.
 
 ## write
 
@@ -430,6 +529,22 @@ mark_superseded set_scope set_validity defer reopen set_topic_kind`.
 - Loop: `review list` → `review show` (present BOTH sides) → `review act` →
   `wiki.py build-pages` if a claim changed → `wiki.py verify` green.
 
+Batch surfaces (SP3): `review triage` groups the open queue deterministically
+and attaches a conservative `suggested_action`+`params` per item —
+default grouping is the linked claim's subject; `--group-by <field>` names
+any other item field. `review apply --file actions.json` executes
+`[{"id","action","params"}, ...]` (or `{"actions": [...]}`) in ONE
+transaction — one revision bump, all-or-nothing; a stale `--base-revision`
+exits 4. Suggestions are verbatim-appliable only when a claim resolved:
+defer always works; accept/reject need a `claim_id` (human supplies it for
+claim-less items):
+
+```bash
+wiki.py review triage                        # groups by linked-claim subject
+wiki.py review triage --group-by kind        # bucket by item field
+wiki.py review apply --file actions.json     # one txn, one revision bump
+# actions.json: [{"id": "review_…", "action": "defer", "params": {}}, ...]
+```
 ## decide
 
 Record a project decision — the write path for `decisions/`. Decisions are
@@ -515,7 +630,6 @@ When `ready: false` or a call returns `ok: false`, apply skill-documented
 judgment (extend-first, routing overrides) as usual and note the Jev
 fallback in your output. Jev verdicts never enter `verify`, `doctor`, or
 gate paths.
-
 ## doctor
 
 Static + semantic diagnostics. Run when something looks wrong, or before reporting.
@@ -599,6 +713,69 @@ See-also links through `write-page`.
 substring; `ok`/`counts` are recomputed over the filtered set. Exit 3 when
 any remaining finding is error-severity, else 0.
 
+The top-level `extractors` block reports extraction capability per binary
+format — e.g. `markitdown: {available, via: "module"|"cli"|null, formats:
+{<fmt>: "extracted"|"agent-handoff"}, remediation}`. When `available` is
+false, PDFs/docx/xlsx ingest with `coverage: "not_extracted"` and the
+`remediation` string names the install step.
+
+```bash
+wiki.py doctor --rebuild-index   # regenerate the derived claims index
+```
+
+Transactional recovery path for `.state/index.json` (corrupt/stale/lying):
+rebuilds it from the canonical claim/decision files inside a Transaction so
+the commit stamps a fresh, complete revision watermark. Readers fall back to
+full scans on their own; this just restores the fast path.
+
+```bash
+wiki.py doctor --rebuild-fts    # rebuild the FTS5 search cache
+```
+
+Rebuilds `.state/fts.sqlite` (porter-stemmed BM25 index over claims) when
+`doctor`'s `fts` block reports `missing`, `stale_revision`, or `corrupt:*`.
+While stale, `query-prepare` reports `ranker: "legacy"` (slower scoring).
+
+## export-okf
+
+```bash
+wiki.py export-okf <dir>    # write an OKF v0.2 bundle
+```
+
+Deterministic Markdown+YAML export for openwiki's visualizer: `index.md`
+(`okf_version: "0.2"`), `concepts/<slug>.md` per accepted-claim subject,
+`.claims/<slug>.json` claim sidecars. Byte-identical across runs for the
+same store; the destination dir is replaced atomically. Proven by the
+round-trip gate in `evals/okf-oracle/` (openwiki `visualize` loads it).
+
+## graph-export
+
+```bash
+wiki.py graph-export <dir>    # self-contained static visualizer bundle
+```
+
+One command, zero npm: writes `<dir>/index.html` + hashed `assets/*` + a
+freshly generated `graph-data.json` (full detail) using the prebuilt UI in
+the `wiki-visualize` skill (`WIKI_UI_DIST` env overrides the dist dir).
+Byte-identical across runs except `generated_at`; destination replaced
+atomically. Exit 3 on an uninitialized wiki; export refuses empty stores
+(no nodes) without leaving a partial dir. Serve the dir from any static
+host, or open it behind `python3 -m http.server` (the UI fetches
+`graph-data.json` over HTTP — avoid `file://`).
+
+## viz-serve
+
+```bash
+wiki.py viz-serve [--port 4321] [--no-open]
+```
+
+Serves the same UI from a live loopback server (`127.0.0.1` only, never
+network-exposed) with live reload: a watcher thread regenerates
+`graph-data.json` after store writes and pushes `event: reload` over SSE
+(`/events`); the UI refetches automatically. Any free port is picked
+automatically when `--port` is busy. OpenWiki-parity loop for the native
+explorer.
+
 ## graph-data
 
 Read-only. Emits the knowledge-graph payload consumed by the `wiki-visualize`
@@ -615,9 +792,12 @@ summarizes the queue (`{open, deferred, total}`) and `meta.generated_at`
 echoes the build time.
 
 - `nodes[]`: `{id, kind: entity|source|decision|page, key, label, wtype,
-  claim_count, size, summary, claims, sources}`; source nodes also carry
+  claim_count, size, summary, claim_ids, sources}`; source nodes also carry
   `title`/`origin`. Entity nodes group claims by two-segment subject prefix;
-  `label` strips the project prefix.
+  `label` strips the project prefix. `claim_ids` lists the entity's claim
+  ids; full claim dicts are embedded as `claims` only with `--full`
+  (`wiki.py graph-data --full`). Source/decision node `claims` fields are
+  unchanged (source `[]`; decision already id lists).
 - Page nodes cover authored `wiki/{sources,concepts,entities,procedures,
   questions,changes}/*.md` (not `index.md`); `key`/`path` are the artifact
   rel path, `label` is the frontmatter `title` else the filename slug,
@@ -626,8 +806,9 @@ echoes the build time.
   `summary` carries `type`, `stale` (from frontmatter) and `title` when
   present. Pages are assigned contiguous ids after decisions, sorted by
   artifact path.
-- Edges derive from non-superseded claims only; superseded claims remain in
-  `claims[]` with their `status` for the detail panel. Claim nodes carry
+- Edges derive from non-superseded claims only; superseded claims remain
+  visible via `claim_ids`/(`claims[]` under `--full`) with their `status`
+  for the detail panel. Claim nodes carry
   review flags (`review_open`, `disputed`, `superseded`, `stale`, `orphan`)
   so surfaces can show unresolved debt at a glance.
 - Optional `.llm-wiki/graph-types.json` maps the second subject segment to a

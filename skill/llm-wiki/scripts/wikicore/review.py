@@ -96,23 +96,46 @@ def show(wiki, item_id: str) -> dict:
 
 
 def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> dict:
+    txn = Transaction(wiki, "wiki-review")
+    queue = wiki.read_jsonl(QUEUE)
+    item = _act_in_txn(wiki, txn, queue, item_id, action, params, {})
+    txn.changes = {"review_actions": 1}
+    receipt = txn.commit(base_revision)
+    receipt["item"] = item
+    return receipt
+
+
+def _act_in_txn(wiki, txn: Transaction, queue: list, item_id: str,
+                action: str, params: dict, claim_cache: dict) -> dict:
+    """Apply one review action against an in-memory queue inside an open
+    transaction; stages the updated queue. `claim_cache` lets actions in a
+    batch see each other's mutations on the same claim (live disk is stale
+    until commit). Returns the mutated item."""
+    def _load(cid):
+        if cid not in claim_cache:
+            claim_cache[cid] = claims.load_claim(wiki, cid)
+        return claim_cache[cid]
+
     if action not in ACTIONS:
         raise TxnError("unknown review action: %r (valid: %s)" % (action, ", ".join(ACTIONS)))
     params = params or {}
-    item = show(wiki, item_id)
+    item = None
+    for existing in queue:
+        if existing["id"] == item_id:
+            item = existing
+            break
+    if item is None:
+        raise TxnError("unknown review item: %s" % item_id)
     if item["status"] == "resolved" and action != "reopen":
         raise TxnError(
             "review item %s is already resolved — reopen it first" % item_id)
-
-    txn = Transaction(wiki, "wiki-review")
     claim = None
     changed_claim_ids = []
-
     if action not in ("defer", "reopen", "set_topic_kind"):
         cid = params.get("claim_id")
         if not cid:
             raise TxnError("action %r requires claim_id" % action)
-        claim = claims.load_claim(wiki, cid)
+        claim = _load(cid)
 
     note = params.get("note", "")
 
@@ -132,7 +155,7 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
             raise TxnError("action %r requires merge_into" % action)
         if merge_into == claim["id"]:
             raise TxnError("action %r: cannot merge a claim into itself" % action)
-        target = claims.load_claim(wiki, merge_into)
+        target = _load(merge_into)
         from .compile import _append_evidence
 
         _append_evidence(target, claim)
@@ -156,7 +179,7 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
             raise TxnError("mark_superseded requires target claim_id")
         if target_id == claim["id"]:
             raise TxnError("mark_superseded: cannot supersede a claim with itself")
-        survivor = claims.load_claim(wiki, target_id)
+        survivor = _load(target_id)
         # `claim` is the superseded one: it gets superseded_by; the survivor
         # records claim.id in its supersedes list.
         claims.supersede(txn, claim, target_id, policy_change=False, new_valid_from=None)
@@ -232,11 +255,6 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
     else:
         item["status"] = "resolved"
         item["resolved_at"] = _now()
-    queue = wiki.read_jsonl(QUEUE)
-    for i, existing in enumerate(queue):
-        if existing["id"] == item_id:
-            queue[i] = item
-            break
     txn.stage_write(QUEUE, _dump(queue))
 
     # release gate: claim mutations invalidate dependent artifacts (PRD §58)
@@ -245,10 +263,89 @@ def act(wiki, item_id: str, action: str, params: dict, base_revision: int) -> di
 
         deps_mod.invalidate(wiki, changed_claim_ids, txn=txn)
 
-    txn.changes = {"review_actions": 1}
+    return item
+
+
+def _item_claim(wiki, item: dict):
+    """First resolvable claim linked by the item (affected preferred, then
+    evidence). Returns the claim dict or None."""
+    seen = set()
+    for cid in list(item.get("affected") or []) + list(item.get("evidence") or []):
+        if cid in seen or not isinstance(cid, str):
+            continue
+        seen.add(cid)
+        try:
+            return claims.load_claim(wiki, cid)
+        except TxnError:
+            continue
+    return None
+
+
+def _suggestion(wiki, item: dict, claim) -> tuple:
+    """Conservative deterministic suggestion (spec #14). Reject beats
+    accept: suspicious text wins over corroboration."""
+    problem = (item.get("problem") or "").lower()
+    if "injection" in problem or "secret" in problem:
+        action = "reject"
+    elif item.get("kind") == "needs_review" and claim is not None:
+        try:
+            if claims.independence(wiki, claim) >= 2:
+                action = "accept"
+            else:
+                action = "defer"
+        except TxnError:
+            action = "defer"
+    else:
+        action = "defer"
+    # claim-less items get only claim-free actions: accept/reject require
+    # claim_id, so emitting them would abort a verbatim apply_batch
+    if claim is None:
+        return "defer", {}
+    if action in ("accept", "reject"):
+        return action, {"claim_id": claim["id"]}
+    return action, {}
+
+
+def triage(wiki, group_by: str = "subject") -> dict:
+    """Group open queue items and attach a suggested action per item.
+
+    Default key is the linked claim's subject; any other `group_by` names
+    an item field. Groups are sorted by key — deterministic output."""
+    groups = {}
+    for item in list_items(wiki):
+        claim = _item_claim(wiki, item)
+        if group_by == "subject":
+            key = claim["subject"] if claim is not None else ""
+        else:
+            key = item.get(group_by) or ""
+        action, params = _suggestion(wiki, item, claim)
+        row = {"id": item["id"], "kind": item.get("kind", ""),
+               "problem": item.get("problem", ""),
+               "subject": claim["subject"] if claim is not None else "",
+               "suggested_action": action, "params": params}
+        groups.setdefault(key, []).append(row)
+    return {"groups": [{"key": k, "count": len(rows), "items": rows}
+                       for k, rows in sorted(groups.items())]}
+
+
+def apply_batch(wiki, actions: list, base_revision: int) -> dict:
+    """Execute a list of {id, action, params} inside ONE Transaction: one
+    commit, one revision bump, and any failure aborts the whole batch."""
+    txn = Transaction(wiki, "wiki-review-batch")
+    queue = wiki.read_jsonl(QUEUE)
+    claim_cache = {}
+    results = []
+    for spec in actions:
+        item = _act_in_txn(wiki, txn, queue, spec["id"],
+                           spec["action"], spec.get("params") or {},
+                           claim_cache)
+        results.append({"id": spec["id"], "action": spec["action"],
+                        "status": item["status"]})
+    txn.changes = {"review_actions": len(results)}
     receipt = txn.commit(base_revision)
-    receipt["item"] = item
-    return receipt
+    rev = receipt.get("revision")
+    return {"applied": len(results), "results": results,
+            "revision": rev.get("after") if isinstance(rev, dict) else rev}
 
 
 def summary(wiki) -> dict:

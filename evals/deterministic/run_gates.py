@@ -8,6 +8,7 @@ object; exit 0 iff every gate passes.
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -263,6 +264,551 @@ def gate_retraction_invalidation():
     return ok, "retraction invalidated: %s" % stale
 
 
+def gate_index_roundtrip():
+    """Index writers: save_claim/save_decision stage .state/claims-index.json;
+    commit stamps the post-commit revision watermark."""
+    wiki = fresh()
+    c = seed_claim(wiki, "idx-adr", "analytics", "window", 30)
+    idx = wiki.load_json("state/claims-index.json") if os.path.isfile(
+        wiki.p("state/claims-index.json")) else wiki.load_json(".state/claims-index.json")
+    assert isinstance(idx, dict), "index missing after seed_claim"
+    assert idx.get("revision") == wiki.revision(), (
+        "watermark %r != revision %r" % (idx.get("revision"), wiki.revision()))
+    ent = idx["claims"].get(c["id"])
+    assert ent and ent["key"] == "analytics/window" and ent["status"] == "accepted" \
+        and ent["version"] == c["version"], "index entry wrong: %r" % ent
+    from wikicore import claims as claims_mod
+    # decision save also lands in the index (same transaction pattern)
+    txn = Transaction(wiki, "decide")
+    dec = {"id": claims_mod.ids.new("decision"), "title": "t", "status": "accepted",
+           "decided_on": "2026-10-31", "claims": [c["id"]], "evidence": []}
+    claims_mod.save_decision(txn, dec)
+    txn.commit(wiki.revision())
+    idx = wiki.load_json(".state/claims-index.json")
+    assert dec["id"] in idx["decisions"], "decision not indexed"
+    assert idx["revision"] == wiki.revision(), "watermark not bumped by second commit"
+    # status transition updates the entry in place
+    old = claims_mod.load_claim(wiki, c["id"])
+    txn = Transaction(wiki, "supersede")
+    old["status"] = "superseded"
+    old["superseded_by"] = "claim_0000000000000000000000000X"
+    old["acceptance"] = {"reason": "gate"}
+    claims_mod.save_claim(txn, old)
+    txn.commit(wiki.revision())
+    idx = wiki.load_json(".state/claims-index.json")
+    assert idx["claims"][c["id"]]["status"] == "superseded", "status not re-indexed"
+    assert idx["revision"] == wiki.revision(), "watermark drift after third commit"
+    # corrupt on-disk index is a rebuildable derived cache — never a hard
+    # failure; the next save must succeed and re-publish a parseable index
+    with open(wiki.p(".state/claims-index.json"), "wb") as f:
+        f.write(b'{"revision": 1, "claims": ')  # truncated garbage
+    txn = Transaction(wiki, "update")
+    revived = claims_mod.load_claim(wiki, c["id"])
+    claims_mod.save_claim(txn, revived)
+    txn.commit(wiki.revision())
+    idx = wiki.load_json(".state/claims-index.json")
+    assert isinstance(idx, dict) and idx["revision"] == wiki.revision(), \
+        "index not rebuilt after corruption: %r" % (idx,)
+    assert idx["claims"][c["id"]]["version"] == revived["version"], \
+        "new claim missing from rebuilt index"
+    shutil.rmtree(wiki.root, ignore_errors=True)
+    return True, "index roundtrip: claim+decision indexed, watermark tracks revision"
+
+def gate_index_reader_fallback():
+    """Fresh index filters without full scan; stale/corrupt index falls back
+    to full scan and still returns correct results."""
+    wiki = fresh()
+    a = seed_claim(wiki, "r-adr-1", "svc.a", "owner", "team-1")
+    b = seed_claim(wiki, "r-adr-2", "svc.b", "owner", "team-2")
+    from wikicore import claims as claims_mod
+
+    # poison the scans so fresh-index reads can ONLY come from the fast
+    # path — if a fresh filtered read ever falls back to a full scan the
+    # poison raises and this gate fails (pins the fast path, not just results)
+    real_scans = (claims_mod._scan_claims, claims_mod._scan_decisions)
+    def _no_scan(*_args, **_kw):
+        raise AssertionError("full scan reached while index was fresh")
+
+    # fresh: filtered read returns exactly the right claims
+    claims_mod._scan_claims = claims_mod._scan_decisions = _no_scan
+    try:
+        got = claims_mod.list_claims(wiki, subject="svc.a")
+        assert [c["id"] for c in got] == [a["id"]], "fresh filtered read wrong: %r" % got
+        # fresh: status filter
+        got = claims_mod.list_claims(wiki, status="accepted")
+        assert {c["id"] for c in got} == {a["id"], b["id"]}
+    finally:
+        claims_mod._scan_claims, claims_mod._scan_decisions = real_scans
+
+    # stale watermark -> full-scan fallback, still correct
+    idx = wiki.load_json(".state/claims-index.json")
+    idx["revision"] = 0
+    import json as _json
+    with open(wiki.p(".state/claims-index.json"), "w") as f:
+        _json.dump(idx, f)
+    got = claims_mod.list_claims(wiki, subject="svc.b")
+    assert [c["id"] for c in got] == [b["id"]], "stale fallback wrong: %r" % got
+
+    # corrupt JSON -> (None, False) -> fallback, still correct
+    with open(wiki.p(".state/claims-index.json"), "w") as f:
+        f.write("{not json")
+    got = claims_mod.list_claims(wiki, subject="svc.a")
+    assert [c["id"] for c in got] == [a["id"]], "corrupt fallback wrong: %r" % got
+    idx2, fresh2 = claims_mod.load_index(wiki)
+    assert idx2 is None and fresh2 is False, "corrupt index must parse to (None, False)"
+
+    # corrupt-rebuild: save after corruption marks index incomplete -> readers fall back
+    wiki2 = fresh()
+    c1 = seed_claim(wiki2, "cr-1", "svc.x", "owner", "t1")
+    with open(wiki2.p(".state/claims-index.json"), "w") as f:
+        f.write("{broken")
+    seed_claim(wiki2, "cr-2", "svc.x", "owner", "t2")  # rebuild-from-empty
+    # seed_claim returns list_claims(subject)[0]; with the incomplete index
+    # the scan returns BOTH svc.x claims, so bind c2 by value, not position
+    c2 = [c for c in claims_mod.list_claims(wiki2, subject="svc.x")
+          if c["value"] == "t2"][0]
+    idx3, fresh3 = claims_mod.load_index(wiki2)
+    assert fresh3 is False, "corrupt-rebuilt index must not be trusted as fresh"
+    got = claims_mod.list_claims(wiki2, subject="svc.x")
+    assert {c["id"] for c in got} == {c1["id"], c2["id"]}, "partial leak: %r" % got
+    # new-wiki transactional path: index complete and trusted
+    wiki3 = fresh()
+    seed_claim(wiki3, "nw-1", "svc.y", "owner", "t")
+    idx4, fresh4 = claims_mod.load_index(wiki3)
+    assert fresh4 is True, "new-wiki index should be complete+fresh"
+    # pin the fast path here too: poisoned scans + correct results = the
+    # index (not a lucky fallback) served the fresh-wiki reads
+    claims_mod._scan_claims = claims_mod._scan_decisions = _no_scan
+    try:
+        got = claims_mod.list_claims(wiki3, subject="svc.y")
+        assert len(got) == 1 and got[0]["value"] == "t", "wiki3 fast path wrong: %r" % got
+        got_dec = claims_mod.list_decisions(wiki3)
+        assert got_dec and [d["id"] for d in got_dec] == sorted(idx4["decisions"]), \
+            "list_decisions fell off the fresh index"
+    finally:
+        claims_mod._scan_claims, claims_mod._scan_decisions = real_scans
+
+    # fresh index + out-of-band claim deletion: filtered read must fall back
+    # to scan and return the remaining claims, never raise TxnError
+    wiki4 = fresh()
+    seed_claim(wiki4, "del-1", "svc.d", "owner", "d1")
+    seed_claim(wiki4, "del-2", "svc.d", "owner", "d2")
+    # same subject: bind by value — list_claims(subject)[0] is position-based
+    byval = {c["value"]: c for c in claims_mod.list_claims(wiki4, subject="svc.d")}
+    d1, d2 = byval["d1"], byval["d2"]
+    os.remove(wiki4.p("claims/%s.json" % d2["id"]))  # index still fresh
+    got = claims_mod.list_claims(wiki4, subject="svc.d")
+    assert [c["id"] for c in got] == [d1["id"]], \
+        "deleted-claim read wrong: %r" % got
+
+    # unfiltered read: deterministic id order, identical to scan
+    all_fresh = claims_mod.list_claims(wiki)
+    assert [c["id"] for c in all_fresh] == sorted(c["id"] for c in all_fresh)
+    for w in (wiki, wiki2, wiki3, wiki4):
+        shutil.rmtree(w.root, ignore_errors=True)
+    return True, "index readers: fresh fast path; stale/corrupt/incomplete/deleted fall back"
+
+
+
+def gate_index_rebuild():
+    """doctor --rebuild-index regenerates a fresh, complete index from the
+    authoritative claim/decision objects (corrupt + incomplete recovery)."""
+    wiki = fresh()
+    a = seed_claim(wiki, "rb-1", "svc.r", "owner", "t")
+    from wikicore import claims as claims_mod
+    # destroy the index
+    with open(wiki.p(".state/claims-index.json"), "w") as f:
+        f.write("{broken")
+    idx, is_fresh = claims_mod.load_index(wiki)
+    assert idx is None and is_fresh is False
+    rebuilt = claims_mod.rebuild_index(wiki)
+    assert rebuilt["claims"][a["id"]]["key"] == "svc.r/owner", rebuilt
+    assert rebuilt["complete"] is True, "rebuilt index must be complete: %r" % rebuilt
+    idx, is_fresh = claims_mod.load_index(wiki)
+    assert is_fresh is True, "rebuilt index not fresh: %r" % (idx or {}).get("revision")
+    # readers work off the rebuilt index
+    got = claims_mod.list_claims(wiki, subject="svc.r")
+    assert [c["id"] for c in got] == [a["id"]]
+    # CLI path: corrupt again; `wiki.py doctor --rebuild-index` must restore it
+    with open(wiki.p(".state/claims-index.json"), "w") as f:
+        f.write("{broken")
+    script = os.path.join(HERE, "..", "..", "skill", "llm-wiki", "scripts", "wiki.py")
+    proc = subprocess.run(
+        [sys.executable, script, "--root", wiki.root, "doctor", "--rebuild-index"],
+        capture_output=True, text=True)
+    assert proc.returncode == 0, "doctor --rebuild-index failed: %s" % proc.stderr
+    out = json.loads(proc.stdout)
+    assert "index_rebuilt" in out, "CLI output missing index_rebuilt: %r" % out
+    idx, is_fresh = claims_mod.load_index(wiki)
+    assert is_fresh is True, "CLI-rebuilt index not fresh: %r" % idx
+    assert idx["claims"][a["id"]]["key"] == "svc.r/owner"
+    # recovery path: a complete:False index (corrupt-file recovery leftover)
+    # must be rebuilt to complete:True
+    idx["complete"] = False
+    with open(wiki.p(".state/claims-index.json"), "w") as f:
+        json.dump(idx, f)
+    _, is_fresh = claims_mod.load_index(wiki)
+    assert is_fresh is False, "complete:False index must read as stale"
+    claims_mod.rebuild_index(wiki)
+    idx, is_fresh = claims_mod.load_index(wiki)
+    assert is_fresh is True, "incomplete index not healed: %r" % idx
+    # empty wiki: safe, canonical empty shape
+    wiki_e = fresh("empty")
+    idx = claims_mod.rebuild_index(wiki_e)
+    assert idx == {"complete": True, "claims": {}, "decisions": [],
+                   "revision": wiki_e.revision()}, "empty-wiki rebuild: %r" % idx
+    shutil.rmtree(wiki.root, ignore_errors=True)
+    shutil.rmtree(wiki_e.root, ignore_errors=True)
+    return True, "rebuild: corrupt/incomplete -> fresh complete index; CLI emits index_rebuilt"
+
+
+def gate_reconcile_bucket_equivalence():
+    """Bucketed prepare must produce comparisons identical to the naive scan —
+    same matches, same order, same auto/hint — on both a fresh and a stale index."""
+    wiki = fresh()
+    # three existing claims: exact-key sibling, different-key, same subject other predicate
+    a = seed_claim(wiki, "eq-1", "orders.service", "limit", 10)
+    b = seed_claim(wiki, "eq-2", "payments.gateway", "timeout", 30)
+    _c = seed_claim(wiki, "eq-3", "orders.service", "owner", "team-x")
+    from wikicore import claims as claims_mod, compile as comp
+
+    r = sources.ingest(wiki, "text", "eq-doc", b"cand body")
+    cands = [
+        candidate(r["source_id"], r["version"], "Orders.Service ", "LIMIT", 10,
+                  "explicit_project_decision"),   # folds to orders.service/limit
+        candidate(r["source_id"], r["version"], "orders.service", "limit", 99,
+                  "explicit_project_decision"),    # contradiction vs a
+        candidate(r["source_id"], r["version"], "unrelated.thing", "status",
+                  "new", "explicit_project_decision"),
+    ]
+    run_id = comp.stage_candidates(wiki, r["source_id"], r["version"], cands,
+                                   report(r["source_id"], r["version"]))
+    got = comp.reconcile_prepare(wiki, run_id)["comparisons"]
+
+    def _expect():
+        existing = [c for c in claims_mod._scan_claims(wiki)
+                    if c["status"] not in ("rejected", "superseded")]
+        out = []
+        for i, cand in enumerate(cands):
+            key = "%s/%s" % (str(cand["subject"]).strip().lower(),
+                             str(cand["predicate"]).strip().lower())
+            matches = [{"claim_id": ex["id"]} for ex in existing
+                       if "%s/%s" % (str(ex["subject"]).strip().lower(),
+                                     str(ex["predicate"]).strip().lower()) == key]
+            out.append({"key": key, "n": len(matches),
+                        "ids": [m["claim_id"] for m in matches]})
+        return out
+
+    exp = _expect()
+    assert len(got) == len(exp), "comparison count changed"
+    for g, e in zip(got, exp):
+        assert g["key"] == e["key"], "key drift: %r vs %r" % (g["key"], e["key"])
+        ids = [m["claim_id"] for m in g["matches"]]  # raw order is half the invariant
+        assert ids == e["ids"], "bucket %r matched %r (sorted %r), scan says %r" % (
+            e["key"], ids, sorted(ids), e["ids"])
+    # sanity: first candidate corroborates a, second contradicts a (needs agent), third unrelated
+    assert got[0]["auto"] == "CORROBORATION", got[0]["auto"]
+    assert got[1]["auto"] is None and got[1]["hint"] == "CONTRADICTION?", got[1]
+    assert got[2]["auto"] == "UNRELATED", got[2]["auto"]
+
+    # stale index must not change the answer (bucket source falls back to scan)
+    idx = wiki.load_json(".state/claims-index.json"); idx["revision"] = -1
+    import json as _json
+    with open(wiki.p(".state/claims-index.json"), "w") as f:
+        _json.dump(idx, f)
+    run2 = comp.stage_candidates(wiki, r["source_id"], r["version"], cands,
+                                 report(r["source_id"], r["version"]))
+    got2 = comp.reconcile_prepare(wiki, run2)["comparisons"]
+    # byte-identity includes match ORDER — compare raw, never sorted
+    assert got2 == got, "stale-index comparisons diverge: %r vs %r" % (
+        [(g["key"], [m["claim_id"] for m in g["matches"]], g["auto"]) for g in got2],
+        [(g["key"], [m["claim_id"] for m in g["matches"]], g["auto"]) for g in got])
+    shutil.rmtree(wiki.root, ignore_errors=True)
+    return True, "bucketed prepare: matches identical fresh+stale (order incl.), auto/hint preserved"
+
+def gate_reconcile_lying_index():
+    """A fresh+complete index that lies about the claim set in EITHER direction
+    must fall back to the authoritative scan — comparisons.json byte-identical
+    to the scan-only run:
+      (a) index entry whose file was deleted -> hydration failure -> scan;
+      (b) file on disk with no index entry -> membership parity fails -> scan."""
+    from wikicore import claims as claims_mod, compile as comp
+
+    def _prepare(wiki, r, cands):
+        run_id = comp.stage_candidates(wiki, r["source_id"], r["version"], cands,
+                                       report(r["source_id"], r["version"]))
+        return comp.reconcile_prepare(wiki, run_id)["comparisons"]
+
+    def _stale(wiki):
+        idx = wiki.load_json(".state/claims-index.json")
+        idx["revision"] = -1
+        with open(wiki.p(".state/claims-index.json"), "w") as f:
+            json.dump(idx, f)
+
+    # (a) entry -> file deleted: hydration hits TxnError -> scan fallback
+    wiki_a = fresh("lying-a")
+    a1 = seed_claim(wiki_a, "la-1", "svc.la", "owner", "t1")
+    seed_claim(wiki_a, "la-2", "svc.la", "owner", "t2")
+    # seed_claim returns list_claims(subject)[0] — bind the second claim by
+    # value, not by the returned object
+    a2 = [c for c in claims_mod.list_claims(wiki_a, subject="svc.la")
+          if c["value"] == "t2"][0]
+    idx, fresh_a = claims_mod.load_index(wiki_a)
+    assert fresh_a is True, "setup: index must be fresh before the lie"
+    os.remove(wiki_a.p("claims/%s.json" % a2["id"]))  # index still fresh — and lying
+    r_a = sources.ingest(wiki_a, "text", "la-doc", b"a")
+    cands_a = [candidate(r_a["source_id"], r_a["version"], "svc.la", "owner",
+                         "t9", "explicit_project_decision")]
+    got_a = _prepare(wiki_a, r_a, cands_a)
+    _stale(wiki_a)  # same wiki, now scan-only
+    base_a = _prepare(wiki_a, r_a, cands_a)
+    assert got_a == base_a, "entry-without-file fallback diverged: %r vs %r" % (
+        got_a, base_a)
+    assert [m["claim_id"] for m in got_a[0]["matches"]] == [a1["id"]], \
+        "deleted claim leaked into matches: %r" % got_a[0]["matches"]
+    shutil.rmtree(wiki_a.root, ignore_errors=True)
+
+    # (b) file -> no index entry: membership parity fails -> scan fallback
+    wiki_b = fresh("lying-b")
+    b1 = seed_claim(wiki_b, "lb-1", "svc.lb", "owner", "t1")
+    idx, fresh_b = claims_mod.load_index(wiki_b)
+    assert fresh_b is True, "setup: index must be fresh before the lie"
+    ghost = dict(b1)
+    ghost["id"] = claims_mod.ids.new("claim")  # valid ULID, same key bucket
+    with open(wiki_b.p("claims/%s.json" % ghost["id"]), "w") as f:
+        json.dump(ghost, f)  # on disk, unindexed — index still "fresh"
+    r_b = sources.ingest(wiki_b, "text", "lb-doc", b"b")
+    cands_b = [candidate(r_b["source_id"], r_b["version"], "svc.lb", "owner",
+                         "t9", "explicit_project_decision")]
+    got_b = _prepare(wiki_b, r_b, cands_b)
+    _stale(wiki_b)
+    base_b = _prepare(wiki_b, r_b, cands_b)
+    assert got_b == base_b, "file-without-entry parity fallback diverged: %r vs %r" % (
+        got_b, base_b)
+    ids_b = [m["claim_id"] for m in got_b[0]["matches"]]
+    assert ids_b == sorted([b1["id"], ghost["id"]]), \
+        "ghost claim missing from matches: %r" % ids_b
+    shutil.rmtree(wiki_b.root, ignore_errors=True)
+    return True, "lying index: deleted-entry + unindexed-file both fall back byte-identical"
+
+def gate_graph_refs():
+    """Default payload carries claim_ids not claim dicts; --full restores dicts."""
+    wiki = fresh()
+    try:
+        a = seed_claim(wiki, "g-1", "svc.g", "owner", "team")
+        from wikicore import graphdata
+        payload = graphdata.graph_payload(wiki)
+        ents = [n for n in payload["nodes"] if n["kind"] == "entity"]
+        assert ents, "no entity nodes"
+        node = next(n for n in ents if n["key"] == "svc.g")
+        assert "claims" not in node, "default payload still embeds claim dicts"
+        assert node["claim_ids"] == [a["id"]], \
+            "claim_ids wrong: %r" % node.get("claim_ids")
+        assert node["claim_count"] == 1 and node["summary"], \
+            "summary/count regressed"
+        full = graphdata.graph_payload(wiki, full=True)
+        fnode = next(n for n in full["nodes"] if n.get("key") == "svc.g")
+        assert fnode["claims"][0]["id"] == a["id"], "full payload lost dicts"
+        # payload shrinks: refs-only must not exceed the full form
+        assert len(json.dumps(payload)) < len(json.dumps(full))
+        return True, "default emits claim_ids; full=True embeds dicts"
+    finally:
+        shutil.rmtree(wiki.root, ignore_errors=True)
+
+
+def gate_text_autoref():
+    """Two --text ingests without --text-ref must produce distinct sources
+    (previously both collapsed onto ref 'inline' -> one shared source)."""
+    wiki = fresh()
+    try:
+        import io
+        from contextlib import redirect_stdout
+        import wiki as wiki_cli
+
+        def run(argv):
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = wiki_cli.main(argv)
+            return code, json.loads(buf.getvalue())
+
+        code, r1 = run(["--root", wiki.root, "ingest", "--text", "snippet"])
+        assert code == 0 and "source_id" in r1, r1
+        code, r2 = run(["--root", wiki.root, "ingest", "--text", "snippet"])
+        assert code == 0 and "source_id" in r2, r2
+        assert r1["source_id"] != r2["source_id"], \
+            "ref-less --text ingests still collapse: %r" % [r1, r2]
+        assert r1["deduplicated"] is False and r2["deduplicated"] is False, \
+            "snippet appended as version of shared source: %r" % [r1, r2]
+        # explicit --text-ref identity still resolves to its own source
+        code, r3 = run(["--root", wiki.root, "ingest", "--text", "snippet",
+                        "--text-ref", "chat-1"])
+        assert code == 0 and "source_id" in r3, r3
+        assert r3["source_id"] not in (r1["source_id"], r2["source_id"]), r3
+        # same --text-ref pins ONE source: repeat call dedups onto r3
+        code, r4 = run(["--root", wiki.root, "ingest", "--text", "snippet",
+                        "--text-ref", "chat-1"])
+        assert code == 0 and r4["source_id"] == r3["source_id"], [r3, r4]
+        return True, "ref-less --text mints distinct origins; --text-ref preserved"
+    finally:
+        shutil.rmtree(wiki.root, ignore_errors=True)
+
+
+def gate_index_membership_parity():
+    """A fresh index that misses an on-disk object (out-of-band write, git
+    merge, tamper) must not hide it from list paths — the parity check
+    falls back to scan; never silent wrong results."""
+    import json as _json
+    from wikicore import claims as claims_mod
+
+    wiki = fresh()
+    try:
+        a = seed_claim(wiki, "mp-1", "svc.x", "owner", "t1")
+        idx, is_fresh = claims_mod.load_index(wiki)
+        # third member (SP2a): the FTS cache must agree with the index —
+        # both derive from the same commits, so index ⊕ fts divergence means
+        # the BM25 ranker would search a different corpus than list paths.
+        import sqlite3
+        from wikicore import ftx
+        conn = sqlite3.connect(wiki.p(ftx.DB_REL))
+        fts_ids = {r[0] for r in
+                   conn.execute("SELECT claim_id FROM claims_fts")}
+        conn.close()
+        idx_ids = set(idx["claims"])
+        assert fts_ids == idx_ids, (
+            "fts-parity: %d fts ids vs %d index ids (missing: %r extra: %r)"
+            % (len(fts_ids), len(idx_ids),
+               sorted(idx_ids - fts_ids)[:3], sorted(fts_ids - idx_ids)[:3]))
+        # out-of-band claim file the index does not know about
+        with open(wiki.p("claims/claim_ooo.json"), "w") as f:
+            _json.dump({"id": "claim_ooo", "subject": "svc.x", "predicate": "owner",
+                        "value": "t2", "status": "accepted", "evidence": [],
+                        "valid_from": "2026-01-01"}, f)
+        got = {c["id"] for c in claims_mod.list_claims(wiki, subject="svc.x")}
+        assert got == {a["id"], "claim_ooo"}, "unindexed claim hidden: %r" % got
+        # same hole for decisions
+        txn = Transaction(wiki, "wiki-test")
+        from wikicore import ids as _ids
+        d1, d2 = _ids.new("decision"), _ids.new("decision")
+        claims_mod.save_decision(txn, {"id": d1, "title": "t", "status": "accepted",
+                                       "decided_on": "2026-01-10",
+                                       "recorded_at": "2026-09-15T00:00:00Z",
+                                       "version": 1, "claims": [a["id"]],
+                                       "evidence": [], "body": ""})
+        txn.commit(wiki.revision())
+        with open(wiki.p("decisions/%s.json" % d2), "w") as f:
+            _json.dump({"id": d2, "title": "t2", "status": "accepted",
+                        "decided_on": "2026-01-10",
+                        "recorded_at": "2026-09-15T00:00:00Z",
+                        "version": 1, "claims": [], "evidence": [], "body": ""}, f)
+        dids = {d["id"] for d in claims_mod.list_decisions(wiki)}
+        assert {d1, d2} <= dids, dids  # membership: seed's auto-stub may add more
+        return True, "unindexed on-disk objects still listed (never hidden)"
+    finally:
+        shutil.rmtree(wiki.root, ignore_errors=True)
+
+
+def gate_state_lazy_materialization():
+    """stage_state composes in the overlay; the staged file is written
+    exactly once at materialization and is byte-identical to eager mode.
+    stage_write/stage_delete still win the overlay when called later."""
+    import builtins
+
+    def committed_bytes(wiki, rel):
+        with open(wiki.p(rel), "rb") as f:
+            return f.read()
+
+    def run_case(setup, expect_writes, expect_present=True,
+                 rel=".state/manifest.json"):
+        """Returns (lazy_absent, writes, byte_identical_or_deleted). Writes to
+        the staged file are counted across the WHOLE txn lifecycle so eager
+        stage_write calls count too — expect_writes is the eager-parity
+        number."""
+        wiki = fresh()
+        txn = Transaction(wiki, "wiki-test")
+        dst = os.path.join(txn.staging_dir, rel)
+        writes = []
+        real_open = builtins.open
+
+        def counting_open(path, mode="r", *a, **kw):
+            if isinstance(path, str) and path == dst and "w" in mode:
+                writes.append(mode)
+            return real_open(path, mode, *a, **kw)
+
+        builtins.open = counting_open
+        try:
+            expected = setup(txn, rel)
+            lazy_absent = not os.path.exists(dst)
+            txn.commit(wiki.revision())
+        finally:
+            builtins.open = real_open
+        if expect_present:
+            content_ok = os.path.isfile(wiki.p(rel)) \
+                and committed_bytes(wiki, rel) == expected
+        else:
+            content_ok = not os.path.exists(wiki.p(rel))
+        leftover = os.path.exists(dst)
+        shutil.rmtree(wiki.root, ignore_errors=True)
+        return (lazy_absent, len(writes) == expect_writes,
+                content_ok and not leftover)
+
+    # k composed stage_state calls -> dst absent until commit, exactly one
+    # staged write (was k), bytes identical to eager mode. Expected bytes =
+    # the dict stage_state returned — eager serialized that same dict.
+    k = 8
+
+    def k_states(txn, rel):
+        data = None
+        for i in range(k):
+            data = txn.stage_state(
+                rel, lambda d: d.setdefault("touched", []).append(i))
+        return json.dumps(data, indent=2, ensure_ascii=False).encode() + b"\n"
+
+    # stage_state then stage_write: overlay popped, stage_write bytes win;
+    # only the stage_write write happens (dst already exists -> not lazy)
+    def state_then_write(txn, rel):
+        txn.stage_state(rel, lambda d: d.update({"loser": 1}))
+        txn.stage_write(rel, {"winner": 1})
+        return json.dumps({"winner": 1},
+                          indent=2, ensure_ascii=False).encode() + b"\n"
+
+    # stage_write then stage_state: overlay wins; total writes match eager
+    def write_then_state(txn, rel):
+        txn.stage_write(rel, {"loser": 1})
+        data = txn.stage_state(rel, lambda d: d.update({"winner": 1}))
+        return json.dumps(data, indent=2, ensure_ascii=False).encode() + b"\n"
+
+    # stage_state then stage_delete: write op survives but file is
+    # materialized at pop time (once), then deleted at apply. An unowned
+    # rel — .state/manifest.json is rewritten by commit step (e) and
+    # aliases.json is init-owned canonical, so delete lands where neither
+    # matters: use a dedicated .state probe file
+    def state_then_delete(txn, rel):
+        txn.stage_state(rel, lambda d: d.update({"x": 1}))
+        txn.stage_delete(rel)
+        return None
+
+    # every case uses a lazy-owned probe file: byte-identity must compare
+    # against the overlay dict, and .state/ gives the validator read coverage
+    PROBE = ".state/lazy_probe.json"
+    cases = [
+        ("k-state", k_states, 1, True, PROBE),
+        ("state->write", state_then_write, 1, True, PROBE),
+        ("write->state", write_then_state, 2, True, PROBE),
+        ("state->delete", state_then_delete, 1, False, PROBE),
+    ]
+    details = []
+    all_ok = True
+    for name, setup, n_w, present, rel in cases:
+        absent, write_ok, content_ok = run_case(setup, n_w, present, rel)
+        # eager-mode parity: interplay cases may legally create dst during
+        # staging; only the pure stage_state case must stay absent
+        absent_ok = absent if name == "k-state" else True
+        case_ok = absent_ok and write_ok and content_ok
+        all_ok = all_ok and case_ok
+        details.append("%s:%s" % (
+            name, "ok" if case_ok else
+            "absent=%r writes~=%r content=%r" % (absent, write_ok, content_ok)))
+    return all_ok, "lazy state materialization: " + " ".join(details)
 def gate_benchmark():
     """PRD §60 lane comparison: run_benchmark.run() must report pass."""
     import importlib.util
@@ -303,6 +849,15 @@ GATES = {
     "context_budget": gate_context_budget,
     "transaction_atomicity": gate_transaction_atomicity,
     "retraction_invalidation": gate_retraction_invalidation,
+    "index_roundtrip": gate_index_roundtrip,
+    "index_reader_fallback": gate_index_reader_fallback,
+    "reconcile_bucket_equivalence": gate_reconcile_bucket_equivalence,
+    "reconcile_lying_index": gate_reconcile_lying_index,
+    "index_rebuild": gate_index_rebuild,
+    "graph_refs": gate_graph_refs,
+    "text_autoref": gate_text_autoref,
+    "state_lazy_materialization": gate_state_lazy_materialization,
+    "index_membership_parity": gate_index_membership_parity,
     "benchmark": gate_benchmark,
 }
 

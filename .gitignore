@@ -6,4 +6,8 @@ node_modules/
 dist/
 tsconfig.tsbuildinfo
 .worktrees/
+evals/okf-oracle/openwiki/
+!skill/wiki-visualize/assets/graph-ui/dist/
+!skill/wiki-visualize/assets/graph-ui/dist/**
+/llm-wiki/
 evals/benchmark/results.json

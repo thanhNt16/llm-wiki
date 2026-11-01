@@ -1,0 +1,2 @@
+{"subject":"order event delivery","predicate":"redis pub/sub durable transport","value":"rejected — 0.4% loss in staging soak","scope":{"context":"order-event-delivery"},"authority":{"type":"explicit_project_decision"}}
+{"subject":"cache invalidation","predicate":"redis pub/sub acceptable","value":"yes — loss tolerated","scope":{"context":"cache-invalidation"}}

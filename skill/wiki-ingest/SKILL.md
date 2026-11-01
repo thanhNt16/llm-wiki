@@ -22,12 +22,15 @@ python3 "$WIKI" ingest --dir path/to/folder          # recursive, one source per
 python3 "$WIKI" ingest --url https://example.com/spec
 python3 "$WIKI" ingest --text "user said: use Postgres" --text-ref "chat-2026-09-15"
 python3 "$WIKI" ingest --file path/to/doc.md --source-id source_...  # pin identity
+python3 "$WIKI" ingest-git --repo . --max 200    # git commit history
+python3 "$WIKI" ingest-rss --url https://example.com/feed.xml   # RSS/Atom
 ```
 
-`--text-ref` is the identity of a `--text` ingest. ALWAYS pass it: without
-it the ref defaults to `inline` and every ref-less `--text` ingest lands in
-ONE shared source (manifest `origin: "inline-text"`), so unrelated snippets
-append as versions of the same source instead of separate sources.
+`--text-ref` pins a stable identity for a `--text` ingest: repeat calls with
+the same ref land as versions of ONE source (same bytes still dedup). Pass it
+when snippets belong to one logical source (e.g. a chat transcript). Without
+it, the CLI auto-mints a fresh origin per invocation (`text_<ULID>`), so
+each snippet becomes a distinct source.
 
 ## Classify first
 

@@ -16,21 +16,21 @@ Local-first project memory for coding agents. Two invariants govern everything:
 
 ## CRITICAL — you never touch `.llm-wiki/` yourself
 
-Every state change goes through the CLI shipping next to this file at
-`scripts/wiki.py`. Resolve it once per session:
+Every state change goes through the CLI at `scripts/wiki.py`. Resolve once:
 
 ```bash
+# Resolve via this skill's directory first:
 WIKI=$(ls "$SKILL_DIR/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py 2>/dev/null | head -1)
-[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
+[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=<abs path> manually"
 python3 "$WIKI" <command> ...
 ```
 
 `$SKILL_DIR` is this file's directory; `scripts/wiki.py` ships next to it.
-If no path resolves, set `WIKI=<absolute path>` manually — never substitute
+If nothing resolves, set `WIKI=<absolute path>` manually — never substitute
 your own layout.
 
 **Do NOT create `.llm-wiki/`, `wiki.json`, claims or sources by hand** — a
-hand-made layout is unusable.
+hand-made layout is unusable by the scripts.
 If one exists without `.state/`, it is debris: ask before removing it.
 
 ## Hard rules
@@ -57,7 +57,7 @@ If one exists without `.state/`, it is debris: ask before removing it.
 |---|---|---|
 | Set up memory | references/COMMANDS.md#init | `wiki.py init --name <project>` |
 | Add evidence (docs/URLs/repos/sessions) | references/COMMANDS.md#ingest | `wiki.py ingest --file <p>` |
-| Turn evidence into claims | references/COMMANDS.md#compile + references/RECONCILIATION.md + references/EXTRACTION.md | `wiki.py compile` |
+| Turn evidence into claims | references/COMMANDS.md#compile + references/EXTRACTION.md | `wiki.py compile` |
 | Write/refresh wiki pages | references/COMMANDS.md#write + `wiki-write` skill (PAGES.md) | `wiki.py page-targets` |
 | Answer a question | references/COMMANDS.md#query | `wiki.py query-prepare --question "..."` |
 | Task context / resume | references/CONTEXT-PACKS.md | `wiki.py context-pack --task "..." --budget 6000` |
@@ -66,22 +66,23 @@ If one exists without `.state/`, it is debris: ask before removing it.
 | Topics list/backfill | references/COMMANDS.md#topics | `wiki.py topics [--backfill]` |
 | Diagnose memory | references/COMMANDS.md#doctor | `wiki.py doctor` |
 | Clean corpus | references/COMMANDS.md#dream | `wiki.py dream` |
+| Export openwiki bundle | COMMANDS.md#export-okf | `wiki.py export-okf` |
 
-Architecture: references/ARCHITECTURE.md · Evaluation: references/EVALUATION.md.
+Architecture: references/ARCHITECTURE.md. Evaluation: references/EVALUATION.md.
 
 ## Failure behavior
 
-A failed subcommand leaves canonical state untouched. On exit code 4,
-re-run `status`, re-apply your decision, commit the fresh revision. On
-repeated failures run `wiki.py doctor` and report findings.
+A failed subcommand leaves canonical state untouched. On exit code 4, re-run
+`compile`/`status`, re-apply your semantic decision, and commit with the
+fresh revision. On repeated failures run `wiki.py doctor` and report findings.
 
-## Red flags — STOP and re-read this skill
+## Red flags — stop and re-read this skill
 
-- You are about to `mkdir .llm-wiki` or write `wiki.json`/claim files yourself.
+- About to `mkdir .llm-wiki` or write `wiki.json`/claim files yourself.
 - You cannot find `scripts/wiki.py` — resolve `$SKILL_DIR/scripts/wiki.py`
   first, then the fixed install paths; never substitute your own layout.
 - You answered a project question without `query-prepare` output or citations.
 - You loaded more than one or two full sources into context during compile —
-  process sources one at a time and write candidates per source.
-- You are about to create a new page when `page-targets` said
-  `routing: extend-first` — extend the twin or pass `--allow-new` deliberately.
+  process one source at a time.
+- Creating a new page when `page-targets` said `extend-first` — extend the
+  twin or deliberately pass `--allow-new`.

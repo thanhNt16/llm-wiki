@@ -1,6 +1,6 @@
 # llm-wiki — evidence-backed project memory for coding agents
 
-Implementation of the OMP LLM Wiki PRD (`PRD.md` v0.3) as an installable
+Implementation of the OMP LLM Wiki PRD (`docs/PRD.md` v0.3) as an installable
 [Agent Skill](https://agentskills.io) for [Oh My Pi](https://omp.dev) (OMP).
 
 ## What it does

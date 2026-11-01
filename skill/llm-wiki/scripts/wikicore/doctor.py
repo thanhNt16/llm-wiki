@@ -1,11 +1,13 @@
 """wiki-doctor: static + semantic diagnostics over the wiki (PRD §37, §24)."""
 import datetime
 import fcntl
+import importlib.util
 import json
 import os
 import re
+import shutil
 
-from . import claims, deps, review, schema as schema_mod, synthesize
+from . import claims, deps, ftx, review, schema as schema_mod, synthesize
 from .hashing import canonical_json
 from .transaction import TxnError
 
@@ -20,7 +22,6 @@ _WIKI_LINK_RE = re.compile(r"\[\[([a-z]+_[0-9A-Za-z]+)\]\]")
 # Wiki sections whose content pages make up the navigation fabric.
 _PAGE_SECTIONS = ("concepts", "entities", "procedures", "questions",
                   "sources", "changes")
-
 # Candidates left unreviewed longer than this are flagged as semantic debt.
 _CANDIDATE_AGE_DAYS = 14
 
@@ -444,15 +445,51 @@ def run(wiki) -> dict:
                     "re-write page at wiki/%s/%s.md or fix the topic kind" % (want, slug))
 
 
+    # --- SP2a: FTS retrieval cache health --------------------------------
+    fts_h = ftx.health(wiki)
+    if not fts_h["usable"] and fts_h["reason"] != "missing":
+        add("warn", "fts_stale",
+            "FTS cache %s (rows=%s, stamped revision=%s, manifest=%s); "
+            "queries fall back to the legacy ranker"
+            % (fts_h["reason"], fts_h["rows"], fts_h["revision"],
+               fts_h["expected_revision"]),
+            "run: wiki.py doctor --rebuild-fts")
+
+
     severity_rank = {"error": 0, "warn": 1, "info": 2}
     findings.sort(key=lambda f: (severity_rank[f["severity"]], f["code"]))
     ok = not any(f["severity"] == "error" for f in findings)
-    return {"ok": ok, "findings": findings,
+    return {"ok": ok, "findings": findings, "fts": fts_h,
+            "extractors": _extractor_capability(),
             "counts": {s: sum(1 for f in findings if f["severity"] == s)
                        for s in ("error", "warn", "info")},
             "repair_plan": sorted(plan, key=lambda p: (p["code"], p["path"]))}
 
 
+# Document formats whose text extraction depends on markitdown (module or
+# CLI). When neither is present the agent must parse these itself.
+_EXTRACTOR_FORMATS = ("application/pdf", ".docx", ".xlsx")
+
+
+def _extractor_capability() -> dict:
+    try:
+        have_module = importlib.util.find_spec("markitdown") is not None
+    except (ValueError, ImportError):
+        have_module = False
+    if have_module:
+        via = "module"
+    elif shutil.which("markitdown"):
+        via = "cli"
+    else:
+        via = None
+    available = via is not None
+    return {"markitdown": {
+        "available": available,
+        "via": via,
+        "formats": {fmt: "extracted" if available else "agent-handoff"
+                    for fmt in _EXTRACTOR_FORMATS},
+        "remediation": None if available else "pip install markitdown (optional)",
+    }}
 def _read(rel, wiki):
     path = wiki.p(rel)
     try:

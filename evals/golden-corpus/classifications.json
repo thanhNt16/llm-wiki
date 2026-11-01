@@ -1,0 +1,17 @@
+[
+  {"source": "docs/adr-019-attribution.md", "index": 0, "relationship": "UNRELATED"},
+  {"source": "notes/memo-2026-09-01-window-change.md", "index": 0, "relationship": "CORRECTION",
+   "target": {"subject": "analytics", "predicate": "click lookback window"}},
+  {"source": "docs/spec-attribution-window.pdf", "index": 0, "relationship": "SCOPE_DIFFERENCE",
+   "authority": {"type": "authoritative_source"}},
+  {"source": "config/analytics.prod.json", "index": 0, "relationship": "CORROBORATION",
+   "target": {"subject": "analytics", "predicate": "click lookback window"}},
+  {"source": "config/analytics.prod.json", "index": 1, "relationship": "CONTRADICTION",
+   "target": {"subject": "payment gateway", "predicate": "retry count"}},
+  {"source": "config/analytics.sandbox.json", "index": 0, "relationship": "SCOPE_DIFFERENCE",
+   "authority": {"type": "authoritative_source"}},
+  {"source": "data/config-matrix.csv", "index": 0, "relationship": "CORROBORATION",
+   "target": {"subject": "analytics", "predicate": "click lookback window"}},
+  {"source": "services/analytics/attribution.py", "index": 0, "relationship": "CORROBORATION",
+   "target": {"subject": "analytics", "predicate": "click lookback window"}}
+]

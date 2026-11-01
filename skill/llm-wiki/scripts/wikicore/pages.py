@@ -276,7 +276,7 @@ def build_pages(wiki, base_revision: int) -> dict:
     rel = "wiki/log.md"
     txn.stage_write(rel, write_log(wiki))
     built.append(rel)
-    deps.register(txn, rel, [])
+    deps.replace(txn, rel, [])
     # --- decision pages ---------------------------------------------------
     for d in decisions:
         deps_list = ["%s@%d" % (d["id"], d["version"])]
@@ -447,7 +447,6 @@ def _render_index_fabric(wiki, txn) -> list:
     built.append("wiki/overview.md")
     deps.replace(txn, "wiki/overview.md", [])
     return built
-
 
 
 def rebuild_section_indexes(wiki) -> list:

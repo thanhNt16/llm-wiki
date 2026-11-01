@@ -1,0 +1,2 @@
+{"subject":"analytics","predicate":"click lookback window","value":7,"scope":{"env":"production"}}
+{"subject":"payment gateway","predicate":"retry count","value":5}
