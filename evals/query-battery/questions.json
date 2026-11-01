@@ -1,0 +1,194 @@
+[
+  {
+    "qid": "K00",
+    "kind": "KEY",
+    "question": "Which database does orders.service.00 use?",
+    "expected_subjects": [
+      "orders.service.00"
+    ]
+  },
+  {
+    "qid": "K01",
+    "kind": "KEY",
+    "question": "Which database does billing.service.01 use?",
+    "expected_subjects": [
+      "billing.service.01"
+    ]
+  },
+  {
+    "qid": "K02",
+    "kind": "KEY",
+    "question": "Which database does shipping.service.02 use?",
+    "expected_subjects": [
+      "shipping.service.02"
+    ]
+  },
+  {
+    "qid": "K03",
+    "kind": "KEY",
+    "question": "Which database does auth.service.03 use?",
+    "expected_subjects": [
+      "auth.service.03"
+    ]
+  },
+  {
+    "qid": "S00",
+    "kind": "SEM",
+    "question": "What is orders service 00 using for storage?",
+    "expected_subjects": [
+      "orders.service.00"
+    ]
+  },
+  {
+    "qid": "S01",
+    "kind": "SEM",
+    "question": "What is billing service 01 using for storage?",
+    "expected_subjects": [
+      "billing.service.01"
+    ]
+  },
+  {
+    "qid": "S02",
+    "kind": "SEM",
+    "question": "What is shipping service 02 using for storage?",
+    "expected_subjects": [
+      "shipping.service.02"
+    ]
+  },
+  {
+    "qid": "S03",
+    "kind": "SEM",
+    "question": "What is auth service 03 using for storage?",
+    "expected_subjects": [
+      "auth.service.03"
+    ]
+  },
+  {
+    "qid": "A00",
+    "kind": "ABBR",
+    "question": "What does svc008 depend on for storage?",
+    "expected_subjects": [
+      "shipping.worker.08"
+    ]
+  },
+  {
+    "qid": "A01",
+    "kind": "ABBR",
+    "question": "What does svc009 depend on for storage?",
+    "expected_subjects": [
+      "auth.worker.09"
+    ]
+  },
+  {
+    "qid": "A02",
+    "kind": "ABBR",
+    "question": "What does svc010 depend on for storage?",
+    "expected_subjects": [
+      "search.worker.10"
+    ]
+  },
+  {
+    "qid": "A03",
+    "kind": "ABBR",
+    "question": "What does svc011 depend on for storage?",
+    "expected_subjects": [
+      "notify.worker.11"
+    ]
+  },
+  {
+    "qid": "R00",
+    "kind": "REL",
+    "question": "search service 04 replaced which service?",
+    "expected_subjects": [
+      "search.service.04"
+    ]
+  },
+  {
+    "qid": "R01",
+    "kind": "REL",
+    "question": "notify service 05 replaced which service?",
+    "expected_subjects": [
+      "notify.service.05"
+    ]
+  },
+  {
+    "qid": "R02",
+    "kind": "REL",
+    "question": "orders worker 06 replaced which service?",
+    "expected_subjects": [
+      "orders.worker.06"
+    ]
+  },
+  {
+    "qid": "R03",
+    "kind": "REL",
+    "question": "billing worker 07 replaced which service?",
+    "expected_subjects": [
+      "billing.worker.07"
+    ]
+  },
+  {
+    "qid": "H00",
+    "kind": "HIST",
+    "question": "As of today what retry policy governs orders.queue.12?",
+    "expected_subjects": [
+      "orders.queue.12"
+    ]
+  },
+  {
+    "qid": "H01",
+    "kind": "HIST",
+    "question": "As of today what retry policy governs billing.queue.13?",
+    "expected_subjects": [
+      "billing.queue.13"
+    ]
+  },
+  {
+    "qid": "H02",
+    "kind": "HIST",
+    "question": "As of today what retry policy governs shipping.queue.14?",
+    "expected_subjects": [
+      "shipping.queue.14"
+    ]
+  },
+  {
+    "qid": "H03",
+    "kind": "HIST",
+    "question": "As of today what retry policy governs auth.queue.15?",
+    "expected_subjects": [
+      "auth.queue.15"
+    ]
+  },
+  {
+    "qid": "D00",
+    "kind": "DEC",
+    "question": "Who owns search.queue.16?",
+    "expected_subjects": [
+      "search.queue.16"
+    ]
+  },
+  {
+    "qid": "D01",
+    "kind": "DEC",
+    "question": "Who owns notify.queue.17?",
+    "expected_subjects": [
+      "notify.queue.17"
+    ]
+  },
+  {
+    "qid": "D02",
+    "kind": "DEC",
+    "question": "Who owns orders.store.18?",
+    "expected_subjects": [
+      "orders.store.18"
+    ]
+  },
+  {
+    "qid": "D03",
+    "kind": "DEC",
+    "question": "Who owns billing.store.19?",
+    "expected_subjects": [
+      "billing.store.19"
+    ]
+  }
+]

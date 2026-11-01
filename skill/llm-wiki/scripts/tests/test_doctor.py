@@ -740,6 +740,5 @@ class AutoDecisionStubFindingTest(unittest.TestCase):
         out = doctor.run(wiki)
         self.assertEqual(self._stub_findings(out), [])
 
-
 if __name__ == "__main__":
     unittest.main()

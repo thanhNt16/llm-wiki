@@ -99,7 +99,7 @@ class TestGraphData(unittest.TestCase):
         pm = [n for n in ents if n["key"] == "demo.pm97"][0]
         self.assertEqual(pm["label"], "pm97")
         self.assertEqual(pm["claim_count"], 2)
-        self.assertEqual(len(pm["claims"]), 2)
+        self.assertEqual(len(pm["claim_ids"]), 2)
 
     def test_evidence_edge_to_source(self):
         wiki = fresh("demo")
@@ -225,7 +225,7 @@ class TestGraphData(unittest.TestCase):
         put_claim(wiki, "claim_old", "demo.pm97.role", "handles", "old",
                   status="superseded",
                   evidence=[{"source_id": "source_aaa", "version": 1}])
-        p = payload(wiki)
+        p = graphdata.graph_payload(wiki, full=True)
         ent = by_kind(p, "entity")[0]
         self.assertEqual(ent["claims"][0]["status"], "superseded")
         self.assertEqual(links(p, "evidence"), [])

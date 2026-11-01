@@ -22,9 +22,11 @@ Every `results.jsonl` entry MUST contain every `required` field of
 `results.schema.json`: `scenario`, `timestamp` (ISO-8601 UTC),
 `engine_commit` (the `git rev-parse HEAD` of the checkout under test — results
 without an engine commit are not comparable across runs), `pass`, `answer`,
-`citations` (claim/decision ids). `scenario` MUST be one of the nine enum
-values below (`injection` covers the §55 adversarial check). `rubric_notes`
-is optional free text — record why a marginal run passed or failed.
+`citations` (claim/decision ids). `scenario` MUST be one of the ten enum
+values in `results.schema.json` (`injection` covers the §55 adversarial
+check; `longitudinal_classifier` is the `longitudinal.py` scenario, not a
+question row). `rubric_notes` is optional free text — record why a
+marginal run passed or failed.
 
 | # | Scenario | Question | Pass requires |
 |---|----------|----------|---------------|

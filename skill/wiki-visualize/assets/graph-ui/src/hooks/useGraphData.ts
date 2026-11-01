@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { GraphData } from "../lib/types";
-import { loadWikiData } from "../lib/layout";
+import { loadWikiData, refreshWikiData } from "../lib/layout";
 
 export interface LoadProgress {
   receivedBytes: number;
@@ -43,6 +43,26 @@ export function useGraphData(): UseGraphDataResult {
   const [data, setData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [, forceSse] = useState(0);
+  useEffect(() => {
+    /* Live reload: `wiki.py viz-serve` pushes `event: reload` over SSE when
+     * the store changes. Static exports / file:// have no /events — skip. */
+    if (!/^https?:$/.test(globalThis.location?.protocol ?? "")) return;
+    const es = new EventSource("/events");
+    const onReload = () => {
+      refreshWikiData()
+        .then((d) => {
+          setData(d);
+          forceSse((n) => n + 1);
+        })
+        .catch(() => {/* transient mid-write regen; next event retries */});
+    };
+    es.addEventListener("reload", onReload);
+    return () => {
+      es.removeEventListener("reload", onReload);
+      es.close();
+    };
+  }, []);
 
   const fetchOverview = useCallback(() => {
     setLoading(true);

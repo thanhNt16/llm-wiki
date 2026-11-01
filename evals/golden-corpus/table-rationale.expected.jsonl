@@ -1,0 +1,5 @@
+{"subject":"Airflow","predicate":"equivalence","value":"MWAA","locator":"l:10"}
+{"subject":"Cloud Composer","predicate":"equivalence","value":"Cloud Composer","locator":"l:11"}
+{"subject":"OSS Airflow","predicate":"equivalence","value":"MWAA","locator":"l:12"}
+{"subject":"orchestrator selection","predicate":"rationale","value":"managed scheduler removes on-call burden and existing DAGs run unmodified","locator":"s:because the managed scheduler removes on-call burden and our existing DAGs run unmodified","authority":"decision"}
+{"subject":"MWAA","predicate":"expansion","value":"Managed Workflows for Apache Airflow","locator":"s:MWAA (Managed Workflows for Apache Airflow)"}

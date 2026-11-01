@@ -1,0 +1,329 @@
+{
+  "ranker": "bm25",
+  "per_q": [
+    {
+      "qid": "K00",
+      "kind": "KEY",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "orders.service.00",
+        "orders.service.00",
+        "orders.service.00",
+        "orders.service.00",
+        "orders.worker.06"
+      ]
+    },
+    {
+      "qid": "K01",
+      "kind": "KEY",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "billing.service.01",
+        "billing.service.01",
+        "billing.service.01",
+        "billing.worker.07",
+        "billing.queue.13"
+      ]
+    },
+    {
+      "qid": "K02",
+      "kind": "KEY",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "shipping.service.02",
+        "shipping.service.02",
+        "shipping.service.02",
+        "shipping.worker.08",
+        "shipping.queue.14"
+      ]
+    },
+    {
+      "qid": "K03",
+      "kind": "KEY",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "auth.service.03",
+        "auth.service.03",
+        "auth.service.03",
+        "auth.worker.09",
+        "auth.queue.15"
+      ]
+    },
+    {
+      "qid": "S00",
+      "kind": "SEM",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "orders.service.00",
+        "orders.service.00",
+        "orders.service.00",
+        "orders.service.00",
+        "billing.service.01"
+      ]
+    },
+    {
+      "qid": "S01",
+      "kind": "SEM",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "billing.service.01",
+        "billing.service.01",
+        "billing.service.01",
+        "billing.service.01",
+        "shipping.service.02"
+      ]
+    },
+    {
+      "qid": "S02",
+      "kind": "SEM",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "shipping.service.02",
+        "shipping.service.02",
+        "shipping.service.02",
+        "shipping.service.02",
+        "auth.service.03"
+      ]
+    },
+    {
+      "qid": "S03",
+      "kind": "SEM",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "auth.service.03",
+        "auth.service.03",
+        "auth.service.03",
+        "auth.service.03",
+        "search.service.04"
+      ]
+    },
+    {
+      "qid": "A00",
+      "kind": "ABBR",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "shipping.worker.08"
+      ]
+    },
+    {
+      "qid": "A01",
+      "kind": "ABBR",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "auth.worker.09"
+      ]
+    },
+    {
+      "qid": "A02",
+      "kind": "ABBR",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "search.worker.10"
+      ]
+    },
+    {
+      "qid": "A03",
+      "kind": "ABBR",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "notify.worker.11"
+      ]
+    },
+    {
+      "qid": "R00",
+      "kind": "REL",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "search.service.04",
+        "search.service.04",
+        "search.service.04",
+        "notify.service.05",
+        "search.service.04"
+      ]
+    },
+    {
+      "qid": "R01",
+      "kind": "REL",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "notify.service.05",
+        "notify.service.05",
+        "notify.service.05",
+        "notify.service.05",
+        "notify.service.05"
+      ]
+    },
+    {
+      "qid": "R02",
+      "kind": "REL",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "orders.worker.06",
+        "orders.worker.06",
+        "orders.worker.06",
+        "billing.worker.07",
+        "orders.worker.06"
+      ]
+    },
+    {
+      "qid": "R03",
+      "kind": "REL",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "billing.worker.07",
+        "billing.worker.07",
+        "billing.worker.07",
+        "shipping.worker.08",
+        "billing.worker.07"
+      ]
+    },
+    {
+      "qid": "H00",
+      "kind": "HIST",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "orders.queue.12",
+        "orders.queue.12",
+        "orders.queue.12",
+        "billing.queue.13",
+        "orders.queue.12"
+      ]
+    },
+    {
+      "qid": "H01",
+      "kind": "HIST",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "billing.queue.13",
+        "billing.queue.13",
+        "billing.queue.13",
+        "billing.queue.13",
+        "shipping.queue.14"
+      ]
+    },
+    {
+      "qid": "H02",
+      "kind": "HIST",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "shipping.queue.14",
+        "shipping.queue.14",
+        "shipping.queue.14",
+        "shipping.queue.14",
+        "auth.queue.15"
+      ]
+    },
+    {
+      "qid": "H03",
+      "kind": "HIST",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "auth.queue.15",
+        "auth.queue.15",
+        "auth.queue.15",
+        "auth.queue.15",
+        "search.queue.16"
+      ]
+    },
+    {
+      "qid": "D00",
+      "kind": "DEC",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "search.queue.16",
+        "search.queue.16",
+        "search.queue.16",
+        "notify.queue.17",
+        "search.queue.16"
+      ]
+    },
+    {
+      "qid": "D01",
+      "kind": "DEC",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "notify.queue.17",
+        "notify.queue.17",
+        "notify.queue.17",
+        "notify.queue.17",
+        "notify.queue.17"
+      ]
+    },
+    {
+      "qid": "D02",
+      "kind": "DEC",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "orders.store.18",
+        "orders.store.18",
+        "billing.store.19",
+        "orders.store.18",
+        "orders.store.18"
+      ]
+    },
+    {
+      "qid": "D03",
+      "kind": "DEC",
+      "hit_top1": true,
+      "hit_topk": true,
+      "returned_subjects": [
+        "billing.store.19",
+        "billing.store.19",
+        "billing.store.19",
+        "shipping.store.20",
+        "billing.store.19"
+      ]
+    }
+  ],
+  "recall_top1": 1.0,
+  "recall_topk": 1.0,
+  "by_kind": {
+    "ABBR": {
+      "recall_top1": 1.0,
+      "recall_topk": 1.0
+    },
+    "DEC": {
+      "recall_top1": 1.0,
+      "recall_topk": 1.0
+    },
+    "HIST": {
+      "recall_top1": 1.0,
+      "recall_topk": 1.0
+    },
+    "KEY": {
+      "recall_top1": 1.0,
+      "recall_topk": 1.0
+    },
+    "REL": {
+      "recall_top1": 1.0,
+      "recall_topk": 1.0
+    },
+    "SEM": {
+      "recall_top1": 1.0,
+      "recall_topk": 1.0
+    }
+  }
+}

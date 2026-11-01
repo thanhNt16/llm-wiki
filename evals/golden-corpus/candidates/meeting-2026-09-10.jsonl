@@ -1,0 +1,2 @@
+{"subject":"analytics","predicate":"click lookback window","value":30}
+{"subject":"orders service","predicate":"event durability transport","value":"transactional outbox"}

@@ -21,6 +21,10 @@ python3 "$WIKI" query-prepare --question "what is the current attribution window
 python3 "$WIKI" query-prepare --question "what was it in August?" --as-of 2026-08-15
 ```
 
+Ranking is FTS5 BM25 over porter-stemmed claim text; the output `ranker`
+field is `bm25`, or `legacy` when the cache is stale — fix with
+`wiki.py doctor --rebuild-fts`.
+
 ## Answer contract — include in prose
 
 1. **Answer** — the direct result.

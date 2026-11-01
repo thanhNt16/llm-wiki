@@ -1,0 +1,194 @@
+<!doctype html>
+<!-- SP3-T9/F4: the #reader pane below (style + inline script) is
+     hand-maintained in this dist shell — it is NOT part of the vite build
+     output. Any rebuild (`vite build` / graph-ui regen) silently drops it;
+     re-apply this block after any rebuild. -->
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>llm-wiki — Knowledge Graph</title>
+    <style>
+      /* SP3-T9: prose reader pane — vanilla, no deps (built bundle is
+       * immutable, so the pane lives in the shell page). */
+      #reader {
+        position: fixed; top: 0; right: 0; height: 100vh;
+        width: min(560px, 44vw); display: none; flex-direction: column;
+        background: rgba(10, 14, 22, 0.96); backdrop-filter: blur(8px);
+        border-left: 1px solid #2a3340; z-index: 80; color: #e4e4ed;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      #reader.open { display: flex; }
+      #reader-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; padding: 10px 14px; border-bottom: 1px solid #2a3340;
+        flex: 0 0 auto;
+      }
+      #reader-title {
+        margin: 0; font-size: 14px; font-weight: 600;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      #reader-close {
+        background: none; border: 0; color: #8b95a5; font-size: 20px;
+        cursor: pointer; line-height: 1; padding: 2px 6px;
+      }
+      #reader-close:hover { color: #e4e4ed; }
+      #reader-body {
+        flex: 1 1 auto; margin: 0; padding: 14px; overflow-y: auto;
+        white-space: pre-wrap; word-break: break-word;
+        font-size: 12.5px; line-height: 1.55; color: #c9d2e0;
+      }
+    </style>
+    <script>
+      /* SP3-T9/F4: prose reader. The graph bundle renders node detail on
+       * click; we observe the detail panel's qualified-name line
+       * (p.font-mono.break-all.leading-relaxed, e.g. "wiki/concepts/foo.md")
+       * — scoped so the 3D hover tooltip (font-mono truncate) never matches.
+       * When it names a payload node with kind === "page", #reader opens
+       * with that node's label + .body (plain text, markdown source).
+       * Non-page nodes never match, so behavior is unchanged.
+       * Dedupe + dismissal latch keep the observer from self-feeding on
+       * our own textContent writes and keep ×/Escape dismissals stuck. */
+      (function () {
+        "use strict";
+        var SEL = "p.font-mono.break-all.leading-relaxed";
+        var byKey = Object.create(null); /* page key -> {label, body} */
+        var loaded = false;
+        var loading = null;
+        var failed = false;   /* definitive fetch failure — stop retrying */
+        var shownKey = null;  /* key currently rendered (dedupe) */
+        var dismissed = null; /* key user closed — stays shut until deselected */
+
+        function ingest(payload) {
+          if (!payload || !payload.nodes) return;
+          for (var i = 0; i < payload.nodes.length; i++) {
+            var n = payload.nodes[i];
+            if (n.kind === "page" && typeof n.key === "string") {
+              byKey[n.key] = { label: n.label || n.key, body: n.body || "" };
+            }
+          }
+          loaded = true;
+        }
+
+        var ofetch = window.fetch ? window.fetch.bind(window) : null;
+        if (ofetch) {
+          window.fetch = function (input, init) {
+            var res = ofetch(input, init);
+            try {
+              var url = typeof input === "string" ? input
+                : (input && input.url) || "";
+              if (/graph-data\.json([?#]|$)/.test(url)) {
+                res.then(function (r) {
+                  if (r.ok && r.clone) {
+                    r.clone().json().then(ingest, function () {});
+                  }
+                }, function () {});
+              }
+            } catch (e) { /* never disturb the app's fetch */ }
+            return res;
+          };
+        }
+
+        function ensureData() {
+          /* Fallback for file:// exports / paths that bypassed the wrapper.
+           * `failed` latches so a 404/missing export doesn't refetch on
+           * every mutation for the life of the page. */
+          if (loaded || loading || failed || !ofetch) return;
+          loading = ofetch("./graph-data.json")
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (p) {
+              if (p && p.nodes) ingest(p);
+              else failed = true;
+              scan();
+            })
+            .catch(function () { failed = true; })
+            .then(function () { loading = null; });
+        }
+
+        function pane() { return document.getElementById("reader"); }
+        function show(key) {
+          if (shownKey === key) return; /* dedupe: break observer self-feed */
+          var n = byKey[key];
+          if (!n) return;
+          document.getElementById("reader-title").textContent = n.label;
+          var bodyEl = document.getElementById("reader-body");
+          bodyEl.textContent = n.body ? n.body : "(empty page)";
+          pane().classList.add("open");
+          shownKey = key;
+        }
+        function hide() {
+          var p = pane();
+          if (p) p.classList.remove("open");
+          dismissed = shownKey;
+          shownKey = null;
+        }
+
+        /* records=null → full-document scan; otherwise inspect only the
+         * mutated subtrees (cheap — avoids rescans on every DOM write). */
+        function scan(records) {
+          var hit = null, sawRemoval = false, sawExternal = false;
+          var p = pane();
+          var i, j, k, els, el;
+          if (!records) {
+            els = document.querySelectorAll(SEL);
+          } else {
+            els = [];
+            for (i = 0; i < records.length; i++) {
+              var rec = records[i];
+              if (p && p.contains(rec.target)) continue; /* our own writes */
+              sawExternal = true;
+              for (j = 0; j < rec.addedNodes.length; j++) {
+                el = rec.addedNodes[j];
+                if (el.nodeType !== 1) continue;
+                if (el.matches && el.matches(SEL)) els.push(el);
+                var inner = el.querySelectorAll(SEL);
+                for (k = 0; k < inner.length; k++) els.push(inner[k]);
+              }
+              for (j = 0; j < rec.removedNodes.length; j++) {
+                el = rec.removedNodes[j];
+                if (el.nodeType === 1 && ((el.matches && el.matches(SEL)) ||
+                    el.querySelectorAll(SEL).length)) sawRemoval = true;
+              }
+            }
+            if (!sawExternal) return; /* only our own mutations — skip */
+          }
+          for (i = 0; i < els.length; i++) {
+            var t = (els[i].textContent || "").trim();
+            if (byKey[t]) { hit = t; break; }
+          }
+          if (hit && hit !== dismissed) show(hit);
+          else if (!hit && (!records || sawRemoval || !shownKey)) {
+            hide();
+            dismissed = null; /* deselection resets the latch */
+          }
+        }
+
+        function start() {
+          document.getElementById("reader-close")
+            .addEventListener("click", hide);
+          document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") hide();
+          });
+          ensureData();
+          new MutationObserver(function (recs) {
+            ensureData(); scan(recs);
+          }).observe(document.body, { childList: true, subtree: true });
+        }
+        if (document.body) start();
+        else document.addEventListener("DOMContentLoaded", start);
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index-CPlIppNT.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-tt0fNaPJ.css">
+  </head>
+  <body class="bg-[#0a0a10] text-[#e4e4ed] min-h-screen">
+    <div id="root"></div>
+    <aside id="reader" aria-label="Page reader">
+      <div id="reader-head">
+        <h2 id="reader-title"></h2>
+        <button id="reader-close" title="Close reader" aria-label="Close">×</button>
+      </div>
+      <pre id="reader-body"></pre>
+    </aside>
+  </body>
+</html>

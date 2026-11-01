@@ -4,6 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from wikicore import claims, compile as wc_compile, deps, query, sources
 from wikicore.hashing import sha256_file
+from wikicore.text import norm_tokens
 from wikicore.store import Wiki, init_wiki
 
 def fresh():

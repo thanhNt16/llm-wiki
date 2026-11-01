@@ -17,6 +17,10 @@ Key docs: [ADR-001](docs/adr-001-postgres.md),
 [ADR-007](docs/adr-007-retries.md),
 [ADR-019](docs/adr-019-attribution.md).
 
+The benchmark ingests these files in a pinned order (ADR-019 → meeting →
+memo), which *avoids* the stale-meeting-note trap rather than exercising it
+— that trap remains the manual semantic scenarios' job.
+
 ## Corpus file list
 
 | Path | Role |

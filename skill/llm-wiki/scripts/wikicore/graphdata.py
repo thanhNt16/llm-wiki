@@ -99,7 +99,7 @@ def _list_sources(wiki) -> list:
             continue
     return out
 
-def graph_payload(wiki) -> dict:
+def graph_payload(wiki, full: bool = False) -> dict:
     if not wiki.exists():
         raise TxnError("wiki not initialized: run wiki init first")
     warnings = []
@@ -155,7 +155,7 @@ def graph_payload(wiki) -> dict:
             for c in clist
             if (c.get("authority") or {}).get("source")
         })
-        nodes.append({
+        node = {
             "id": i,
             "kind": "entity",
             "key": key,
@@ -164,9 +164,12 @@ def graph_payload(wiki) -> dict:
             "claim_count": len(clist),
             "size": _size("entity", len(clist)),
             "summary": _summarize(clist),
-            "claims": clist,
+            "claim_ids": [c["id"] for c in clist],
             "sources": cited + [a for a in auth if a not in cited],
-        })
+        }
+        if full:
+            node["claims"] = clist
+        nodes.append(node)
 
     src_ids = {}
     src_nodes = []
@@ -230,7 +233,7 @@ def graph_payload(wiki) -> dict:
                     page_rels.append("wiki/%s/%s" % (kind, name))
     for rel in sorted(page_rels):
         with open(wiki.p(rel)) as f:
-            front, _ = synthesize._split_front(f.read())
+            front, body = synthesize._split_front(f.read())
         singular = synthesize.KIND_TYPE[rel.split("/")[1]]
         idx = len(nodes) + len(src_nodes) + len(dec_nodes) + len(pages)
         page_ids[rel] = idx
@@ -252,6 +255,9 @@ def graph_payload(wiki) -> dict:
             "claims": [],
             "sources": [],
             "path": rel,
+            # T9: prose payload for the viz reader pane — markdown body
+            # (frontmatter stripped), capped so large pages stay portable.
+            "body": body[:20000],
         })
 
     links = []
@@ -344,8 +350,8 @@ def graph_payload(wiki) -> dict:
     all_nodes = nodes + src_nodes + dec_nodes + pages
 
     # Review-surface annotations (R3): per-node flags plus the queue summary
-    # under meta. Entity nodes carry claim dicts; decision nodes reference
-    # claim ids; pages/sources have none.
+    # under meta. Entity nodes carry claim ids (dicts only under full=True);
+    # decision nodes reference claim ids; pages/sources have none.
     open_affected = set()
     for item in wiki.read_jsonl(review.QUEUE):
         if item.get("status") == "open":
@@ -357,15 +363,11 @@ def graph_payload(wiki) -> dict:
         degree[l["source"]] = degree.get(l["source"], 0) + 1
         degree[l["target"]] = degree.get(l["target"], 0) + 1
     for n in all_nodes:
-        raw = n.get("claims") or []
-        if raw and isinstance(raw[0], dict):
-            cids = {c["id"] for c in raw}
-            statuses = {c.get("status", "") for c in raw}
-        else:
-            cids = set(raw)
-            statuses = {claim_status.get(c, "") for c in cids}
-            if n["kind"] == "decision":
-                statuses.add(dec_status.get(n["key"], ""))
+        raw = n.get("claim_ids") or n.get("claims") or []
+        cids = set(raw)
+        statuses = {claim_status.get(c, "") for c in cids}
+        if n["kind"] == "decision":
+            statuses.add(dec_status.get(n["key"], ""))
         terminal = statuses & set(claims.TERMINAL)
         n["flags"] = {
             "review_open": bool(cids & open_affected),

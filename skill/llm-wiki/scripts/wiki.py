@@ -15,12 +15,14 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from wikicore import claims, compile as wc_compile, contextpack, deps, doctor, dream, graphdata, pages, dirs  # noqa: E402
-from wikicore import ids, query, review, sources  # noqa: E402
+from wikicore import ftx, ids, query, review, sources  # noqa: E402
 from wikicore.shorthand import normalize_candidate, parse_candidates_file  # noqa: E402
-from wikicore import jev, synthesize  # noqa: E402
+from wikicore import jev, okf  # noqa: E402
+from wikicore import vizexport, vizserve  # noqa: E402
+from wikicore import synthesize  # noqa: E402
 from wikicore.yamlite import loads as yamlloads  # noqa: E402
 from wikicore.store import Wiki, SKILL_VERSION, init_wiki  # noqa: E402
-from wikicore.transaction import ConflictError, LockedError, Transaction, TxnError  # noqa: E402
+from wikicore.transaction import ConflictError, LockedError, Transaction, TxnError, wait_for_lock  # noqa: E402
 
 
 def _emit(obj) -> None:
@@ -86,6 +88,17 @@ def cmd_init(args) -> int:
 
 def cmd_ingest(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
+    if getattr(args, "list_connectors", False):
+        from wikicore import connectors
+        _emit({"connectors": connectors.list_presets()})
+        return 0
+    if args.connector:
+        if not args.ref:
+            raise TxnError("--connector requires --ref (endpoint URL or repo path)")
+        from wikicore import connectors
+        _emit(connectors.ingest_preset(wiki, args.connector, args.ref,
+                                       limit=args.limit, force=args.force))
+        return 0
     if args.kind and (args.url or args.dir or args.triage):
         raise TxnError("--kind only applies to --file/--text ingest")
     if args.triage:
@@ -120,11 +133,77 @@ def cmd_ingest(args) -> int:
         _emit(sources.ingest(wiki, "url", args.url, data, **kwargs))
     else:
         data = _read_bytes(args)
-        ref = args.file or args.text_ref or "inline"
+        ref = args.file or args.text_ref
+        if ref is None:
+            # --text without --text-ref must not collapse unrelated snippets
+            # onto one shared origin; mint a per-invocation identity instead.
+            # (ref is None implies args.text here: _read_bytes already raised
+            # when neither --text nor --file was given.)
+            ref = ids.new("text")
         kind = args.kind or ("text" if args.text is not None else "file")
         _emit(sources.ingest(wiki, kind, ref, data, **kwargs))
     return 0
 
+
+def cmd_ingest_git(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    from wikicore import connectors
+    _emit(connectors.ingest_git(wiki, args.repo, max_commits=args.max,
+                                force=args.force))
+    return 0
+
+
+def cmd_ingest_feed(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    from wikicore import connectors
+    if args.url:
+        data = _fetch_url(args.url, args.max_bytes)
+        ref = args.url
+    else:
+        with open(args.file, "rb") as f:
+            data = f.read()
+        ref = os.path.abspath(args.file)
+    _emit(connectors.ingest_feed(wiki, ref, data, limit=args.limit,
+                                 force=args.force))
+    return 0
+
+def cmd_build(args) -> int:
+    """One command: compile (until agent input is required) -> pages -> verify.
+
+    Honest blocking: exits 3 with the exact next action when a human/agent
+    step (candidate extraction or needs_review classification) is pending;
+    never invents content to finish the pipeline."""
+    wiki = Wiki(args.root or os.getcwd())
+    plan = wc_compile.compile_umbrella(wiki)
+    unstaged = [p for p in plan.get("pending", [])
+                if not os.path.isfile(p["candidates_path"])]
+    if unstaged:
+        _emit({"phase": "blocked", "step": "extract", "pending": unstaged,
+               "next": "write shorthand candidates to each candidates_path "
+                       "(wiki-compile), then re-run build"})
+        return 3
+    r = wc_compile.compile_umbrella(wiki, resume=True)
+    if r["phase"] == "classify":
+        _emit({"phase": "blocked", "step": "classify",
+               "needs_review": r["needs_review"],
+               "next": "write classifications.json for the flagged runs "
+                       "(wiki-review), then re-run build"})
+        return 3
+    if r["phase"] == "waiting":
+        pg = pages.build_pages(wiki, wiki.revision())
+        v = pages.verify(wiki)
+        _emit({"phase": "done", "compile": r, "pages": pg, "verify": v})
+        return 0 if v["ok"] else 3
+    # phase == "done": apply already rebuilt pages and verified
+    _emit({"phase": "done", "compile": r,
+           "pages": {"note": "rebuilt during apply"}, "verify": r["verify"]})
+    return 0 if r["verify"]["ok"] else 3
+
+def cmd_check_evidence(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    from wikicore import evidence
+    _emit(evidence.check_evidence(wiki, details_limit=args.details))
+    return 0
 
 def cmd_triage(args) -> int:
     if not os.path.isdir(args.dir):
@@ -139,7 +218,6 @@ def cmd_triage(args) -> int:
             raise TxnError("cannot write --out %s: %s" % (args.out, e))
     _emit(manifest)
     return 0
-
 
 def cmd_status(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
@@ -196,7 +274,7 @@ def cmd_stage_candidates(args) -> int:
         "parser": {"name": "agent", "version": "in-session"},
     }
     run_id = wc_compile.stage_candidates(wiki, args.source_id, args.source_version,
-                                         candidates, report)
+                                         candidates, report, run_id=args.run)
     _emit({"run_id": run_id, "staged": len(candidates)})
     return 0
 
@@ -374,13 +452,81 @@ def cmd_review(args) -> int:
     if args.review_cmd == "show":
         _emit(review.show(wiki, args.item))
         return 0
+    if args.review_cmd == "triage":
+        _emit(review.triage(wiki, group_by=args.group_by or "subject"))
+        return 0
+    if args.review_cmd == "apply":
+        if not args.file:
+            raise TxnError("review apply requires --file ACTIONS.json")
+        actions = _load_json_file(args.file)
+        if isinstance(actions, dict):
+            actions = actions.get("actions", [])
+        if not isinstance(actions, list):
+            raise TxnError("--file must be a JSON list of "
+                           '{"id","action","params"} or {"actions": [...]}')
+        base = args.base_revision if args.base_revision is not None else wiki.revision()
+        _emit(review.apply_batch(wiki, actions, base))
+        return 0
     if args.review_cmd == "act":
         params = _load_json_file(args.params) if args.params else {}
         base = args.base_revision if args.base_revision is not None else wiki.revision()
         out = review.act(wiki, args.item, args.action, params, base)
         _emit({"item": out["item"], "run_id": out["run_id"]})
         return 0
-    raise TxnError("review sub-command required: list|show|act")
+    raise TxnError("review sub-command required: list|show|act|triage|apply")
+
+
+def _parse_decision_evidence(wiki, specs) -> list:
+    """Each spec is source_<id>@<version>; version must exist in the manifest."""
+    out = []
+    for spec in specs or []:
+        sid, sep, ver = spec.partition("@")
+        if not sep or not ids.validate(sid) or not sid.startswith("source_") \
+                or not ver.isdigit():
+            raise TxnError("--evidence refs must look like source_<id>@<version>: %r" % spec)
+        manifest = sources.get_manifest(wiki, sid)
+        if not manifest:
+            raise TxnError("unknown evidence source: %s" % sid)
+        version = int(ver)
+        if not any(v["version"] == version for v in manifest.get("versions", [])):
+            raise TxnError("unknown version %d of %s" % (version, sid))
+        out.append({"source_id": sid, "source_version": version,
+                    "locator": {"type": "text",
+                                "value": manifest.get("origin") or sid}})
+    return out
+
+
+def cmd_decide(args) -> int:
+    """Record a project decision (PRD §3): the only decisions/ write path."""
+    wiki = Wiki(args.root or os.getcwd())
+    if not wiki.exists():
+        raise TxnError("wiki not initialized; run wiki-init first")
+    claim_ids = [c.strip() for c in (args.claims or "").split(",") if c.strip()]
+    for cid in claim_ids:
+        if not cid.startswith("claim_") or not ids.validate(cid):
+            raise TxnError("--claims entries must be claim_<id>: %r" % cid)
+        claims.load_claim(wiki, cid)  # TxnError on unknown id
+    evidence = _parse_decision_evidence(wiki, args.evidence)
+    decision = {
+        "id": ids.new("decision"),
+        "title": args.title,
+        "status": args.status,
+        "decided_on": args.decided_on or time.strftime("%Y-%m-%d", time.gmtime()),
+        "claims": sorted(set(claim_ids)),
+        "evidence": evidence,
+    }
+    if args.body:
+        decision["body"] = args.body
+    if args.authority:
+        decision["authority"] = {"type": args.authority}
+    txn = Transaction(wiki, "wiki-decide")
+    claims.save_decision(txn, decision)
+    txn.changes = {"decisions_created": 1}
+    base = args.base_revision if args.base_revision is not None else wiki.revision()
+    receipt = txn.commit(base)
+    _emit({"decision": decision, "run_id": receipt["run_id"],
+           "revision": receipt["revision"]})
+    return 0
 
 
 def _parse_decision_evidence(wiki, specs) -> list:
@@ -446,6 +592,12 @@ def cmd_record_decision(args) -> int:
 
 def cmd_doctor(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
+    if getattr(args, "rebuild_index", False):
+        _emit({"index_rebuilt": claims.rebuild_index(wiki)})
+        return 0
+    if getattr(args, "rebuild_fts", False):
+        _emit({"fts_rebuilt": ftx.rebuild(wiki)})
+        return 0
     if args.fix_indexes:
         # Repair mode (design D1, spec §3.1): rebuild every section index +
         # overview.md through the build-pages renderer, then re-lint.
@@ -494,7 +646,7 @@ def cmd_topics(args) -> int:
 
 def cmd_graph_data(args) -> int:
     wiki = Wiki(args.root or os.getcwd())
-    payload = graphdata.graph_payload(wiki)
+    payload = graphdata.graph_payload(wiki, full=getattr(args, "full", False))
     text = json.dumps(payload, ensure_ascii=False)
     if args.output:
         with open(args.output, "w") as f:
@@ -505,6 +657,22 @@ def cmd_graph_data(args) -> int:
         print(text)
     return 0
 
+def cmd_export_okf(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    _emit(okf.export(wiki, args.output))
+    return 0
+
+def cmd_graph_export(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    _emit(vizexport.export(wiki, args.output,
+                           ui_dist_dir=getattr(args, "ui_dist", None)))
+    return 0
+
+def cmd_viz_serve(args) -> int:
+    wiki = Wiki(args.root or os.getcwd())
+    return vizserve.serve(
+        wiki, port=args.port, ui_dist_dir=getattr(args, "ui_dist", None),
+        no_open=args.no_open) or 0
 def cmd_jev(args) -> int:
     """Read-only Jev advisory helper. --check answers "configured?" and
     always exits 0; --state/--question run one typed query and print the
@@ -540,10 +708,16 @@ def cmd_dream(args) -> int:
     _emit(dream.run(wiki, apply=args.apply, phases=args.phase or None))
     return 0
 
-
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="wiki.py", description="llm-wiki deterministic core")
     ap.add_argument("--root", default=None, help="project root (default: cwd)")
+    ap.add_argument("--wait-lock", type=float, default=30.0, dest="wait_lock",
+                    metavar="SECONDS",
+                    help="mutating commands: wait up to SECONDS for the commit "
+                         "lock before running (default 30; exit 5 on timeout)")
+    ap.add_argument("--no-wait", action="store_const", const=0.0,
+                    dest="wait_lock",
+                    help="fail immediately when the commit lock is held")
     sub = ap.add_subparsers(dest="command")
 
     p = sub.add_parser("init")
@@ -564,9 +738,33 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--normalized-content", default=None, help="agent-produced extraction markdown file")
     p.add_argument("--parser-name", default=None, help="parser label for --normalized-content, e.g. agent-vision")
     p.add_argument("--force", action="store_true", help="bypass sha256 dedup and append a new version")
+    p.add_argument("--connector", default=None,
+                   help="preset connector name (see --list-connectors)")
+    p.add_argument("--ref", default=None,
+                   help="endpoint ref for --connector (URL or repo path)")
+    p.add_argument("--limit", type=int, default=50,
+                   help="max items for --connector")
+    p.add_argument("--list-connectors", action="store_true", dest="list_connectors",
+                   help="list connector preset names and exit (read-only)")
     p.add_argument("--triage", default=None, metavar="MANIFEST",
                    help="batch-ingest a manifest produced by `wiki.py triage`")
     p.set_defaults(fn=cmd_ingest)
+
+    p = sub.add_parser("ingest-git",
+                       help="ingest git commit history as evidence sources")
+    p.add_argument("--repo", default=".", help="path to a git repository")
+    p.add_argument("--max", type=int, default=200, help="max commits (oldest-first)")
+    p.add_argument("--force", action="store_true")
+    p.set_defaults(fn=cmd_ingest_git)
+
+    p = sub.add_parser("ingest-rss",
+                       help="ingest an RSS/Atom feed (URL or file) as evidence sources")
+    p.add_argument("--url", default=None)
+    p.add_argument("--file", default=None)
+    p.add_argument("--limit", type=int, default=50)
+    p.add_argument("--max-bytes", type=int, default=dirs.DEFAULT_MAX_BYTES)
+    p.add_argument("--force", action="store_true")
+    p.set_defaults(fn=cmd_ingest_feed)
 
     p = sub.add_parser("triage",
                        help="deterministic ingest proposals for a directory (no LLM)")
@@ -584,12 +782,27 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("compile-plan")
     p.set_defaults(fn=cmd_compile_plan)
+    p = sub.add_parser("build",
+                       help="one command: compile -> build-pages -> verify "
+                            "(exits 3 with the next action when agent input "
+                            "is required)")
+    p.set_defaults(fn=cmd_build)
+    p = sub.add_parser("check-evidence",
+                       help="mechanically re-resolve every claim's evidence: "
+                            "verified / stale / unresolved (read-only)")
+    p.add_argument("--details", type=int, default=100,
+                   help="max stale/unresolved claim details to include")
+    p.set_defaults(fn=cmd_check_evidence)
 
     p = sub.add_parser("stage-candidates")
     p.add_argument("--file", required=True, help="candidates JSON or JSONL file")
     p.add_argument("--source-id", required=True)
     p.add_argument("--source-version", required=True, type=int)
     p.add_argument("--report", default=None, help="extraction report JSON file")
+    p.add_argument("--run", default=None,
+                   help="stage into an existing pending run dir instead of "
+                        "minting a new one (e.g. the run build's pending[] "
+                        "names)")
     p.set_defaults(fn=cmd_stage_candidates)
 
     p = sub.add_parser("reconcile-prepare")
@@ -662,6 +875,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "mark_superseded|set_scope|set_validity|defer|reopen|"
                         "set_topic_kind")
     p.add_argument("--params", default=None, help="params JSON file")
+    p.add_argument("--file", default=None,
+                   help="review apply: JSON list of "
+                        '{"id","action","params"} (or {"actions": [...]})')
+    p.add_argument("--group-by", default=None, dest="group_by",
+                   help="review triage: group key (default: linked claim "
+                        "subject; any other value names an item field)")
     p.add_argument("--kind", default=None)
     p.add_argument("--status", default=None)
     p.add_argument("--all", action="store_true",
@@ -694,12 +913,38 @@ def build_parser() -> argparse.ArgumentParser:
                    help="filter findings to those whose path/detail contains this substring")
     p.add_argument("--fix-indexes", action="store_true", dest="fix_indexes",
                    help="repair section indexes (rebuild index.md/overview.md via build-pages renderer)")
+    p.add_argument("--rebuild-index", action="store_true", dest="rebuild_index",
+                   help="regenerate .state/claims-index.json from claim/decision objects")
+    p.add_argument("--rebuild-fts", action="store_true", dest="rebuild_fts",
+                   help="regenerate .state/fts.sqlite from claim objects")
     p.set_defaults(fn=cmd_doctor)
 
     p = sub.add_parser("graph-data")
     p.add_argument("--output", default=None, help="write JSON to file instead of stdout")
+    p.add_argument("--full", action="store_true",
+                   help="embed full claim dicts in entity nodes (legacy; default emits claim_ids)")
     p.set_defaults(fn=cmd_graph_data)
 
+    p = sub.add_parser("export-okf",
+                       help="write deterministic OKF v0.2 bundle (openwiki-consumable)")
+    p.add_argument("output", help="destination directory (replaced atomically)")
+    p.set_defaults(fn=cmd_export_okf)
+
+    p = sub.add_parser("graph-export",
+                       help="write self-contained static visualizer bundle")
+    p.add_argument("output", help="destination directory (replaced atomically)")
+    p.add_argument("--ui-dist", default=None, dest="ui_dist",
+                   help="prebuilt UI dist dir (default: auto-detect; WIKI_UI_DIST env)")
+    p.set_defaults(fn=cmd_graph_export)
+
+    p = sub.add_parser("viz-serve",
+                       help="serve the visualizer on 127.0.0.1 with SSE live reload")
+    p.add_argument("--port", type=int, default=4333)
+    p.add_argument("--no-open", action="store_true", dest="no_open",
+                   help="do not open the browser")
+    p.add_argument("--ui-dist", default=None, dest="ui_dist",
+                   help="prebuilt UI dist dir (default: auto-detect; WIKI_UI_DIST env)")
+    p.set_defaults(fn=cmd_viz_serve)
     p = sub.add_parser("topics")
     p.add_argument("--backfill", action="store_true",
                    help="register existing claim subjects (idempotent)")
@@ -738,6 +983,32 @@ def build_parser() -> argparse.ArgumentParser:
 EXIT_CODES = {(TxnError,): 3, (ConflictError,): 4, (LockedError,): 5}
 
 
+# Commands that write wiki state (canonical files, staging dirs, derived
+# stores). --wait-lock gates these before dispatch so a caller can ride out
+# an in-flight commit instead of crashing on LockedError. Read-only and
+# output-only commands (status, query-*, verify, graph-*, export-okf,
+# viz-serve, page-*, check-evidence, subjects, compile-plan, review
+# list/show/triage, ingest --list-connectors) never wait.
+_MUTATING_COMMANDS = frozenset({
+    "init", "ingest", "ingest-git", "ingest-rss", "compile", "build",
+    "stage-candidates", "reconcile-prepare", "reconcile-apply",
+    "build-pages", "write-page", "context-pack", "decide",
+})
+
+
+def _needs_lock_wait(args) -> bool:
+    cmd = args.command
+    if cmd in _MUTATING_COMMANDS:
+        # ingest --list-connectors is read-only despite the command name
+        return not getattr(args, "list_connectors", False)
+    if cmd == "review":
+        return args.review_cmd in ("act", "apply")
+    if cmd == "doctor":
+        return bool(getattr(args, "rebuild_index", False)
+                    or getattr(args, "rebuild_fts", False))
+    return False
+
+
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -745,6 +1016,17 @@ def main(argv=None) -> int:
         parser.print_help()
         return 2
     try:
+        if _needs_lock_wait(args):
+            wiki = Wiki(args.root or os.getcwd())
+            # best-effort pre-check only — TOCTOU: commit() still takes the
+            # lock itself; this waits out a known in-flight commit. Skip on
+            # non-existent wikis so a failed mutating command doesn't create
+            # .state/locks/ in a non-wiki directory.
+            if wiki.exists() and not wait_for_lock(wiki, args.wait_lock):
+                raise LockedError(
+                    "commit lock held after %.1fs: %s — a wiki command is "
+                    "mid-commit; retry later or raise --wait-lock"
+                    % (args.wait_lock, wiki.p(".state", "locks", "commit.lock")))
         return args.fn(args)
     except TxnError as e:
         code = 3

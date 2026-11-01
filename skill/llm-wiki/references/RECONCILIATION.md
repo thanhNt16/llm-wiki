@@ -7,6 +7,21 @@ one relationship per candidate-vs-existing match. Work from the comparison
 output (subject+predicate key, `same_scope`, `same_value`, `temporal`, current
 `status` and `value`).
 
+## Normalized-match tiers
+
+Auto-matching folds subject keys through three tiers: t1 exact
+(strip+lower), t2 separator-normalized (`order_service` ~ `order.service`),
+t3 plural-fold (`orders_service` ~ `order.service`). A candidate that only
+reaches an existing claim through t2 or t3 **never auto-merges** — the
+engine auto-classifies it `rejected_tier_match` and lands a `needs_review`
+review item instead, with problem text:
+
+    tier-<n> normalization match: '<cand>' ~ '<existing>' — agent adjudication required
+
+Adjudicate these in the review queue: `review act` (or `review apply` with
+`apply_batch`) — confirm the claims are the same subject (merge evidence)
+or genuinely distinct (re-classify the candidate `UNRELATED`).
+
 ## Decision procedure
 
 Apply the following only to rows in `needs_review`; the engine has already

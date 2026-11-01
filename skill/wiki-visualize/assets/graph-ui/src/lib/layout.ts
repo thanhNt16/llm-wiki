@@ -229,7 +229,7 @@ export function loadWikiData(): Promise<GraphData> {
       .then((r) => {
         if (!r.ok) {
           throw new Error(
-            `graph-data.json missing (${r.status}) — run \`wiki.py graph-data > .llm-wiki/graph-ui/public/graph-data.json\``,
+            `graph-data.json missing (${r.status}) — run \`wiki.py graph-data --full > .llm-wiki/graph-ui/public/graph-data.json\``,
           );
         }
         return r.json() as Promise<WikiPayload>;

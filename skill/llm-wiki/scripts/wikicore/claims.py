@@ -27,6 +27,68 @@ DECISION_SCHEMA = _schema("decision.schema.json")
 STATUSES = ("candidate", "provisional", "accepted", "disputed", "superseded", "rejected")
 TERMINAL = ("superseded", "rejected")
 
+INDEX_REL = ".state/claims-index.json"
+
+
+def norm_key(subject, predicate) -> str:
+    """Canonical match key — identical semantics to compile._norm pairing."""
+    return "%s/%s" % (str(subject).strip().lower(), str(predicate).strip().lower())
+
+
+def _index_entry(claim: dict) -> dict:
+    return {"key": norm_key(claim.get("subject", ""), claim.get("predicate", "")),
+            "status": claim.get("status", ""),
+            "subject": claim.get("subject", ""),
+            "version": claim.get("version", 1)}
+
+
+def _store_dir_empty(wiki, store: str, prefix: str) -> bool:
+    """True when the store dir holds no '<prefix>*.json' (os.listdir only,
+    no file reads)."""
+    try:
+        names = os.listdir(wiki.p(store))
+    except OSError:
+        return True
+    return not any(n.startswith(prefix) and n.endswith(".json") for n in names)
+
+
+def _load_index_for_staging(txn: Transaction) -> None:
+    """The index is a rebuildable derived cache: an unparseable, non-dict, or
+    wrong-shaped on-disk file must never brick a save. Seed the staging
+    overlay from {} so stage_state rebuilds instead of re-reading garbage.
+    A rebuilt index is complete only when the wiki is truly empty — otherwise
+    it may hold a partial view, so it is marked incomplete for readers."""
+    if INDEX_REL in txn._state_overlay:
+        return
+    path = txn.wiki.p(INDEX_REL)
+    if os.path.isfile(path):
+        try:
+            with open(path) as f:
+                idx = json.load(f)
+        except ValueError:
+            idx = None
+        if isinstance(idx, dict) and isinstance(idx.get("claims"), dict) \
+                and isinstance(idx.get("decisions"), list):
+            return  # shape-valid: stage_state re-reads it; "complete" preserved
+    txn._state_overlay[INDEX_REL] = {
+        "claims": {},
+        "decisions": [],
+        "complete": _store_dir_empty(txn.wiki, "claims", "claim_")
+        and _store_dir_empty(txn.wiki, "decisions", "decision_"),
+    }
+
+
+def _stage_index_update(txn: Transaction, claim: dict) -> None:
+    """Keep the derived claims index in the same transaction as the claim write."""
+    entry = _index_entry(claim)
+    _load_index_for_staging(txn)
+
+    def _upd(idx: dict) -> None:
+        idx.setdefault("claims", {})
+        idx["claims"][claim["id"]] = entry
+
+    txn.stage_state(INDEX_REL, _upd)
+
 
 def _claim_path(cid: str) -> str:
     return "claims/%s.json" % cid
@@ -47,12 +109,25 @@ def save_claim(txn: Transaction, claim: dict) -> dict:
     if not ids.validate(cid):
         raise TxnError("claim id invalid: %r" % cid)
     existing = None
-    path = txn.wiki.p(_claim_path(cid))
-    if os.path.isfile(path):
-        with open(path) as f:
+    # prefer this txn's staged copy: without it a second save in the same
+    # transaction re-reads live-disk bytes — bumping version twice and
+    # letting terminal status revert (T6-B1)
+    staged_path = os.path.join(txn.staging_dir, _claim_path(cid))
+    if os.path.isfile(staged_path):
+        with open(staged_path) as f:
             existing = json.load(f)
+        from_staging = True
+    else:
+        from_staging = False
+        path = txn.wiki.p(_claim_path(cid))
+        if os.path.isfile(path):
+            with open(path) as f:
+                existing = json.load(f)
     if existing:
-        claim["version"] = existing["version"] + 1
+        if not from_staging:
+            claim["version"] = existing["version"] + 1
+        else:
+            claim["version"] = existing["version"]  # bump already applied
         claim["recorded_at"] = existing["recorded_at"]  # immutable
         claim["updated_at"] = _now()
         if existing.get("status") in TERMINAL and claim.get("status") not in TERMINAL:
@@ -69,11 +144,26 @@ def save_claim(txn: Transaction, claim: dict) -> dict:
     errors = schema_validate(claim, CLAIM_SCHEMA)
     if errors:
         raise TxnError("claim %s invalid: %s" % (cid, "; ".join(errors)))
+    _stage_index_update(txn, claim)
     txn.stage_write(_claim_path(cid), claim)
     return claim
 
 
-def list_claims(wiki, status: Optional[str] = None, subject: Optional[str] = None) -> list:
+def load_index(wiki):
+    """(index, fresh). fresh iff the watermark equals the current revision
+    AND the index is marked complete. Missing/corrupt/wrong-shaped file
+    yields (None, False)."""
+    try:
+        idx = wiki.load_json(INDEX_REL)
+    except (OSError, ValueError):
+        return None, False
+    if not isinstance(idx, dict) or not isinstance(idx.get("claims"), dict) \
+            or not isinstance(idx.get("decisions"), list):
+        return None, False
+    return idx, idx.get("revision") == wiki.revision() and idx.get("complete") is True
+
+
+def _scan_claims(wiki, status=None, subject=None) -> list:
     out = []
     cdir = wiki.p("claims")
     if not os.path.isdir(cdir):
@@ -89,6 +179,41 @@ def list_claims(wiki, status: Optional[str] = None, subject: Optional[str] = Non
             continue
         out.append(c)
     return out
+
+
+def _dir_ids(wiki, rel: str, prefix: str):
+    """Ids of on-disk objects under rel (readdir only, no reads); None if
+    the directory does not exist yet."""
+    d = wiki.p(rel)
+    if not os.path.isdir(d):
+        return None
+    return {n[:-5] for n in os.listdir(d)
+            if n.startswith(prefix) and n.endswith(".json")}
+
+
+def list_claims(wiki, status: Optional[str] = None, subject: Optional[str] = None) -> list:
+    if status or subject:
+        idx, fresh = load_index(wiki)
+        if fresh:
+            disk = _dir_ids(wiki, "claims", "claim_")
+            if disk is not None and not disk.issubset(idx["claims"]):
+                # fresh index that misses an on-disk claim (out-of-band
+                # write, git merge, tamper) is lying — scan, never wrong
+                return _scan_claims(wiki, status, subject)
+            out = []
+            for cid in sorted(idx["claims"]):
+                meta = idx["claims"][cid]
+                if status and meta.get("status") != status:
+                    continue
+                if subject and meta.get("subject") != subject:
+                    continue
+                try:
+                    out.append(load_claim(wiki, cid))
+                except (OSError, json.JSONDecodeError, TxnError):
+                    # index lied about a live claim — fall back, never wrong
+                    return _scan_claims(wiki, status, subject)
+            return out
+    return _scan_claims(wiki, status, subject)
 
 
 def supersede(txn: Transaction, old: dict, new_id: str, policy_change: bool,
@@ -120,11 +245,26 @@ def save_decision(txn: Transaction, decision: dict) -> dict:
     did = decision.get("id", "")
     if not ids.validate(did):
         raise TxnError("decision id invalid: %r" % did)
-    path = txn.wiki.p(_decision_path(did))
-    if os.path.isfile(path):
-        with open(path) as f:
+    # prefer this txn's staged copy: without it a second save in the same
+    # transaction re-reads live-disk bytes — same gap save_claim had
+    # (SP3-F3); keeps bump-once-per-commit and staged recorded_at (SP3-T10)
+    existing = None
+    from_staging = False
+    staged_path = os.path.join(txn.staging_dir, _decision_path(did))
+    if os.path.isfile(staged_path):
+        with open(staged_path) as f:
             existing = json.load(f)
-        decision["version"] = existing["version"] + 1
+        from_staging = True
+    else:
+        path = txn.wiki.p(_decision_path(did))
+        if os.path.isfile(path):
+            with open(path) as f:
+                existing = json.load(f)
+    if existing:
+        if not from_staging:
+            decision["version"] = existing["version"] + 1
+        else:
+            decision["version"] = existing["version"]  # bump already applied
         decision["recorded_at"] = existing["recorded_at"]
     else:
         # creation: callers may not inject a version (same rule as save_claim)
@@ -133,11 +273,18 @@ def save_decision(txn: Transaction, decision: dict) -> dict:
     errors = schema_validate(decision, DECISION_SCHEMA)
     if errors:
         raise TxnError("decision %s invalid: %s" % (did, "; ".join(errors)))
+    _load_index_for_staging(txn)
+    def _upd_dec(idx: dict) -> None:
+        idx.setdefault("decisions", [])
+        if did not in idx["decisions"]:
+            idx["decisions"].append(did)
+
+    txn.stage_state(INDEX_REL, _upd_dec)
     txn.stage_write(_decision_path(did), decision)
     return decision
 
 
-def list_decisions(wiki) -> list:
+def _scan_decisions(wiki) -> list:
     out = []
     ddir = wiki.p("decisions")
     if not os.path.isdir(ddir):
@@ -150,6 +297,39 @@ def list_decisions(wiki) -> list:
     return out
 
 
+def list_decisions(wiki) -> list:
+    idx, fresh = load_index(wiki)
+    if fresh and isinstance(idx.get("decisions"), list):
+        disk = _dir_ids(wiki, "decisions", "decision_")
+        if disk is not None and not disk.issubset(idx["decisions"]):
+            # fresh index missing an on-disk decision — scan, never wrong
+            return _scan_decisions(wiki)
+        out = []
+        for did in sorted(idx["decisions"]):
+            try:
+                out.append(load_decision(wiki, did))
+            except (OSError, json.JSONDecodeError, TxnError):
+                return _scan_decisions(wiki)
+        return out
+    return _scan_decisions(wiki)
+
+
+def rebuild_index(wiki) -> dict:
+    """Regenerate the derived index from the authoritative objects (doctor path).
+    Committed through a Transaction so the commit hook stamps the post-commit
+    revision watermark; a full scan means the result is always complete."""
+    # capture the base revision BEFORE the scan: a concurrent commit landing
+    # between scan and commit must fail the optimistic check (ConflictError),
+    # not slip through and get stamped onto an index missing its claims
+    base = wiki.revision()
+    idx = {"claims": {}, "decisions": [], "complete": True}
+    for c in _scan_claims(wiki):
+        idx["claims"][c["id"]] = _index_entry(c)
+    idx["decisions"] = sorted(d["id"] for d in _scan_decisions(wiki))
+    txn = Transaction(wiki, "index-rebuild")
+    txn.stage_write(INDEX_REL, idx)
+    txn.commit(base)
+    return wiki.load_json(INDEX_REL)
 def auto_decision_stub(wiki, txn: Transaction, claim: dict):
     """Mint an accepted decision stub for an accepted claim whose authority is
     explicit_project_decision (spec §3). Idempotent: a claim already linked

@@ -68,7 +68,7 @@ two `click_lookback_days=7 prod` claims).
 
 ## `wiki dream` (2026-10-25)
 
-Added corpus reconciliation/GC (`docs/superpowers/specs/2026-10-25-dream-design.md`).
+Added corpus reconciliation/GC (design recap in `docs/llm-wiki-unified-report.html`).
 Known boundaries:
 
 - **Sources move outside the transaction.** `stage_write`/`stage_delete` are

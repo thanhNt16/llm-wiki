@@ -49,6 +49,8 @@ def origin_key(kind: str, ref: str) -> str:
         return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path, query, ""))
     if kind == "session":
         return "session:" + ref
+    if kind in ("git_commit", "feed_item"):
+        return kind + ":" + _sha256(ref.encode("utf-8"))[:24]
     if kind == "text":
         return "text:" + _sha256(ref.encode("utf-8"))[:16]
     raise TxnError("unknown source kind: %r" % kind)
@@ -159,7 +161,7 @@ def ingest(wiki, kind: str, ref: str, data: bytes, source_id: Optional[str] = No
         version = len(manifest["versions"]) + 1
     else:
         sid = ids.new("source")
-        manifest = {"id": sid, "kind": kind, "origin": ref if kind != "text" else "inline-text",
+        manifest = {"id": sid, "kind": kind, "origin": ref,
                     "root_origin": root_origin or sid, "created_at": _now(), "versions": [],
                     "title": filename or ref[:80]}
         version = 1

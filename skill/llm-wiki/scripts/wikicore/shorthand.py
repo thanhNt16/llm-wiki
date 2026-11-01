@@ -22,6 +22,16 @@ _AUTHORITY_SOURCE = {
     "code": "code", "verified": "verified", "inferred": "agent",
 }
 
+# #462: exactly the keys normalize_candidate reads/defaults — unknown keys
+# are rejected at staging instead of silently persisting (e.g. {"object"}
+# which used to yield claims with no value). SP3-F1: `confidence` and
+# `qualifier` dropped — no schema properties and zero consumers; they
+# were only passed through into staged candidates unvalidated.
+_ALLOWED_FIELDS = (
+    "authority", "evidence", "id", "locator", "predicate", "proposed_by",
+    "recorded_at", "root_origin", "scope", "status", "subject",
+    "supersedes", "unit", "valid_from", "valid_to", "value",
+)
 
 def expand_locator(raw):
     if isinstance(raw, dict):
@@ -56,6 +66,10 @@ def normalize_candidate(c, source_id, source_version, root_origin):
     for field in ("subject", "predicate"):
         if not c.get(field):
             raise TxnError("candidate missing %r" % field)
+    bad = set(c) - set(_ALLOWED_FIELDS)
+    if bad:
+        raise TxnError("unknown candidate field(s): %s — valid: %s"
+                       % (", ".join(sorted(bad)), ", ".join(_ALLOWED_FIELDS)))
     out = dict(c)
     out["subject"] = str(out["subject"]).strip()
     out["predicate"] = str(out["predicate"]).strip()

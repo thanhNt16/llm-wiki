@@ -19,6 +19,21 @@ def norm_tokens(s: str) -> set:
                 break
         out.add(tok)
     return out
+STOPWORDS = set("""a an and are as at be but by for from has have how i in is it its of on or
+that the this to was we what when where which who why will with you our us do does did""".split())
+
+def query_tokens(text: str) -> list:
+    """Deterministic query terms: lowercase alnum runs, stopwords dropped.
+    Matches FTS5's unicode61 tokenizer on the ASCII corpus this engine sees."""
+    out, cur = [], []
+    for ch in text.lower():
+        if ch.isalnum():
+            cur.append(ch)
+        elif cur:
+            out.append("".join(cur)); cur = []
+    if cur:
+        out.append("".join(cur))
+    return [t for t in out if t not in STOPWORDS]
 
 
 def slugify(subject: str) -> str:

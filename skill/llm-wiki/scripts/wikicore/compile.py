@@ -7,6 +7,7 @@ references/RECONCILIATION.md.
 """
 import json
 import os
+import re
 import shutil
 
 from . import claims, deps, hashing, ids
@@ -75,8 +76,16 @@ def _stage_payload(wiki, rundir, source_id, source_version, candidates, report):
 
 
 def stage_candidates(wiki, source_id: str, source_version: int,
-                     candidates: list, report: dict) -> str:
-    """Stage agent-extracted candidates. Staging only — nothing canonical yet."""
+                     candidates: list, report: dict, run_id: str = None) -> str:
+    """Stage agent-extracted candidates. Staging only — nothing canonical yet.
+
+    run_id=None (default): mint a fresh run dir holding compile.json.
+    run_id=R: stage into the EXISTING run dir R — reuses _run_dir's
+    id-shape/existence checks, so a bogus id raises TxnError. Both
+    compile.json (resume/prepare input) and candidates.jsonl (the file
+    pending.json's candidates_path and `build`'s unstaged check look
+    for) are written so the handshake lands in one run dir (SP3-T3 #20).
+    """
     from . import sources as sources_mod
     from .shorthand import normalize_candidate
 
@@ -90,15 +99,108 @@ def stage_candidates(wiki, source_id: str, source_version: int,
     root_origin = manifest.get("root_origin") or source_id
     normalized = [normalize_candidate(c, source_id, source_version, root_origin)
                   for c in candidates]
-    txn = Transaction(wiki, "wiki-stage-candidates")
-    _stage_payload(wiki, txn.staging_dir, source_id, source_version,
+    if run_id is not None:
+        rundir = _run_dir(wiki, run_id)
+        if os.path.isfile(os.path.join(rundir, "receipt.json")):
+            raise TxnError("run %s already applied" % run_id)
+        # re-staging into a previously prepared run: comparisons.json /
+        # classifications.json are keyed to the OLD candidate set — drop
+        # both so resume re-runs reconcile_prepare against the NEW
+        # candidates instead of misindexing pairs (SP3-F5 T3-S1)
+        for stale in ("comparisons.json", "classifications.json"):
+            stale_p = os.path.join(rundir, stale)
+            if os.path.isfile(stale_p):
+                os.unlink(stale_p)
+    else:
+        rundir = Transaction(wiki, "wiki-stage-candidates").staging_dir
+    _stage_payload(wiki, rundir, source_id, source_version,
                    normalized, report)
+    # mirror the shorthand file a pending run/agent would have written —
+    # cmd_build's unstaged check and pending.json's candidates_path key
+    # off <run>/candidates.jsonl, never off compile.json
+    cand_path = os.path.join(rundir, "candidates.jsonl")
+    pending_p = os.path.join(rundir, "pending.json")
+    if os.path.isfile(pending_p):
+        cand_path = _load_json(pending_p).get("candidates_path", cand_path)
+    with open(cand_path, "w") as f:
+        for c in normalized:
+            f.write(json.dumps(c, ensure_ascii=False) + "\n")
     # keep staging dir for the next phase instead of committing
-    return txn.run_id
+    return os.path.basename(rundir)
 
 
-def _norm(s) -> str:
-    return str(s).strip().lower()
+# --- subject-key tiers (SP3-T3 / spec #7) --------------------------------
+# t1 = today's exact key (subject strip+lower). t2 folds case and the
+# separator class [._/\- ] away. t3 additionally folds plural tails per
+# segment (trailing s/es, min stem 3). A candidate that only reaches an
+# existing claim through t2/t3 never auto-merges — it is routed to a
+# needs_review item and auto-classified rejected_tier_match.
+_TIER_STRIP = re.compile(r"[._/\- ]")
+
+
+def _plural_fold(seg: str) -> str:
+    # 'es' fold only for real -es plurals (…sses/ches/shes/xes/zes), else
+    # strip one trailing 's'. Stem must stay >= 3 chars so 'ids'/'gas'
+    # never fold. 'status' -> 'statu' is a known naive-fold edge.
+    for ending in ("sses", "ches", "shes", "xes", "zes"):
+        if seg.endswith(ending) and len(seg) - 2 >= 3:
+            return seg[:-2]
+    if seg.endswith("s") and not seg.endswith("ss") and len(seg) - 1 >= 3:
+        return seg[:-1]
+    return seg
+
+
+def _tier_keys(subject) -> tuple:
+    """(t1, t2, t3) normalized subject keys — see module note above."""
+    t1 = str(subject).strip().lower()
+    t2 = _TIER_STRIP.sub("", t1)
+    t3 = "".join(_plural_fold(s) for s in _TIER_STRIP.split(t1))
+    return (t1, t2, t3)
+
+
+def _bucket_by_key(existing) -> dict:
+    """key -> [claim] preserving scan order within each bucket."""
+    buckets = {}
+    for ex in existing:
+        buckets.setdefault(
+            claims.norm_key(ex["subject"], ex["predicate"]), []).append(ex)
+    return buckets
+
+
+def _bucketed_existing(wiki) -> dict:
+    """key -> [non-terminal claim] with identical membership and per-key
+    order as the naive full scan.
+
+    Fresh index: first assert membership parity — the claim files on disk
+    must be exactly the index's claim ids (one listdir, zero reads) or a
+    file added outside a committing transaction would silently drop out of
+    every bucket. Then hydrate bodies in id-sorted index order — ULID ids
+    are fixed-length so id sort equals the scan's filename sort — filter
+    and bucket by each loaded claim's own fields, so the bucket contents
+    are exactly what the scan would produce. Stale/missing index: one
+    scan. An index that lies about the claim set, in either direction,
+    falls back wholesale."""
+    idx, fresh = claims.load_index(wiki)
+    if fresh:
+        try:
+            on_disk = {n[:-len(".json")]
+                       for n in os.listdir(wiki.p("claims"))
+                       if n.startswith("claim_") and n.endswith(".json")}
+            if on_disk != set(idx["claims"]):
+                raise TxnError("index membership drift: %r vs %r"
+                               % (sorted(on_disk), sorted(idx["claims"])))
+            existing = [claims.load_claim(wiki, cid)
+                        for cid in sorted(idx["claims"])]
+        except (OSError, ValueError, TypeError, TxnError):
+            # index lied about the claim set — fall back, never wrong
+            pass
+        else:
+            return _bucket_by_key(
+                c for c in existing
+                if c["status"] not in ("rejected", "superseded"))
+    return _bucket_by_key(
+        c for c in claims._scan_claims(wiki)
+        if c["status"] not in ("rejected", "superseded"))
 
 
 def _scopes_equal(a, b) -> bool:
@@ -122,6 +224,10 @@ def auto_verdict(cand, matches):
     """Deterministic reconciliation verdicts (spec §2). None = needs agent."""
     if not matches:
         return "UNRELATED"
+    if all(m.get("tier") for m in matches):
+        # every match is t2/t3-only — never auto-merge; apply routes a
+        # needs_review item and writes nothing canonical
+        return "rejected_tier_match"
     if len(matches) > 1:
         return None
     m = matches[0]
@@ -153,26 +259,51 @@ def _hint(matches):
 
 def reconcile_prepare(wiki, run_id: str) -> dict:
     payload = _load_json(os.path.join(_run_dir(wiki, run_id), "compile.json"))
-    existing = [c for c in claims.list_claims(wiki) if c["status"] not in ("rejected", "superseded")]
+    buckets = _bucketed_existing(wiki)
+    # t2/t3 lookup maps, built lazily on the first exact-key miss — a run
+    # whose candidates all match exactly never pays the extra pass
+    tier_maps = {}
+
+    def _match_entry(ex, cand, tier=None):
+        m = {
+            "claim_id": ex["id"],
+            "same_scope": _scopes_equal(ex.get("scope"), cand.get("scope")),
+            "same_value": ex.get("value") == cand.get("value"),
+            "temporal": _temporal(ex, cand),
+            "status": ex["status"],
+            "current_value": ex.get("value"),
+            # snapshot for stale-apply detection at reconcile_apply
+            "version": ex.get("version"),
+            "root_origins": sorted(_root_origins_of(ex)),
+        }
+        if tier is not None:
+            m["tier"] = tier
+            m["subject"] = ex["subject"]
+        return m
+
     comparisons = []
     for i, cand in enumerate(payload["candidates"]):
-        key = "%s/%s" % (_norm(cand["subject"]), _norm(cand["predicate"]))
-        matches = []
-        for ex in existing:
-            ex_key = "%s/%s" % (_norm(ex["subject"]), _norm(ex["predicate"]))
-            if ex_key != key:
-                continue
-            matches.append({
-                "claim_id": ex["id"],
-                "same_scope": _scopes_equal(ex.get("scope"), cand.get("scope")),
-                "same_value": ex.get("value") == cand.get("value"),
-                "temporal": _temporal(ex, cand),
-                "status": ex["status"],
-                "current_value": ex.get("value"),
-                # snapshot for stale-apply detection at reconcile_apply
-                "version": ex.get("version"),
-                "root_origins": sorted(_root_origins_of(ex)),
-            })
+        key = claims.norm_key(cand["subject"], cand["predicate"])
+        matches = [_match_entry(ex, cand) for ex in buckets.get(key, [])]
+        if not matches:
+            # t2/t3 tiers fold the SUBJECT only — the predicate part of
+            # the map key stays exact-lower so subject-similar claims
+            # under a different predicate never collide
+            if not tier_maps:
+                tier_maps = {2: {}, 3: {}}
+                for cl in (ex for bucket in buckets.values() for ex in bucket):
+                    et = _tier_keys(cl["subject"])
+                    pl = str(cl["predicate"]).strip().lower()
+                    tier_maps[2].setdefault("%s/%s" % (et[1], pl), []).append(cl)
+                    tier_maps[3].setdefault("%s/%s" % (et[2], pl), []).append(cl)
+            ct = _tier_keys(cand["subject"])
+            cpred = str(cand["predicate"]).strip().lower()
+            for tier in (2, 3):
+                for ex in tier_maps[tier].get("%s/%s" % (ct[tier - 1], cpred),
+                                              []):
+                    matches.append(_match_entry(ex, cand, tier=tier))
+                if matches:
+                    break
         comparisons.append({
             "index": i, "key": key,
             "candidate_value": cand.get("value"),
@@ -318,7 +449,8 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
     for cls in classifications:
         _check_classification(cls, len(candidates))
     classified = {c["index"] for c in classifications}
-    auto_counts = {"unrelated": 0, "duplicate": 0, "corroboration": 0}
+    auto_counts = {"unrelated": 0, "duplicate": 0, "corroboration": 0,
+                   "rejected_tier_match": 0}
     for i, cand in enumerate(candidates):
         if i in classified:
             continue
@@ -365,7 +497,34 @@ def reconcile_apply(wiki, run_id: str, classifications: list, base_revision: int
             target = claims.load_claim(wiki, cls["target_claim_id"])
             _assert_target_fresh(cls["target_claim_id"], target, comparisons)
 
-        if rel == "UNRELATED":
+        if rel == "rejected_tier_match":
+            # t2/t3-only match — NEVER auto-merges: review queue only.
+            tm = next((m for m in ((comparisons[cls["index"]]["matches"])
+                                   if comparisons else [])
+                       if m.get("tier")), None)
+            if tm is not None:
+                ex_subject = tm.get("subject") or tm["claim_id"]
+                rid = _append_review_item(
+                    txn, "needs_review",
+                    "tier-%d normalization match: %r ~ %r — agent "
+                    "adjudication required"
+                    % (tm["tier"], cand["subject"], ex_subject),
+                    [cand["id"], tm["claim_id"]],
+                    [tm["claim_id"]], "medium",
+                    "confirm same claim (merge evidence) or distinct "
+                    "subject (re-classify)")
+            else:
+                # verdict without a prepare snapshot — still never merges
+                rid = _append_review_item(
+                    txn, "needs_review",
+                    "tier normalization match: %r — agent adjudication "
+                    "required" % cand["subject"],
+                    [cand["id"]], [cand["id"]], "medium",
+                    "re-run reconcile-prepare, then adjudicate")
+            changes["review_items"] += 1
+            conflicts.append(rid)
+
+        elif rel == "UNRELATED":
             status, reason = _auto_status(wiki, cand, cls)
             saved = claims.save_claim(txn, _from_candidate(wiki, cand, cls, status, reason))
             if claims.auto_decision_stub(wiki, txn, saved):
@@ -549,6 +708,76 @@ def _staged_corpus_fingerprint(wiki, run_id):
     return None
 
 
+def _orphan_candidate_runs(wiki):
+    """(source_id, source_version) -> run_id for staging dirs that hold
+    staged candidates (compile.json) but NO pending.json — the orphan
+    shape `stage_candidates` minted before the run_id handshake
+    (SP3-T3 #20). Already-applied runs (receipt/comparisons, compile.json
+    consumed) are invisible here."""
+    out = {}
+    base = wiki.p(".state", "staging")
+    for rid in _staging_runs(wiki):
+        d = os.path.join(base, rid)
+        if os.path.isfile(os.path.join(d, "pending.json")):
+            continue
+        cj = os.path.join(d, "compile.json")
+        if not os.path.isfile(cj):
+            continue
+        payload = _load_json(cj)
+        out[(payload["source_id"], payload["source_version"])] = rid
+    return out
+
+
+def _adopt_orphan_run(wiki, run_id):
+    """Give an orphan candidates run the pending.json its dir lacks, so
+    resume enumerates it like a minted pending run. Source identity comes
+    from compile.json (staged payload) or, for a bare candidates.jsonl
+    orphan, the first candidate's stamped evidence. candidates.jsonl is
+    mirrored when absent so `build`'s unstaged check sees the staged
+    candidates (SP3-T3 #20)."""
+    from . import sources as sources_mod
+    from .shorthand import parse_candidates_file
+
+    d = wiki.p(".state", "staging", run_id)
+    compile_p = os.path.join(d, "compile.json")
+    candidates_path = os.path.join(d, "candidates.jsonl")
+    if os.path.isfile(compile_p):
+        payload = _load_json(compile_p)
+        sid, ver = payload["source_id"], payload["source_version"]
+        if not os.path.isfile(candidates_path):
+            with open(candidates_path, "w") as f:
+                for c in payload["candidates"]:
+                    f.write(json.dumps(c, ensure_ascii=False) + "\n")
+    else:
+        # bare candidates.jsonl — only produced by stage_candidates
+        # run_id=..., whose candidates are fully normalized and carry
+        # evidence-stamped source identity
+        raw = parse_candidates_file(candidates_path)
+        try:
+            ev = raw[0]["evidence"][0]
+            sid, ver = ev["source_id"], ev["source_version"]
+        except (IndexError, KeyError, TypeError):
+            raise TxnError(
+                "run %s: candidates.jsonl has no compile.json and no "
+                "evidence-stamped source id — cannot adopt orphan run"
+                % run_id)
+    manifest = sources_mod.get_manifest(wiki, sid) or {}
+    ver_entry = next((v for v in manifest.get("versions", [])
+                      if v["version"] == ver), {})
+    rel = (ver_entry.get("normalized_path")
+           or "sources/%s/content.md" % sid)
+    meta = {
+        "source_id": sid, "source_version": ver,
+        "run_id": run_id,
+        "content_path": wiki.p(*rel.split("/")),
+        "candidates_path": candidates_path,
+        "classifications_path": os.path.join(d, "classifications.json"),
+    }
+    with open(os.path.join(d, "pending.json"), "w") as f:
+        json.dump(meta, f)
+    return meta
+
+
 def compile_umbrella(wiki, resume=False):
     """Spec §1: 3-phase state machine over staging dirs (extract -> classify
     -> apply), resumable across CLI invocations."""
@@ -568,6 +797,7 @@ def compile_umbrella(wiki, resume=False):
                     m = _load_json(pj)
                     existing[(m["source_id"], m["source_version"])] = m
         pending = []
+        orphans = _orphan_candidate_runs(wiki)
         for entry in plan["pending"]:
             sid = entry["source_id"] if isinstance(entry, dict) else entry
             manifest = sources_mod.get_manifest(wiki, sid)
@@ -576,6 +806,21 @@ def compile_umbrella(wiki, resume=False):
             ver = (entry.get("version") if isinstance(entry, dict)
                    else manifest["versions"][-1]["version"])
             meta = existing.get((sid, ver))
+            orphan = orphans.get((sid, ver))
+            if orphan is not None and (
+                    meta is None
+                    or not os.path.isfile(meta["candidates_path"])):
+                # a run dir already holds staged candidates for this
+                # version — prefer it over the (empty) pending dir and
+                # never mint a third one (SP3-T3 #20)
+                if meta is not None and meta["run_id"] != orphan:
+                    d0 = wiki.p(".state", "staging", meta["run_id"])
+                    if sorted(os.listdir(d0)) == ["pending.json"]:
+                        # empty pending run — superseded by the
+                        # candidates-bearing run
+                        os.unlink(os.path.join(d0, "pending.json"))
+                        os.rmdir(d0)
+                meta = _adopt_orphan_run(wiki, orphan)
             if meta is not None:
                 # already staged for this exact source version
                 pending.append(dict(meta, resumed_run=True))
@@ -623,7 +868,9 @@ def compile_umbrella(wiki, resume=False):
 
     needs_review_rows = []
     applied = []
-    auto_totals = {"unrelated": 0, "duplicate": 0, "corroboration": 0}
+    warnings = []
+    auto_totals = {"unrelated": 0, "duplicate": 0, "corroboration": 0,
+                   "rejected_tier_match": 0}
 
     def _apply(run_id, classifications, topics_rows=None, topics_missing=False):
         meta2 = _load_json(os.path.join(
@@ -651,8 +898,31 @@ def compile_umbrella(wiki, resume=False):
         d = wiki.p(".state", "staging", run_id)
         meta_p = os.path.join(d, "pending.json")
         if not os.path.isfile(meta_p):
-            continue
-        meta = _load_json(meta_p)
+            # orphan run dirs: no pending.json. A dir holding staged
+            # candidates (compile.json, or candidates.jsonl written by
+            # stage_candidates run_id=...) is adopted on the fly so its
+            # candidates join this resume instead of staying orphaned
+            # (SP3-T3 #20). Anything else is not a compile run — skip.
+            meta = None
+            if (os.path.isfile(os.path.join(d, "compile.json"))
+                    or os.path.isfile(
+                        os.path.join(d, "candidates.jsonl"))) \
+                    and not os.path.isfile(
+                        os.path.join(d, "receipt.json")) \
+                    and not os.path.isfile(
+                        os.path.join(d, "comparisons.json")):
+                try:
+                    meta = _adopt_orphan_run(wiki, run_id)
+                except TxnError as e:
+                    # one malformed orphan must not abort the whole
+                    # resume — skip it and surface the failure as a
+                    # warning (SP3-F5 T3-N2)
+                    warnings.append("run %s skipped: %s" % (run_id, e))
+                    meta = None
+            if meta is None:
+                continue
+        else:
+            meta = _load_json(meta_p)
         cls_p = meta["classifications_path"]
         cand_p = meta["candidates_path"]
         compile_p = os.path.join(d, "compile.json")
@@ -726,7 +996,7 @@ def compile_umbrella(wiki, resume=False):
     if needs_review_rows:
         return {"phase": "classify", "needs_classifications": True,
                 "needs_review": needs_review_rows,
-                "auto": auto_totals,
+                "auto": auto_totals, "warnings": warnings,
                 "stale_invalidated": stale_invalidated}
 
     if applied:
@@ -756,11 +1026,11 @@ def compile_umbrella(wiki, resume=False):
                 "needs_review": needs_review_rows,
                 "auto": auto_totals, "changes": total,
                 "conflicts": conflicts, "verify": verify,
+                "receipts": applied, "warnings": warnings,
                 "stale_invalidated": stale_invalidated,
-                "topics": topics_total,
-                "receipts": applied}
+                "topics": topics_total}
 
     return {"phase": "waiting", "needs_classifications": False,
-            "auto": auto_totals,
+            "auto": auto_totals, "warnings": warnings,
             "stale_invalidated": stale_invalidated,
             "message": "no staged runs — run `compile` first or write candidates.jsonl"}
