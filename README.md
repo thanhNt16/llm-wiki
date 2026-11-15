@@ -76,13 +76,23 @@ rust/crates/llm-wiki/ Rust engine (canonical): CLI, wikicore, embedded skills
 skill/llm-wiki/      shared skill: schemas + references; scripts/ = Python
                      engine, dev-reference only (parity oracle, not installed)
 skill/wiki-*/        nine thin command skills (init, ingest, compile, query, context, review, doctor, visualize, write)
+evals/_engine.py     shared engine resolver (-e rust|python) for every lane
+evals/deterministic/ PRD §58 release gates: run_gates.py -e rust
+evals/survival/      planted-fact recall by position (early/mid/late/deep)
+                     + trap/correction lane; run_survival.py -e rust, then
+                     -e python — second run asserts cross-engine parity
+evals/rust-vs-python/ P7 suite: quality (wiki vs baseline), perf, install-ux
+                     lanes + significance + report: generate_report.py
+evals/e2e/           end-to-end OMP scenarios; compare/ = state + semantic
+                     parity between engines (state_parity.py, report.md)
+evals/query-battery/ query-contract battery vs expected.json
+evals/retrieval/     ranked-retrieval gold-set lane
+evals/perf/          perf corpus + gates (run_perf_gates.py -e rust)
+evals/smoke/         install smoke lane (run_smoke.py)
+evals/benchmark/     PRD §60 wiki-vs-baseline lane comparison
 evals/golden-corpus/ fixture project with planted correction/conflict/scope cases
-evals/deterministic/ PRD §58 release gates: python3 evals/deterministic/run_gates.py
-evals/benchmark/     PRD §60 wiki-vs-baseline lane comparison: python3 evals/benchmark/run_benchmark.py
-evals/survival/      planted-fact recall by position + trap/correction lane:
-                     python3 evals/survival/run_survival.py -e rust
 evals/semantic/      agent-run scenarios + rubrics (PRD §57)
-```
+.github/workflows/   release-rust.yml: build + release tarball on tag
 
 ## Verify
 
@@ -91,6 +101,10 @@ evals/semantic/      agent-run scenarios + rubrics (PRD §57)
 python3 -m unittest discover -s skill/llm-wiki/scripts/tests       # python dev-reference unit tests
 python3 evals/deterministic/run_gates.py --engine rust             # 10 release gates, rust engine
 python3 evals/deterministic/run_gates.py --engine python           # same gates vs the dev-reference
+python3 evals/survival/run_survival.py -e rust               # recall + traps + stability
+python3 evals/survival/run_survival.py -e python             # …then assert cross-engine parity
+python3 evals/rust-vs-python/generate_report.py               # quality/perf report (run lanes first)
+python3 evals/smoke/run_smoke.py -e rust                      # install smoke
 ./install.sh && omp -p --no-session 'Do you have skills named llm-wiki and wiki-init?'
 ```
 
