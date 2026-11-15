@@ -74,7 +74,7 @@ run that produces conflicts:
   `wiki/changes/<slug>.md` pages add the narrative), so "what changed" is
   answerable from the wiki itself.
 - **Verify green after each action** — after every `review act`, `write-page`,
-  or `build-pages`, `wiki.py verify` reports `"ok": true` before the next
+  or `build-pages`, `llm-wiki verify` reports `"ok": true` before the next
   step. A red verify blocks progression, never ships.
 
 ## Semantic scenarios (PRD §57) — run against `evals/golden-corpus`
@@ -104,7 +104,7 @@ handling and traceability, its complexity is not justified.
 
 ## Benchmark layer (deterministic, no LLM)
 
-`python3 evals/benchmarks/bench.py --engine <wiki.py> --label <name>` builds
+`python3 evals/benchmarks/bench.py --engine <llm-wiki> --label <name>` builds
 the planted wiki end-to-end and measures retrieval (precision/recall/MRR vs
 gold), context efficiency (pack tokens vs budget, compression), navigation
 topology (orphans, dead ends, near-dup pairs), and the two-source rule

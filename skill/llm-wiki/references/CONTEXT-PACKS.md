@@ -36,7 +36,7 @@ Either accept the smaller pack or raise the budget deliberately.
 ## Consuming a pack
 
 ```bash
-wiki.py context-pack --task "fix order attribution edge case" --budget 6000 --print-pack
+llm-wiki context-pack --task "fix order attribution edge case" --budget 6000 --print-pack
 ```
 
 The printed Markdown is your working context. The receipt JSON next to the
@@ -53,5 +53,5 @@ they invalidate whatever you believed last session.
 ## Registration and invalidation
 
 Each pack registers its dependency set. When someone later corrects a claim,
-stale packs are detected by `wiki.py verify` / `wiki.py doctor`. Regenerate a
+stale packs are detected by `llm-wiki verify` / `llm-wiki doctor`. Regenerate a
 stale pack instead of trusting it.

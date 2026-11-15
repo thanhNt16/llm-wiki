@@ -21,6 +21,25 @@ import sys
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.abspath(os.path.join(_THIS_DIR, "..", ".."))
+_EVALS_DIR = os.path.join(_REPO_ROOT, "evals")
+if _EVALS_DIR not in sys.path:
+    sys.path.insert(0, _EVALS_DIR)
+import _engine  # noqa: E402
+
+# argv prefix assertions use when they shell out to the engine. run_e2e.py
+# overwrites this after parsing --engine; the default keeps WIKI_E2E_ENGINE
+# and the repo wiki.py resolution identical to the pre-flag behavior.
+_ENGINE_ARGV = None
+
+
+def _engine_argv():
+    """argv prefix for engine subprocesses: --engine-resolved rust binary,
+    else the classic [sys.executable, engine_path()] python invocation."""
+    if _ENGINE_ARGV is not None:
+        return _ENGINE_ARGV
+    wiki = engine_path()
+    return [sys.executable, wiki] if wiki else []
+
 
 _ID_TOKEN_RE = re.compile(r"\b(?:claim|source|decision)_[0-9A-HJKMNP-TV-Z]{26}\b")
 _GREP_RE = re.compile(r"(?<![\w./-])(grep|rg)(?=\s|$)")
@@ -53,11 +72,11 @@ def engine_path() -> str:
 def _engine_has_triage() -> bool:
     """True when the resolved engine exposes a `triage` subcommand. Absent on
     this HEAD → S3 marks that sub-check unsupported instead of hard-failing."""
-    wiki = engine_path()
-    if not wiki:
+    argv = _engine_argv()
+    if not argv:
         return False
     try:
-        proc = subprocess.run([sys.executable, wiki, "--help"],
+        proc = subprocess.run(argv + ["--help"],
                               capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.TimeoutExpired):
         return False
@@ -274,13 +293,13 @@ def _page_slugs(project_root):
 
 
 def _verify(project_root):
-    """Run `wiki.py verify`; returns (exit_ok, detail)."""
-    wiki = engine_path()
-    if not wiki:
+    """Run `<engine> verify`; returns (exit_ok, detail)."""
+    argv = _engine_argv()
+    if not argv:
         return False, "no engine found for verify"
     try:
         proc = subprocess.run(
-            [sys.executable, wiki, "verify"], cwd=project_root,
+            argv + ["verify"], cwd=project_root,
             capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired) as e:
         return False, "verify invocation failed: %s" % e
@@ -431,9 +450,11 @@ def assert_s4(project_root, transcript_path):
                               for c in olds30])}
     # a still-current *unscoped/prod* 30d claim means the flip did not take;
     # scope-differenced 30d claims (e.g. sandbox) legitimately stay accepted
+    sc = lambda c: c.get("scope") or {}
     live30 = [c for c in olds30
               if c.get("status") not in ("superseded", "rejected")
-              and (c.get("scope") or {}).get("env") in (None, "prod", "production")]
+              and sc(c).get("env", sc(c).get("environment"))
+              in (None, "prod", "production")]
     if live30:
         return {"pass": False,
                 "detail": "unscoped/prod 30d claim still %s alongside 7d"

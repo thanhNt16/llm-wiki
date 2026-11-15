@@ -2,7 +2,7 @@
 //! `.state/dependencies.json` edge registry. Port of wikicore/deps.py plus
 //! the dep-liveness rule set used by dream.py:182-197.
 //!
-//! Deps are "<id>@<version>"; invalidation matches ANY version of a changed
+//! Deps are `<id>@<version>`; invalidation matches ANY version of a changed
 //! id (deps.py:5-6, `dep.split("@", 1)[0]`). Changed ids propagate through
 //! reverse edges: every artifact depending directly or transitively on a
 //! changed id joins `stale` and is returned to the caller.

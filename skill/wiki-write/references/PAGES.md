@@ -39,7 +39,7 @@ in September [[claim_01J9XR2N8P6Q4B1D9F5H7J2S4M]].
 Commit it with:
 
 ```bash
-python3 "$WIKI" write-page --file page.md --artifact wiki/concepts/order-attribution.md \
+llm-wiki write-page --file page.md --artifact wiki/concepts/order-attribution.md \
   --deps 'claim_01J9XQ5G7M4T2WY8Z3R6CVE0KH@3,claim_01J9XR2N8P6Q4B1D9F5H7J2S4M@1'
 ```
 

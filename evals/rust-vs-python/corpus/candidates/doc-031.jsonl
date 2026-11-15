@@ -1,0 +1,4 @@
+{"authority": "doc", "locator": "s:The deploy strategy of svc.alpha-031 is recreate", "predicate": "deploy_strategy", "subject": "svc.alpha-031", "value": "recreate"}
+{"authority": "doc", "locator": "s:The owner of svc.alpha-031 is Alice Petrov", "predicate": "owner", "subject": "svc.alpha-031", "value": "Alice Petrov"}
+{"authority": "doc", "locator": "s:The oncall slack channel of svc.alpha-031 is ops-channel-83", "predicate": "oncall_slack_channel", "subject": "svc.alpha-031", "value": "ops-channel-83"}
+{"authority": "doc", "locator": "s:The owner of platform.global is Nadia Dubois", "predicate": "owner", "subject": "platform.global", "value": "Nadia Dubois"}

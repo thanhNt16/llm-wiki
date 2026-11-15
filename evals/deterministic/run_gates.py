@@ -13,7 +13,11 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, ".."))
 sys.path.insert(0, os.path.join(HERE, "..", "..", "skill", "llm-wiki", "scripts"))
+
+import _engine  # noqa: E402
+
 
 from wikicore import claims, compile as wc_compile, contextpack, deps, pages, query, sources  # noqa: E402
 from wikicore.store import Wiki, init_wiki  # noqa: E402
@@ -429,29 +433,41 @@ def gate_index_rebuild():
     # readers work off the rebuilt index
     got = claims_mod.list_claims(wiki, subject="svc.r")
     assert [c["id"] for c in got] == [a["id"]]
-    # CLI path: corrupt again; `wiki.py doctor --rebuild-index` must restore it
+    # CLI path: corrupt again; `doctor --rebuild-index` must restore it.
+    # argv prefix comes from --engine: [python3, wiki.py] or [llm-wiki].
     with open(wiki.p(".state/claims-index.json"), "w") as f:
         f.write("{broken")
-    script = os.path.join(HERE, "..", "..", "skill", "llm-wiki", "scripts", "wiki.py")
     proc = subprocess.run(
-        [sys.executable, script, "--root", wiki.root, "doctor", "--rebuild-index"],
+        ENGINE_ARGV + ["--root", wiki.root, "doctor", "--rebuild-index"],
         capture_output=True, text=True)
     assert proc.returncode == 0, "doctor --rebuild-index failed: %s" % proc.stderr
     out = json.loads(proc.stdout)
     assert "index_rebuilt" in out, "CLI output missing index_rebuilt: %r" % out
-    idx, is_fresh = claims_mod.load_index(wiki)
-    assert is_fresh is True, "CLI-rebuilt index not fresh: %r" % idx
-    assert idx["claims"][a["id"]]["key"] == "svc.r/owner"
-    # recovery path: a complete:False index (corrupt-file recovery leftover)
-    # must be rebuilt to complete:True
-    idx["complete"] = False
-    with open(wiki.p(".state/claims-index.json"), "w") as f:
-        json.dump(idx, f)
-    _, is_fresh = claims_mod.load_index(wiki)
-    assert is_fresh is False, "complete:False index must read as stale"
-    claims_mod.rebuild_index(wiki)
-    idx, is_fresh = claims_mod.load_index(wiki)
-    assert is_fresh is True, "incomplete index not healed: %r" % idx
+    if "wiki.py" not in " ".join(ENGINE_ARGV):
+        # rust-native index: .state/index.sqlite watermark must equal the
+        # post-fix revision and FTS rows must cover the claim.
+        import sqlite3
+        db = sqlite3.connect(wiki.p(".state/index.sqlite"))
+        wm = db.execute(
+            "select v from meta where k='built_at_revision'").fetchone()[0]
+        rows = db.execute("select count(*) from claims_fts").fetchone()[0]
+        db.close()
+        assert int(wm) == out["index_rebuilt"]["revision"], (wm, out)
+        assert rows >= 1, "rebuilt index has no FTS rows"
+    else:
+        idx, is_fresh = claims_mod.load_index(wiki)
+        assert is_fresh is True, "CLI-rebuilt index not fresh: %r" % idx
+        assert idx["claims"][a["id"]]["key"] == "svc.r/owner"
+        # recovery path: a complete:False index (corrupt-file recovery
+        # leftover) must be rebuilt to complete:True — python legacy index.
+        idx["complete"] = False
+        with open(wiki.p(".state/claims-index.json"), "w") as f:
+            json.dump(idx, f)
+        _, is_fresh = claims_mod.load_index(wiki)
+        assert is_fresh is False, "complete:False index must read as stale"
+        claims_mod.rebuild_index(wiki)
+        idx, is_fresh = claims_mod.load_index(wiki)
+        assert is_fresh is True, "incomplete index not healed: %r" % idx
     # empty wiki: safe, canonical empty shape
     wiki_e = fresh("empty")
     idx = claims_mod.rebuild_index(wiki_e)
@@ -860,19 +876,62 @@ GATES = {
     "index_membership_parity": gate_index_membership_parity,
     "benchmark": gate_benchmark,
 }
+# argv prefix for the engine under test; main() resolves via --engine.
+# Module default honors $LLM_WIKI_ENGINE so the unittest wrapper
+# (test_gates_wrapper) and in-process consumers share the same seam;
+# falls back to python when rust is not built.
+try:
+    ENGINE_ARGV = _engine.engine_argv()
+except _engine.EngineError:
+    ENGINE_ARGV = [sys.executable,
+                   os.path.join(HERE, "..", "..", "skill", "llm-wiki",
+                                "scripts", "wiki.py")]
+
+# Gates executable under --engine rust: every other gate builds fixtures
+# and asserts on results through the python wikicore library, so running
+# them "under rust" would execute zero rust code. index_rebuild's
+# decisive op is the CLI seam (doctor --rebuild-index) — its assertions
+# inspect engine state and honestly FAIL today on rust's index.sqlite /
+# deprecated_flag parity gaps. python-only gates are reported
+# "skipped-rust", never silently green.
+RUST_EXECUTABLE = {"index_rebuild"}
+SKIP_REASON_RUST = ("in-process wikicore library assertions — no rust "
+                    "engine involvement; needs a CLI-surface port (P7)")
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="Release gates (PRD §58). All gates must pass.")
+    _engine.add_engine_arg(ap)
+    args = ap.parse_args(argv)
+    global ENGINE_ARGV
+    try:
+        ENGINE_ARGV = _engine.engine_argv(args.engine)
+    except _engine.EngineError as e:
+        print("error: %s" % e, file=sys.stderr)
+        return 2
+    rust = _engine.engine_name(args.engine) == "rust"
+
     results = {}
     for name, fn in GATES.items():
+        if rust and name not in RUST_EXECUTABLE:
+            results[name] = {"pass": None, "status": "skipped-rust",
+                             "detail": SKIP_REASON_RUST}
+            print("%-28s %s — %s" % (name, "SKIPPED-rust",
+                                     SKIP_REASON_RUST), file=sys.stderr)
+            continue
         try:
             ok, detail = fn()
         except Exception as e:  # noqa: BLE001 — a crashing gate is a failing gate
             ok, detail = False, "gate crashed: %r" % e
         results[name] = {"pass": bool(ok), "detail": detail}
         print("%-28s %s — %s" % (name, "PASS" if ok else "FAIL", detail), file=sys.stderr)
-    all_pass = all(r["pass"] for r in results.values())
-    print(json.dumps({"all_pass": all_pass, "gates": results}, indent=2))
+    # skipped-rust rows (pass=None) never veto; only executed verdicts count
+    all_pass = all(r["pass"] is not False for r in results.values())
+    print(json.dumps({"all_pass": all_pass,
+                      "engine": _engine.engine_name(args.engine),
+                      "gates": results}, indent=2))
     return 0 if all_pass else 1
 
 

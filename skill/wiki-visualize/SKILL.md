@@ -24,9 +24,7 @@ stats overview.
 Data comes from the deterministic CLI in the `llm-wiki` skill:
 
 ```bash
-WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
-[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
-python3 "$WIKI" graph-data --full   # one JSON object on stdout (--full: UI detail panel reads embedded claim dicts)
+llm-wiki graph-data --full   # one JSON object on stdout (--full: UI detail panel reads embedded claim dicts)
 ```
 
 Full payload contract: `references/COMMANDS.md#graph-data` inside the
@@ -34,8 +32,10 @@ Full payload contract: `references/COMMANDS.md#graph-data` inside the
 
 ## First run — copy the app
 
-`$SKILL_DIR` is the directory containing this SKILL.md. The app template
-lives in `$SKILL_DIR/assets/graph-ui/`.
+This dev flow applies only inside a repo checkout, where the app template
+lives at `skill/wiki-visualize/assets/graph-ui/` (referenced below as
+`$SKILL_DIR`). Binary installs serve the embedded `dist/` — use
+`llm-wiki viz-serve` / `llm-wiki graph-export` below instead.
 
 ```bash
 if [ ! -d .llm-wiki/graph-ui ]; then
@@ -49,7 +49,7 @@ Never overwrite an existing `.llm-wiki/graph-ui` — it may be customized.
 ## Every invocation — regenerate data
 
 ```bash
-python3 "$WIKI" graph-data --full > .llm-wiki/graph-ui/public/graph-data.json
+llm-wiki graph-data --full > .llm-wiki/graph-ui/public/graph-data.json
 ```
 
 The app fetches `graph-data.json` at runtime and computes the layout
@@ -60,12 +60,12 @@ below).
 
 ## Fast paths (no npm)
 
-If `wiki.py` offers `graph-export` / `viz-serve` (SP2b), skip the copy/build
+`llm-wiki` offers `graph-export` / `viz-serve` — skip the copy/build
 steps entirely:
 
 ```bash
-python3 "$WIKI" graph-export .llm-wiki/viz-out   # static bundle, any static host
-python3 "$WIKI" viz-serve                        # live loopback server + auto reload
+llm-wiki graph-export .llm-wiki/viz-out   # static bundle, any static host
+llm-wiki viz-serve                        # live loopback server + auto reload
 ```
 
 Both use the prebuilt dist inside this skill. Use the npm flow below only
@@ -83,7 +83,7 @@ npm run build && npx serve dist
 `npm run build` copies `public/` into `dist/`, so a static bundle ships the
 graph-data.json that existed at build time — always regenerate it before
 building. Open the URL for the user and report it. Empty graph → likely no
-claims yet: check `wiki.py status` `counts.claims`.
+claims yet: check `llm-wiki status` `counts.claims`.
 
 ## Node types
 

@@ -1,0 +1,2771 @@
+{
+  "docs": 40,
+  "facts": [
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 0,
+      "expected_value": {
+        "exact": "1292",
+        "regex": "(?<![a-z0-9])1292(?![a-z0-9])"
+      },
+      "id": "f-000-0",
+      "in_summary": true,
+      "locator_hint": "The cache ttl seconds of svc.alpha-000 is 1292",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-000?",
+      "source_file": "docs/doc-000.md",
+      "subject": "svc.alpha-000",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 0,
+      "expected_value": {
+        "exact": "26",
+        "regex": "(?<![a-z0-9])26(?![a-z0-9])"
+      },
+      "id": "f-000-1",
+      "in_summary": true,
+      "locator_hint": "The max connections of svc.alpha-000 is 26",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-000?",
+      "source_file": "docs/doc-000.md",
+      "subject": "svc.alpha-000",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 0,
+      "expected_value": {
+        "exact": "8",
+        "regex": "(?<![a-z0-9])8(?![a-z0-9])"
+      },
+      "id": "f-000-2",
+      "in_summary": false,
+      "locator_hint": "The retry count of svc.alpha-000 is 8",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-000?",
+      "source_file": "docs/doc-000.md",
+      "subject": "svc.alpha-000",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 0,
+      "expected_value": {
+        "exact": "ap-south-1",
+        "regex": "(?<![a-z0-9])ap-south-1(?![a-z0-9])"
+      },
+      "id": "f-000-3",
+      "in_summary": false,
+      "locator_hint": "The region of svc.alpha-000 is ap-south-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-000?",
+      "source_file": "docs/doc-000.md",
+      "subject": "svc.alpha-000",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 1,
+      "expected_value": {
+        "exact": "canary",
+        "regex": "(?<![a-z0-9])canary(?![a-z0-9])"
+      },
+      "id": "f-001-0",
+      "in_summary": true,
+      "locator_hint": "The deploy strategy of svc.alpha-001 is canary",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-001?",
+      "source_file": "docs/doc-001.md",
+      "subject": "svc.alpha-001",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 1,
+      "expected_value": {
+        "exact": "Devon Lindqvist",
+        "regex": "(?<![a-z0-9])Devon Lindqvist(?![a-z0-9])"
+      },
+      "id": "f-001-1",
+      "in_summary": true,
+      "locator_hint": "The owner of svc.alpha-001 is Devon Lindqvist",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-001?",
+      "source_file": "docs/doc-001.md",
+      "subject": "svc.alpha-001",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 1,
+      "expected_value": {
+        "exact": "ops-channel-53",
+        "regex": "(?<![a-z0-9])ops-channel-53(?![a-z0-9])"
+      },
+      "id": "f-001-2",
+      "in_summary": false,
+      "locator_hint": "The oncall slack channel of svc.alpha-001 is ops-channel-53",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-001?",
+      "source_file": "docs/doc-001.md",
+      "subject": "svc.alpha-001",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 1,
+      "expected_value": {
+        "exact": "v3.2.11",
+        "regex": "(?<![a-z0-9])v3.2.11(?![a-z0-9])"
+      },
+      "id": "f-001-3",
+      "in_summary": false,
+      "locator_hint": "The api version of svc.alpha-001 is v3.2.11",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-001?",
+      "source_file": "docs/doc-001.md",
+      "subject": "svc.alpha-001",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 2,
+      "expected_value": {
+        "exact": "74",
+        "regex": "(?<![a-z0-9])74(?![a-z0-9])"
+      },
+      "id": "f-002-0",
+      "in_summary": true,
+      "locator_hint": "The alert threshold pct of svc.alpha-002 is 74",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-002?",
+      "source_file": "docs/doc-002.md",
+      "subject": "svc.alpha-002",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 2,
+      "expected_value": {
+        "exact": "10:05",
+        "regex": "(?<![a-z0-9])10:05(?![a-z0-9])"
+      },
+      "id": "f-002-1",
+      "in_summary": true,
+      "locator_hint": "The backup window utc of svc.alpha-002 is 10:05",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-002?",
+      "source_file": "docs/doc-002.md",
+      "subject": "svc.alpha-002",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 2,
+      "expected_value": {
+        "exact": "3084",
+        "regex": "(?<![a-z0-9])3084(?![a-z0-9])"
+      },
+      "id": "f-002-2",
+      "in_summary": false,
+      "locator_hint": "The cache ttl seconds of svc.alpha-002 is 3084",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-002?",
+      "source_file": "docs/doc-002.md",
+      "subject": "svc.alpha-002",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 2,
+      "expected_value": {
+        "exact": "215",
+        "regex": "(?<![a-z0-9])215(?![a-z0-9])"
+      },
+      "id": "f-002-3",
+      "in_summary": false,
+      "locator_hint": "The max connections of svc.alpha-002 is 215",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-002?",
+      "source_file": "docs/doc-002.md",
+      "subject": "svc.alpha-002",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 3,
+      "expected_value": {
+        "exact": "4",
+        "regex": "(?<![a-z0-9])4(?![a-z0-9])"
+      },
+      "id": "f-003-0",
+      "in_summary": true,
+      "locator_hint": "The retry count of svc.alpha-003 is 4",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-003?",
+      "source_file": "docs/doc-003.md",
+      "subject": "svc.alpha-003",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 3,
+      "expected_value": {
+        "exact": "eu-central-1",
+        "regex": "(?<![a-z0-9])eu-central-1(?![a-z0-9])"
+      },
+      "id": "f-003-1",
+      "in_summary": true,
+      "locator_hint": "The region of svc.alpha-003 is eu-central-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-003?",
+      "source_file": "docs/doc-003.md",
+      "subject": "svc.alpha-003",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 3,
+      "expected_value": {
+        "exact": "blue-green",
+        "regex": "(?<![a-z0-9])blue-green(?![a-z0-9])"
+      },
+      "id": "f-003-2",
+      "in_summary": false,
+      "locator_hint": "The deploy strategy of svc.alpha-003 is blue-green",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-003?",
+      "source_file": "docs/doc-003.md",
+      "subject": "svc.alpha-003",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 3,
+      "expected_value": {
+        "exact": "Carmen Tanaka",
+        "regex": "(?<![a-z0-9])Carmen Tanaka(?![a-z0-9])"
+      },
+      "id": "f-003-3",
+      "in_summary": false,
+      "locator_hint": "The owner of svc.alpha-003 is Carmen Tanaka",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-003?",
+      "source_file": "docs/doc-003.md",
+      "subject": "svc.alpha-003",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 4,
+      "expected_value": {
+        "exact": "ops-channel-90",
+        "regex": "(?<![a-z0-9])ops-channel-90(?![a-z0-9])"
+      },
+      "id": "f-004-0",
+      "in_summary": true,
+      "locator_hint": "The oncall slack channel of svc.alpha-004 is ops-channel-90",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-004?",
+      "source_file": "docs/doc-004.md",
+      "subject": "svc.alpha-004",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 4,
+      "expected_value": {
+        "exact": "v2.5.16",
+        "regex": "(?<![a-z0-9])v2.5.16(?![a-z0-9])"
+      },
+      "id": "f-004-1",
+      "in_summary": true,
+      "locator_hint": "The api version of svc.alpha-004 is v2.5.16",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-004?",
+      "source_file": "docs/doc-004.md",
+      "subject": "svc.alpha-004",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 4,
+      "expected_value": {
+        "exact": "73",
+        "regex": "(?<![a-z0-9])73(?![a-z0-9])"
+      },
+      "id": "f-004-2",
+      "in_summary": false,
+      "locator_hint": "The alert threshold pct of svc.alpha-004 is 73",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-004?",
+      "source_file": "docs/doc-004.md",
+      "subject": "svc.alpha-004",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 4,
+      "expected_value": {
+        "exact": "03:40",
+        "regex": "(?<![a-z0-9])03:40(?![a-z0-9])"
+      },
+      "id": "f-004-3",
+      "in_summary": false,
+      "locator_hint": "The backup window utc of svc.alpha-004 is 03:40",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-004?",
+      "source_file": "docs/doc-004.md",
+      "subject": "svc.alpha-004",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction": {
+        "expected_value_v2": {
+          "exact": "659",
+          "regex": "(?<![a-z0-9])659(?![a-z0-9])"
+        },
+        "file_v2": "v2/doc-005.md",
+        "locator_hint_v2": "The cache ttl seconds of svc.alpha-005 is 659"
+      },
+      "correction_case": true,
+      "doc_index": 5,
+      "expected_value": {
+        "exact": "817",
+        "regex": "(?<![a-z0-9])817(?![a-z0-9])"
+      },
+      "id": "f-005-0",
+      "in_summary": true,
+      "locator_hint": "The cache ttl seconds of svc.alpha-005 is 817",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-005?",
+      "source_file": "docs/doc-005.md",
+      "subject": "svc.alpha-005",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 5,
+      "expected_value": {
+        "exact": "219",
+        "regex": "(?<![a-z0-9])219(?![a-z0-9])"
+      },
+      "id": "f-005-1",
+      "in_summary": true,
+      "locator_hint": "The max connections of svc.alpha-005 is 219",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-005?",
+      "source_file": "docs/doc-005.md",
+      "subject": "svc.alpha-005",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 5,
+      "expected_value": {
+        "exact": "4",
+        "regex": "(?<![a-z0-9])4(?![a-z0-9])"
+      },
+      "id": "f-005-2",
+      "in_summary": false,
+      "locator_hint": "The retry count of svc.alpha-005 is 4",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-005?",
+      "source_file": "docs/doc-005.md",
+      "subject": "svc.alpha-005",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 5,
+      "expected_value": {
+        "exact": "ap-south-1",
+        "regex": "(?<![a-z0-9])ap-south-1(?![a-z0-9])"
+      },
+      "id": "f-005-3",
+      "in_summary": false,
+      "locator_hint": "The region of svc.alpha-005 is ap-south-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-005?",
+      "source_file": "docs/doc-005.md",
+      "subject": "svc.alpha-005",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 6,
+      "expected_value": {
+        "exact": "recreate",
+        "regex": "(?<![a-z0-9])recreate(?![a-z0-9])"
+      },
+      "id": "f-006-0",
+      "in_summary": true,
+      "locator_hint": "The deploy strategy of svc.alpha-006 is recreate",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-006?",
+      "source_file": "docs/doc-006.md",
+      "subject": "svc.alpha-006",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 6,
+      "expected_value": {
+        "exact": "Lars Novak",
+        "regex": "(?<![a-z0-9])Lars Novak(?![a-z0-9])"
+      },
+      "id": "f-006-1",
+      "in_summary": true,
+      "locator_hint": "The owner of svc.alpha-006 is Lars Novak",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-006?",
+      "source_file": "docs/doc-006.md",
+      "subject": "svc.alpha-006",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 6,
+      "expected_value": {
+        "exact": "ops-channel-72",
+        "regex": "(?<![a-z0-9])ops-channel-72(?![a-z0-9])"
+      },
+      "id": "f-006-2",
+      "in_summary": false,
+      "locator_hint": "The oncall slack channel of svc.alpha-006 is ops-channel-72",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-006?",
+      "source_file": "docs/doc-006.md",
+      "subject": "svc.alpha-006",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 6,
+      "expected_value": {
+        "exact": "v1.5.7",
+        "regex": "(?<![a-z0-9])v1.5.7(?![a-z0-9])"
+      },
+      "id": "f-006-3",
+      "in_summary": false,
+      "locator_hint": "The api version of svc.alpha-006 is v1.5.7",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-006?",
+      "source_file": "docs/doc-006.md",
+      "subject": "svc.alpha-006",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 7,
+      "expected_value": {
+        "exact": "93",
+        "regex": "(?<![a-z0-9])93(?![a-z0-9])"
+      },
+      "id": "f-007-0",
+      "in_summary": true,
+      "locator_hint": "The alert threshold pct of svc.alpha-007 is 93",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-007?",
+      "source_file": "docs/doc-007.md",
+      "subject": "svc.alpha-007",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 7,
+      "expected_value": {
+        "exact": "15:00",
+        "regex": "(?<![a-z0-9])15:00(?![a-z0-9])"
+      },
+      "id": "f-007-1",
+      "in_summary": true,
+      "locator_hint": "The backup window utc of svc.alpha-007 is 15:00",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-007?",
+      "source_file": "docs/doc-007.md",
+      "subject": "svc.alpha-007",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 7,
+      "expected_value": {
+        "exact": "3121",
+        "regex": "(?<![a-z0-9])3121(?![a-z0-9])"
+      },
+      "id": "f-007-2",
+      "in_summary": false,
+      "locator_hint": "The cache ttl seconds of svc.alpha-007 is 3121",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-007?",
+      "source_file": "docs/doc-007.md",
+      "subject": "svc.alpha-007",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 7,
+      "expected_value": {
+        "exact": "241",
+        "regex": "(?<![a-z0-9])241(?![a-z0-9])"
+      },
+      "id": "f-007-3",
+      "in_summary": false,
+      "locator_hint": "The max connections of svc.alpha-007 is 241",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-007?",
+      "source_file": "docs/doc-007.md",
+      "subject": "svc.alpha-007",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 8,
+      "expected_value": {
+        "exact": "5",
+        "regex": "(?<![a-z0-9])5(?![a-z0-9])"
+      },
+      "id": "f-008-0",
+      "in_summary": true,
+      "locator_hint": "The retry count of svc.alpha-008 is 5",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-008?",
+      "source_file": "docs/doc-008.md",
+      "subject": "svc.alpha-008",
+      "trap_case": false
+    },
+    {
+      "conflict_case": true,
+      "conflict_peer": {
+        "doc": "docs/doc-009.md",
+        "value_exact": "lfu",
+        "value_regex": "(?<![a-z0-9])lfu(?![a-z0-9])"
+      },
+      "correction_case": false,
+      "doc_index": 8,
+      "expected_value": {
+        "exact": "lru",
+        "regex": "(?<![a-z0-9])lru(?![a-z0-9])"
+      },
+      "id": "f-008-1",
+      "in_summary": true,
+      "locator_hint": "The eviction policy of svc.shared-cache is lru",
+      "predicate": "eviction_policy",
+      "question": "What is the eviction policy of svc.shared-cache?",
+      "source_file": "docs/doc-008.md",
+      "subject": "svc.shared-cache",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 8,
+      "expected_value": {
+        "exact": "rolling-restart",
+        "regex": "(?<![a-z0-9])rolling-restart(?![a-z0-9])"
+      },
+      "id": "f-008-2",
+      "in_summary": false,
+      "locator_hint": "The deploy strategy of svc.alpha-008 is rolling-restart",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-008?",
+      "source_file": "docs/doc-008.md",
+      "subject": "svc.alpha-008",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 8,
+      "expected_value": {
+        "exact": "Mira Dubois",
+        "regex": "(?<![a-z0-9])Mira Dubois(?![a-z0-9])"
+      },
+      "id": "f-008-3",
+      "in_summary": false,
+      "locator_hint": "The owner of svc.alpha-008 is Mira Dubois",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-008?",
+      "source_file": "docs/doc-008.md",
+      "subject": "svc.alpha-008",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 9,
+      "expected_value": {
+        "exact": "ops-channel-63",
+        "regex": "(?<![a-z0-9])ops-channel-63(?![a-z0-9])"
+      },
+      "id": "f-009-0",
+      "in_summary": true,
+      "locator_hint": "The oncall slack channel of svc.alpha-009 is ops-channel-63",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-009?",
+      "source_file": "docs/doc-009.md",
+      "subject": "svc.alpha-009",
+      "trap_case": false
+    },
+    {
+      "conflict_case": true,
+      "conflict_peer": {
+        "doc": "docs/doc-008.md",
+        "value_exact": "lru",
+        "value_regex": "(?<![a-z0-9])lru(?![a-z0-9])"
+      },
+      "correction_case": false,
+      "doc_index": 9,
+      "expected_value": {
+        "exact": "lfu",
+        "regex": "(?<![a-z0-9])lfu(?![a-z0-9])"
+      },
+      "id": "f-009-1",
+      "in_summary": true,
+      "locator_hint": "The eviction policy of svc.shared-cache is lfu",
+      "predicate": "eviction_policy",
+      "question": "What is the eviction policy of svc.shared-cache?",
+      "source_file": "docs/doc-009.md",
+      "subject": "svc.shared-cache",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 9,
+      "expected_value": {
+        "exact": "80",
+        "regex": "(?<![a-z0-9])80(?![a-z0-9])"
+      },
+      "id": "f-009-2",
+      "in_summary": false,
+      "locator_hint": "The alert threshold pct of svc.alpha-009 is 80",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-009?",
+      "source_file": "docs/doc-009.md",
+      "subject": "svc.alpha-009",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 9,
+      "expected_value": {
+        "exact": "23:45",
+        "regex": "(?<![a-z0-9])23:45(?![a-z0-9])"
+      },
+      "id": "f-009-3",
+      "in_summary": false,
+      "locator_hint": "The backup window utc of svc.alpha-009 is 23:45",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-009?",
+      "source_file": "docs/doc-009.md",
+      "subject": "svc.alpha-009",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 10,
+      "expected_value": {
+        "exact": "689",
+        "regex": "(?<![a-z0-9])689(?![a-z0-9])"
+      },
+      "id": "f-010-0",
+      "in_summary": true,
+      "locator_hint": "The cache ttl seconds of svc.alpha-010 is 689",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-010?",
+      "source_file": "docs/doc-010.md",
+      "subject": "svc.alpha-010",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 10,
+      "expected_value": {
+        "exact": "383",
+        "regex": "(?<![a-z0-9])383(?![a-z0-9])"
+      },
+      "id": "f-010-1",
+      "in_summary": true,
+      "locator_hint": "The max connections of svc.alpha-010 is 383",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-010?",
+      "source_file": "docs/doc-010.md",
+      "subject": "svc.alpha-010",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 10,
+      "expected_value": {
+        "exact": "8",
+        "regex": "(?<![a-z0-9])8(?![a-z0-9])"
+      },
+      "id": "f-010-2",
+      "in_summary": false,
+      "locator_hint": "The retry count of svc.alpha-010 is 8",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-010?",
+      "source_file": "docs/doc-010.md",
+      "subject": "svc.alpha-010",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 10,
+      "expected_value": {
+        "exact": "us-east-1",
+        "regex": "(?<![a-z0-9])us-east-1(?![a-z0-9])"
+      },
+      "id": "f-010-3",
+      "in_summary": false,
+      "locator_hint": "The region of svc.alpha-010 is us-east-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-010?",
+      "source_file": "docs/doc-010.md",
+      "subject": "svc.alpha-010",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 11,
+      "expected_value": {
+        "exact": "blue-green",
+        "regex": "(?<![a-z0-9])blue-green(?![a-z0-9])"
+      },
+      "id": "f-011-0",
+      "in_summary": true,
+      "locator_hint": "The deploy strategy of svc.alpha-011 is blue-green",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-011?",
+      "source_file": "docs/doc-011.md",
+      "subject": "svc.alpha-011",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 11,
+      "expected_value": {
+        "exact": "Jonas Novak",
+        "regex": "(?<![a-z0-9])Jonas Novak(?![a-z0-9])"
+      },
+      "id": "f-011-1",
+      "in_summary": true,
+      "locator_hint": "The owner of svc.alpha-011 is Jonas Novak",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-011?",
+      "source_file": "docs/doc-011.md",
+      "subject": "svc.alpha-011",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 11,
+      "expected_value": {
+        "exact": "ops-channel-31",
+        "regex": "(?<![a-z0-9])ops-channel-31(?![a-z0-9])"
+      },
+      "id": "f-011-2",
+      "in_summary": false,
+      "locator_hint": "The oncall slack channel of svc.alpha-011 is ops-channel-31",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-011?",
+      "source_file": "docs/doc-011.md",
+      "subject": "svc.alpha-011",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 11,
+      "expected_value": {
+        "exact": "v1.6.11",
+        "regex": "(?<![a-z0-9])v1.6.11(?![a-z0-9])"
+      },
+      "id": "f-011-3",
+      "in_summary": false,
+      "locator_hint": "The api version of svc.alpha-011 is v1.6.11",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-011?",
+      "source_file": "docs/doc-011.md",
+      "subject": "svc.alpha-011",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 12,
+      "expected_value": {
+        "exact": "53",
+        "regex": "(?<![a-z0-9])53(?![a-z0-9])"
+      },
+      "id": "f-012-0",
+      "in_summary": true,
+      "locator_hint": "The alert threshold pct of svc.alpha-012 is 53",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-012?",
+      "source_file": "docs/doc-012.md",
+      "subject": "svc.alpha-012",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 12,
+      "expected_value": {
+        "exact": "23:10",
+        "regex": "(?<![a-z0-9])23:10(?![a-z0-9])"
+      },
+      "id": "f-012-1",
+      "in_summary": true,
+      "locator_hint": "The backup window utc of svc.alpha-012 is 23:10",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-012?",
+      "source_file": "docs/doc-012.md",
+      "subject": "svc.alpha-012",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 12,
+      "expected_value": {
+        "exact": "3356",
+        "regex": "(?<![a-z0-9])3356(?![a-z0-9])"
+      },
+      "id": "f-012-2",
+      "in_summary": false,
+      "locator_hint": "The cache ttl seconds of svc.alpha-012 is 3356",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-012?",
+      "source_file": "docs/doc-012.md",
+      "subject": "svc.alpha-012",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 12,
+      "expected_value": {
+        "exact": "209",
+        "regex": "(?<![a-z0-9])209(?![a-z0-9])"
+      },
+      "id": "f-012-3",
+      "in_summary": false,
+      "locator_hint": "The max connections of svc.alpha-012 is 209",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-012?",
+      "source_file": "docs/doc-012.md",
+      "subject": "svc.alpha-012",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 13,
+      "expected_value": {
+        "exact": "7",
+        "regex": "(?<![a-z0-9])7(?![a-z0-9])"
+      },
+      "id": "f-013-0",
+      "in_summary": true,
+      "locator_hint": "The retry count of svc.alpha-013 is 7",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-013?",
+      "source_file": "docs/doc-013.md",
+      "subject": "svc.alpha-013",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 13,
+      "expected_value": {
+        "exact": "ap-south-1",
+        "regex": "(?<![a-z0-9])ap-south-1(?![a-z0-9])"
+      },
+      "id": "f-013-1",
+      "in_summary": true,
+      "locator_hint": "The region of svc.alpha-013 is ap-south-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-013?",
+      "source_file": "docs/doc-013.md",
+      "subject": "svc.alpha-013",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 13,
+      "expected_value": {
+        "exact": "rolling-restart",
+        "regex": "(?<![a-z0-9])rolling-restart(?![a-z0-9])"
+      },
+      "id": "f-013-2",
+      "in_summary": false,
+      "locator_hint": "The deploy strategy of svc.alpha-013 is rolling-restart",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-013?",
+      "source_file": "docs/doc-013.md",
+      "subject": "svc.alpha-013",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 13,
+      "expected_value": {
+        "exact": "Farid Okafor",
+        "regex": "(?<![a-z0-9])Farid Okafor(?![a-z0-9])"
+      },
+      "id": "f-013-3",
+      "in_summary": false,
+      "locator_hint": "The owner of svc.alpha-013 is Farid Okafor",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-013?",
+      "source_file": "docs/doc-013.md",
+      "subject": "svc.alpha-013",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 14,
+      "expected_value": {
+        "exact": "ops-channel-94",
+        "regex": "(?<![a-z0-9])ops-channel-94(?![a-z0-9])"
+      },
+      "id": "f-014-0",
+      "in_summary": true,
+      "locator_hint": "The oncall slack channel of svc.alpha-014 is ops-channel-94",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-014?",
+      "source_file": "docs/doc-014.md",
+      "subject": "svc.alpha-014",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 14,
+      "expected_value": {
+        "exact": "v1.4.2",
+        "regex": "(?<![a-z0-9])v1.4.2(?![a-z0-9])"
+      },
+      "id": "f-014-1",
+      "in_summary": true,
+      "locator_hint": "The api version of svc.alpha-014 is v1.4.2",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-014?",
+      "source_file": "docs/doc-014.md",
+      "subject": "svc.alpha-014",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 14,
+      "expected_value": {
+        "exact": "69",
+        "regex": "(?<![a-z0-9])69(?![a-z0-9])"
+      },
+      "id": "f-014-2",
+      "in_summary": false,
+      "locator_hint": "The alert threshold pct of svc.alpha-014 is 69",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-014?",
+      "source_file": "docs/doc-014.md",
+      "subject": "svc.alpha-014",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 14,
+      "expected_value": {
+        "exact": "03:35",
+        "regex": "(?<![a-z0-9])03:35(?![a-z0-9])"
+      },
+      "id": "f-014-3",
+      "in_summary": false,
+      "locator_hint": "The backup window utc of svc.alpha-014 is 03:35",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-014?",
+      "source_file": "docs/doc-014.md",
+      "subject": "svc.alpha-014",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction": {
+        "expected_value_v2": {
+          "exact": "1483",
+          "regex": "(?<![a-z0-9])1483(?![a-z0-9])"
+        },
+        "file_v2": "v2/doc-015.md",
+        "locator_hint_v2": "The cache ttl seconds of svc.alpha-015 is 1483"
+      },
+      "correction_case": true,
+      "doc_index": 15,
+      "expected_value": {
+        "exact": "3556",
+        "regex": "(?<![a-z0-9])3556(?![a-z0-9])"
+      },
+      "id": "f-015-0",
+      "in_summary": true,
+      "locator_hint": "The cache ttl seconds of svc.alpha-015 is 3556",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-015?",
+      "source_file": "docs/doc-015.md",
+      "subject": "svc.alpha-015",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 15,
+      "expected_value": {
+        "exact": "168",
+        "regex": "(?<![a-z0-9])168(?![a-z0-9])"
+      },
+      "id": "f-015-1",
+      "in_summary": true,
+      "locator_hint": "The max connections of svc.alpha-015 is 168",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-015?",
+      "source_file": "docs/doc-015.md",
+      "subject": "svc.alpha-015",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 15,
+      "expected_value": {
+        "exact": "6",
+        "regex": "(?<![a-z0-9])6(?![a-z0-9])"
+      },
+      "id": "f-015-2",
+      "in_summary": false,
+      "locator_hint": "The retry count of svc.alpha-015 is 6",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-015?",
+      "source_file": "docs/doc-015.md",
+      "subject": "svc.alpha-015",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 15,
+      "expected_value": {
+        "exact": "ap-south-1",
+        "regex": "(?<![a-z0-9])ap-south-1(?![a-z0-9])"
+      },
+      "id": "f-015-3",
+      "in_summary": false,
+      "locator_hint": "The region of svc.alpha-015 is ap-south-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-015?",
+      "source_file": "docs/doc-015.md",
+      "subject": "svc.alpha-015",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 16,
+      "expected_value": {
+        "exact": "rolling-restart",
+        "regex": "(?<![a-z0-9])rolling-restart(?![a-z0-9])"
+      },
+      "id": "f-016-0",
+      "in_summary": true,
+      "locator_hint": "The deploy strategy of svc.alpha-016 is rolling-restart",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-016?",
+      "source_file": "docs/doc-016.md",
+      "subject": "svc.alpha-016",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 16,
+      "expected_value": {
+        "exact": "Greta Weber",
+        "regex": "(?<![a-z0-9])Greta Weber(?![a-z0-9])"
+      },
+      "id": "f-016-1",
+      "in_summary": true,
+      "locator_hint": "The owner of svc.alpha-016 is Greta Weber",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-016?",
+      "source_file": "docs/doc-016.md",
+      "subject": "svc.alpha-016",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 16,
+      "expected_value": {
+        "exact": "ops-channel-49",
+        "regex": "(?<![a-z0-9])ops-channel-49(?![a-z0-9])"
+      },
+      "id": "f-016-2",
+      "in_summary": false,
+      "locator_hint": "The oncall slack channel of svc.alpha-016 is ops-channel-49",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-016?",
+      "source_file": "docs/doc-016.md",
+      "subject": "svc.alpha-016",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 16,
+      "expected_value": {
+        "exact": "v2.7.2",
+        "regex": "(?<![a-z0-9])v2.7.2(?![a-z0-9])"
+      },
+      "id": "f-016-3",
+      "in_summary": false,
+      "locator_hint": "The api version of svc.alpha-016 is v2.7.2",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-016?",
+      "source_file": "docs/doc-016.md",
+      "subject": "svc.alpha-016",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 17,
+      "expected_value": {
+        "exact": "97",
+        "regex": "(?<![a-z0-9])97(?![a-z0-9])"
+      },
+      "id": "f-017-0",
+      "in_summary": true,
+      "locator_hint": "The alert threshold pct of svc.alpha-017 is 97",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-017?",
+      "source_file": "docs/doc-017.md",
+      "subject": "svc.alpha-017",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 17,
+      "expected_value": {
+        "exact": "04:40",
+        "regex": "(?<![a-z0-9])04:40(?![a-z0-9])"
+      },
+      "id": "f-017-1",
+      "in_summary": true,
+      "locator_hint": "The backup window utc of svc.alpha-017 is 04:40",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-017?",
+      "source_file": "docs/doc-017.md",
+      "subject": "svc.alpha-017",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 17,
+      "expected_value": {
+        "exact": "2776",
+        "regex": "(?<![a-z0-9])2776(?![a-z0-9])"
+      },
+      "id": "f-017-2",
+      "in_summary": false,
+      "locator_hint": "The cache ttl seconds of svc.alpha-017 is 2776",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-017?",
+      "source_file": "docs/doc-017.md",
+      "subject": "svc.alpha-017",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 17,
+      "expected_value": {
+        "exact": "17",
+        "regex": "(?<![a-z0-9])17(?![a-z0-9])"
+      },
+      "id": "f-017-3",
+      "in_summary": false,
+      "locator_hint": "The max connections of svc.alpha-017 is 17",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-017?",
+      "source_file": "docs/doc-017.md",
+      "subject": "svc.alpha-017",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 18,
+      "expected_value": {
+        "exact": "4",
+        "regex": "(?<![a-z0-9])4(?![a-z0-9])"
+      },
+      "id": "f-018-0",
+      "in_summary": true,
+      "locator_hint": "The retry count of svc.alpha-018 is 4",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-018?",
+      "source_file": "docs/doc-018.md",
+      "subject": "svc.alpha-018",
+      "trap_case": false
+    },
+    {
+      "conflict_case": true,
+      "conflict_peer": {
+        "doc": "docs/doc-019.md",
+        "value_exact": "950",
+        "value_regex": "(?<![a-z0-9])950(?![a-z0-9])"
+      },
+      "correction_case": false,
+      "doc_index": 18,
+      "expected_value": {
+        "exact": "1200",
+        "regex": "(?<![a-z0-9])1200(?![a-z0-9])"
+      },
+      "id": "f-018-1",
+      "in_summary": true,
+      "locator_hint": "The rate limit rpm of svc.shared-rate is 1200",
+      "predicate": "rate_limit_rpm",
+      "question": "What is the rate limit rpm of svc.shared-rate?",
+      "source_file": "docs/doc-018.md",
+      "subject": "svc.shared-rate",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 18,
+      "expected_value": {
+        "exact": "blue-green",
+        "regex": "(?<![a-z0-9])blue-green(?![a-z0-9])"
+      },
+      "id": "f-018-2",
+      "in_summary": false,
+      "locator_hint": "The deploy strategy of svc.alpha-018 is blue-green",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-018?",
+      "source_file": "docs/doc-018.md",
+      "subject": "svc.alpha-018",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 18,
+      "expected_value": {
+        "exact": "Elena Weber",
+        "regex": "(?<![a-z0-9])Elena Weber(?![a-z0-9])"
+      },
+      "id": "f-018-3",
+      "in_summary": false,
+      "locator_hint": "The owner of svc.alpha-018 is Elena Weber",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-018?",
+      "source_file": "docs/doc-018.md",
+      "subject": "svc.alpha-018",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 19,
+      "expected_value": {
+        "exact": "ops-channel-33",
+        "regex": "(?<![a-z0-9])ops-channel-33(?![a-z0-9])"
+      },
+      "id": "f-019-0",
+      "in_summary": true,
+      "locator_hint": "The oncall slack channel of svc.alpha-019 is ops-channel-33",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-019?",
+      "source_file": "docs/doc-019.md",
+      "subject": "svc.alpha-019",
+      "trap_case": false
+    },
+    {
+      "conflict_case": true,
+      "conflict_peer": {
+        "doc": "docs/doc-018.md",
+        "value_exact": "1200",
+        "value_regex": "(?<![a-z0-9])1200(?![a-z0-9])"
+      },
+      "correction_case": false,
+      "doc_index": 19,
+      "expected_value": {
+        "exact": "950",
+        "regex": "(?<![a-z0-9])950(?![a-z0-9])"
+      },
+      "id": "f-019-1",
+      "in_summary": true,
+      "locator_hint": "The rate limit rpm of svc.shared-rate is 950",
+      "predicate": "rate_limit_rpm",
+      "question": "What is the rate limit rpm of svc.shared-rate?",
+      "source_file": "docs/doc-019.md",
+      "subject": "svc.shared-rate",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 19,
+      "expected_value": {
+        "exact": "83",
+        "regex": "(?<![a-z0-9])83(?![a-z0-9])"
+      },
+      "id": "f-019-2",
+      "in_summary": false,
+      "locator_hint": "The alert threshold pct of svc.alpha-019 is 83",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-019?",
+      "source_file": "docs/doc-019.md",
+      "subject": "svc.alpha-019",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 19,
+      "expected_value": {
+        "exact": "03:35",
+        "regex": "(?<![a-z0-9])03:35(?![a-z0-9])"
+      },
+      "id": "f-019-3",
+      "in_summary": false,
+      "locator_hint": "The backup window utc of svc.alpha-019 is 03:35",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-019?",
+      "source_file": "docs/doc-019.md",
+      "subject": "svc.alpha-019",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 20,
+      "expected_value": {
+        "exact": "2598",
+        "regex": "(?<![a-z0-9])2598(?![a-z0-9])"
+      },
+      "id": "f-020-0",
+      "in_summary": true,
+      "locator_hint": "The cache ttl seconds of svc.alpha-020 is 2598",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-020?",
+      "source_file": "docs/doc-020.md",
+      "subject": "svc.alpha-020",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 20,
+      "expected_value": {
+        "exact": "48",
+        "regex": "(?<![a-z0-9])48(?![a-z0-9])"
+      },
+      "id": "f-020-1",
+      "in_summary": true,
+      "locator_hint": "The max connections of svc.alpha-020 is 48",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-020?",
+      "source_file": "docs/doc-020.md",
+      "subject": "svc.alpha-020",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 20,
+      "expected_value": {
+        "exact": "7",
+        "regex": "(?<![a-z0-9])7(?![a-z0-9])"
+      },
+      "id": "f-020-2",
+      "in_summary": false,
+      "locator_hint": "The retry count of svc.alpha-020 is 7",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-020?",
+      "source_file": "docs/doc-020.md",
+      "subject": "svc.alpha-020",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 20,
+      "expected_value": {
+        "exact": "us-east-1",
+        "regex": "(?<![a-z0-9])us-east-1(?![a-z0-9])"
+      },
+      "id": "f-020-3",
+      "in_summary": false,
+      "locator_hint": "The region of svc.alpha-020 is us-east-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-020?",
+      "source_file": "docs/doc-020.md",
+      "subject": "svc.alpha-020",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 21,
+      "expected_value": {
+        "exact": "recreate",
+        "regex": "(?<![a-z0-9])recreate(?![a-z0-9])"
+      },
+      "id": "f-021-0",
+      "in_summary": true,
+      "locator_hint": "The deploy strategy of svc.alpha-021 is recreate",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-021?",
+      "source_file": "docs/doc-021.md",
+      "subject": "svc.alpha-021",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 21,
+      "expected_value": {
+        "exact": "Devon Okafor",
+        "regex": "(?<![a-z0-9])Devon Okafor(?![a-z0-9])"
+      },
+      "id": "f-021-1",
+      "in_summary": true,
+      "locator_hint": "The owner of svc.alpha-021 is Devon Okafor",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-021?",
+      "source_file": "docs/doc-021.md",
+      "subject": "svc.alpha-021",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 21,
+      "expected_value": {
+        "exact": "ops-channel-53",
+        "regex": "(?<![a-z0-9])ops-channel-53(?![a-z0-9])"
+      },
+      "id": "f-021-2",
+      "in_summary": false,
+      "locator_hint": "The oncall slack channel of svc.alpha-021 is ops-channel-53",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-021?",
+      "source_file": "docs/doc-021.md",
+      "subject": "svc.alpha-021",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 21,
+      "expected_value": {
+        "exact": "v1.7.1",
+        "regex": "(?<![a-z0-9])v1.7.1(?![a-z0-9])"
+      },
+      "id": "f-021-3",
+      "in_summary": false,
+      "locator_hint": "The api version of svc.alpha-021 is v1.7.1",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-021?",
+      "source_file": "docs/doc-021.md",
+      "subject": "svc.alpha-021",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 22,
+      "expected_value": {
+        "exact": "52",
+        "regex": "(?<![a-z0-9])52(?![a-z0-9])"
+      },
+      "id": "f-022-0",
+      "in_summary": true,
+      "locator_hint": "The alert threshold pct of svc.alpha-022 is 52",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-022?",
+      "source_file": "docs/doc-022.md",
+      "subject": "svc.alpha-022",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 22,
+      "expected_value": {
+        "exact": "21:35",
+        "regex": "(?<![a-z0-9])21:35(?![a-z0-9])"
+      },
+      "id": "f-022-1",
+      "in_summary": true,
+      "locator_hint": "The backup window utc of svc.alpha-022 is 21:35",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-022?",
+      "source_file": "docs/doc-022.md",
+      "subject": "svc.alpha-022",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 22,
+      "expected_value": {
+        "exact": "3303",
+        "regex": "(?<![a-z0-9])3303(?![a-z0-9])"
+      },
+      "id": "f-022-2",
+      "in_summary": false,
+      "locator_hint": "The cache ttl seconds of svc.alpha-022 is 3303",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-022?",
+      "source_file": "docs/doc-022.md",
+      "subject": "svc.alpha-022",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 22,
+      "expected_value": {
+        "exact": "23",
+        "regex": "(?<![a-z0-9])23(?![a-z0-9])"
+      },
+      "id": "f-022-3",
+      "in_summary": false,
+      "locator_hint": "The max connections of svc.alpha-022 is 23",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-022?",
+      "source_file": "docs/doc-022.md",
+      "subject": "svc.alpha-022",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 23,
+      "expected_value": {
+        "exact": "9",
+        "regex": "(?<![a-z0-9])9(?![a-z0-9])"
+      },
+      "id": "f-023-0",
+      "in_summary": true,
+      "locator_hint": "The retry count of svc.alpha-023 is 9",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-023?",
+      "source_file": "docs/doc-023.md",
+      "subject": "svc.alpha-023",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 23,
+      "expected_value": {
+        "exact": "us-east-1",
+        "regex": "(?<![a-z0-9])us-east-1(?![a-z0-9])"
+      },
+      "id": "f-023-1",
+      "in_summary": true,
+      "locator_hint": "The region of svc.alpha-023 is us-east-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-023?",
+      "source_file": "docs/doc-023.md",
+      "subject": "svc.alpha-023",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 23,
+      "expected_value": {
+        "exact": "rolling-restart",
+        "regex": "(?<![a-z0-9])rolling-restart(?![a-z0-9])"
+      },
+      "id": "f-023-2",
+      "in_summary": false,
+      "locator_hint": "The deploy strategy of svc.alpha-023 is rolling-restart",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-023?",
+      "source_file": "docs/doc-023.md",
+      "subject": "svc.alpha-023",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 23,
+      "expected_value": {
+        "exact": "Jonas Novak",
+        "regex": "(?<![a-z0-9])Jonas Novak(?![a-z0-9])"
+      },
+      "id": "f-023-3",
+      "in_summary": false,
+      "locator_hint": "The owner of svc.alpha-023 is Jonas Novak",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-023?",
+      "source_file": "docs/doc-023.md",
+      "subject": "svc.alpha-023",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 24,
+      "expected_value": {
+        "exact": "ops-channel-26",
+        "regex": "(?<![a-z0-9])ops-channel-26(?![a-z0-9])"
+      },
+      "id": "f-024-0",
+      "in_summary": true,
+      "locator_hint": "The oncall slack channel of svc.alpha-024 is ops-channel-26",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-024?",
+      "source_file": "docs/doc-024.md",
+      "subject": "svc.alpha-024",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 24,
+      "expected_value": {
+        "exact": "v3.0.13",
+        "regex": "(?<![a-z0-9])v3.0.13(?![a-z0-9])"
+      },
+      "id": "f-024-1",
+      "in_summary": true,
+      "locator_hint": "The api version of svc.alpha-024 is v3.0.13",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-024?",
+      "source_file": "docs/doc-024.md",
+      "subject": "svc.alpha-024",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 24,
+      "expected_value": {
+        "exact": "91",
+        "regex": "(?<![a-z0-9])91(?![a-z0-9])"
+      },
+      "id": "f-024-2",
+      "in_summary": false,
+      "locator_hint": "The alert threshold pct of svc.alpha-024 is 91",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-024?",
+      "source_file": "docs/doc-024.md",
+      "subject": "svc.alpha-024",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 24,
+      "expected_value": {
+        "exact": "11:20",
+        "regex": "(?<![a-z0-9])11:20(?![a-z0-9])"
+      },
+      "id": "f-024-3",
+      "in_summary": false,
+      "locator_hint": "The backup window utc of svc.alpha-024 is 11:20",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-024?",
+      "source_file": "docs/doc-024.md",
+      "subject": "svc.alpha-024",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction": {
+        "expected_value_v2": {
+          "exact": "736",
+          "regex": "(?<![a-z0-9])736(?![a-z0-9])"
+        },
+        "file_v2": "v2/doc-025.md",
+        "locator_hint_v2": "The cache ttl seconds of svc.alpha-025 is 736"
+      },
+      "correction_case": true,
+      "doc_index": 25,
+      "expected_value": {
+        "exact": "631",
+        "regex": "(?<![a-z0-9])631(?![a-z0-9])"
+      },
+      "id": "f-025-0",
+      "in_summary": true,
+      "locator_hint": "The cache ttl seconds of svc.alpha-025 is 631",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-025?",
+      "source_file": "docs/doc-025.md",
+      "subject": "svc.alpha-025",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 25,
+      "expected_value": {
+        "exact": "126",
+        "regex": "(?<![a-z0-9])126(?![a-z0-9])"
+      },
+      "id": "f-025-1",
+      "in_summary": true,
+      "locator_hint": "The max connections of svc.alpha-025 is 126",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-025?",
+      "source_file": "docs/doc-025.md",
+      "subject": "svc.alpha-025",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 25,
+      "expected_value": {
+        "exact": "9",
+        "regex": "(?<![a-z0-9])9(?![a-z0-9])"
+      },
+      "id": "f-025-2",
+      "in_summary": false,
+      "locator_hint": "The retry count of svc.alpha-025 is 9",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-025?",
+      "source_file": "docs/doc-025.md",
+      "subject": "svc.alpha-025",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 25,
+      "expected_value": {
+        "exact": "eu-central-1",
+        "regex": "(?<![a-z0-9])eu-central-1(?![a-z0-9])"
+      },
+      "id": "f-025-3",
+      "in_summary": false,
+      "locator_hint": "The region of svc.alpha-025 is eu-central-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-025?",
+      "source_file": "docs/doc-025.md",
+      "subject": "svc.alpha-025",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 26,
+      "expected_value": {
+        "exact": "rolling-restart",
+        "regex": "(?<![a-z0-9])rolling-restart(?![a-z0-9])"
+      },
+      "id": "f-026-0",
+      "in_summary": true,
+      "locator_hint": "The deploy strategy of svc.alpha-026 is rolling-restart",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-026?",
+      "source_file": "docs/doc-026.md",
+      "subject": "svc.alpha-026",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 26,
+      "expected_value": {
+        "exact": "Jonas Novak",
+        "regex": "(?<![a-z0-9])Jonas Novak(?![a-z0-9])"
+      },
+      "id": "f-026-1",
+      "in_summary": true,
+      "locator_hint": "The owner of svc.alpha-026 is Jonas Novak",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-026?",
+      "source_file": "docs/doc-026.md",
+      "subject": "svc.alpha-026",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 26,
+      "expected_value": {
+        "exact": "ops-channel-63",
+        "regex": "(?<![a-z0-9])ops-channel-63(?![a-z0-9])"
+      },
+      "id": "f-026-2",
+      "in_summary": false,
+      "locator_hint": "The oncall slack channel of svc.alpha-026 is ops-channel-63",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-026?",
+      "source_file": "docs/doc-026.md",
+      "subject": "svc.alpha-026",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 26,
+      "expected_value": {
+        "exact": "v2.0.6",
+        "regex": "(?<![a-z0-9])v2.0.6(?![a-z0-9])"
+      },
+      "id": "f-026-3",
+      "in_summary": false,
+      "locator_hint": "The api version of svc.alpha-026 is v2.0.6",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-026?",
+      "source_file": "docs/doc-026.md",
+      "subject": "svc.alpha-026",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 27,
+      "expected_value": {
+        "exact": "85",
+        "regex": "(?<![a-z0-9])85(?![a-z0-9])"
+      },
+      "id": "f-027-0",
+      "in_summary": true,
+      "locator_hint": "The alert threshold pct of svc.alpha-027 is 85",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-027?",
+      "source_file": "docs/doc-027.md",
+      "subject": "svc.alpha-027",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 27,
+      "expected_value": {
+        "exact": "10:10",
+        "regex": "(?<![a-z0-9])10:10(?![a-z0-9])"
+      },
+      "id": "f-027-1",
+      "in_summary": true,
+      "locator_hint": "The backup window utc of svc.alpha-027 is 10:10",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-027?",
+      "source_file": "docs/doc-027.md",
+      "subject": "svc.alpha-027",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 27,
+      "expected_value": {
+        "exact": "764",
+        "regex": "(?<![a-z0-9])764(?![a-z0-9])"
+      },
+      "id": "f-027-2",
+      "in_summary": false,
+      "locator_hint": "The cache ttl seconds of svc.alpha-027 is 764",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-027?",
+      "source_file": "docs/doc-027.md",
+      "subject": "svc.alpha-027",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 27,
+      "expected_value": {
+        "exact": "462",
+        "regex": "(?<![a-z0-9])462(?![a-z0-9])"
+      },
+      "id": "f-027-3",
+      "in_summary": false,
+      "locator_hint": "The max connections of svc.alpha-027 is 462",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-027?",
+      "source_file": "docs/doc-027.md",
+      "subject": "svc.alpha-027",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 28,
+      "expected_value": {
+        "exact": "6",
+        "regex": "(?<![a-z0-9])6(?![a-z0-9])"
+      },
+      "id": "f-028-0",
+      "in_summary": true,
+      "locator_hint": "The retry count of svc.alpha-028 is 6",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-028?",
+      "source_file": "docs/doc-028.md",
+      "subject": "svc.alpha-028",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 28,
+      "expected_value": {
+        "exact": "eu-central-1",
+        "regex": "(?<![a-z0-9])eu-central-1(?![a-z0-9])"
+      },
+      "id": "f-028-1",
+      "in_summary": true,
+      "locator_hint": "The region of svc.alpha-028 is eu-central-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-028?",
+      "source_file": "docs/doc-028.md",
+      "subject": "svc.alpha-028",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 28,
+      "expected_value": {
+        "exact": "canary",
+        "regex": "(?<![a-z0-9])canary(?![a-z0-9])"
+      },
+      "id": "f-028-2",
+      "in_summary": false,
+      "locator_hint": "The deploy strategy of svc.alpha-028 is canary",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-028?",
+      "source_file": "docs/doc-028.md",
+      "subject": "svc.alpha-028",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 28,
+      "expected_value": {
+        "exact": "Henrik Lindqvist",
+        "regex": "(?<![a-z0-9])Henrik Lindqvist(?![a-z0-9])"
+      },
+      "id": "f-028-3",
+      "in_summary": false,
+      "locator_hint": "The owner of svc.alpha-028 is Henrik Lindqvist",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-028?",
+      "source_file": "docs/doc-028.md",
+      "subject": "svc.alpha-028",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 29,
+      "expected_value": {
+        "exact": "ops-channel-16",
+        "regex": "(?<![a-z0-9])ops-channel-16(?![a-z0-9])"
+      },
+      "id": "f-029-0",
+      "in_summary": true,
+      "locator_hint": "The oncall slack channel of svc.alpha-029 is ops-channel-16",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-029?",
+      "source_file": "docs/doc-029.md",
+      "subject": "svc.alpha-029",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 29,
+      "expected_value": {
+        "exact": "v2.0.9",
+        "regex": "(?<![a-z0-9])v2.0.9(?![a-z0-9])"
+      },
+      "id": "f-029-1",
+      "in_summary": true,
+      "locator_hint": "The api version of svc.alpha-029 is v2.0.9",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-029?",
+      "source_file": "docs/doc-029.md",
+      "subject": "svc.alpha-029",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 29,
+      "expected_value": {
+        "exact": "70",
+        "regex": "(?<![a-z0-9])70(?![a-z0-9])"
+      },
+      "id": "f-029-2",
+      "in_summary": false,
+      "locator_hint": "The alert threshold pct of svc.alpha-029 is 70",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-029?",
+      "source_file": "docs/doc-029.md",
+      "subject": "svc.alpha-029",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 29,
+      "expected_value": {
+        "exact": "15:25",
+        "regex": "(?<![a-z0-9])15:25(?![a-z0-9])"
+      },
+      "id": "f-029-3",
+      "in_summary": false,
+      "locator_hint": "The backup window utc of svc.alpha-029 is 15:25",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-029?",
+      "source_file": "docs/doc-029.md",
+      "subject": "svc.alpha-029",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 30,
+      "expected_value": {
+        "exact": "2548",
+        "regex": "(?<![a-z0-9])2548(?![a-z0-9])"
+      },
+      "id": "f-030-0",
+      "in_summary": true,
+      "locator_hint": "The cache ttl seconds of svc.alpha-030 is 2548",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-030?",
+      "source_file": "docs/doc-030.md",
+      "subject": "svc.alpha-030",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 30,
+      "expected_value": {
+        "exact": "202",
+        "regex": "(?<![a-z0-9])202(?![a-z0-9])"
+      },
+      "id": "f-030-1",
+      "in_summary": true,
+      "locator_hint": "The max connections of svc.alpha-030 is 202",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-030?",
+      "source_file": "docs/doc-030.md",
+      "subject": "svc.alpha-030",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 30,
+      "expected_value": {
+        "exact": "3",
+        "regex": "(?<![a-z0-9])3(?![a-z0-9])"
+      },
+      "id": "f-030-2",
+      "in_summary": false,
+      "locator_hint": "The retry count of svc.alpha-030 is 3",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-030?",
+      "source_file": "docs/doc-030.md",
+      "subject": "svc.alpha-030",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 30,
+      "expected_value": {
+        "exact": "eu-west-2",
+        "regex": "(?<![a-z0-9])eu-west-2(?![a-z0-9])"
+      },
+      "id": "f-030-3",
+      "in_summary": false,
+      "locator_hint": "The region of svc.alpha-030 is eu-west-2",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-030?",
+      "source_file": "docs/doc-030.md",
+      "subject": "svc.alpha-030",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 31,
+      "expected_value": {
+        "exact": "recreate",
+        "regex": "(?<![a-z0-9])recreate(?![a-z0-9])"
+      },
+      "id": "f-031-0",
+      "in_summary": true,
+      "locator_hint": "The deploy strategy of svc.alpha-031 is recreate",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-031?",
+      "source_file": "docs/doc-031.md",
+      "subject": "svc.alpha-031",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 31,
+      "expected_value": {
+        "exact": "Alice Petrov",
+        "regex": "(?<![a-z0-9])Alice Petrov(?![a-z0-9])"
+      },
+      "id": "f-031-1",
+      "in_summary": true,
+      "locator_hint": "The owner of svc.alpha-031 is Alice Petrov",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-031?",
+      "source_file": "docs/doc-031.md",
+      "subject": "svc.alpha-031",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 31,
+      "expected_value": {
+        "exact": "ops-channel-83",
+        "regex": "(?<![a-z0-9])ops-channel-83(?![a-z0-9])"
+      },
+      "id": "f-031-2",
+      "in_summary": false,
+      "locator_hint": "The oncall slack channel of svc.alpha-031 is ops-channel-83",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-031?",
+      "source_file": "docs/doc-031.md",
+      "subject": "svc.alpha-031",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 31,
+      "expected_value": {
+        "exact": "Nadia Dubois",
+        "regex": "(?<![a-z0-9])Nadia Dubois(?![a-z0-9])"
+      },
+      "id": "f-031-3",
+      "in_summary": false,
+      "locator_hint": "The owner of platform.global is Nadia Dubois",
+      "predicate": "owner",
+      "question": "What is the owner of platform.global?",
+      "source_file": "docs/doc-031.md",
+      "subject": "platform.global",
+      "trap_case": true
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 32,
+      "expected_value": {
+        "exact": "80",
+        "regex": "(?<![a-z0-9])80(?![a-z0-9])"
+      },
+      "id": "f-032-0",
+      "in_summary": true,
+      "locator_hint": "The alert threshold pct of svc.alpha-032 is 80",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-032?",
+      "source_file": "docs/doc-032.md",
+      "subject": "svc.alpha-032",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 32,
+      "expected_value": {
+        "exact": "20:05",
+        "regex": "(?<![a-z0-9])20:05(?![a-z0-9])"
+      },
+      "id": "f-032-1",
+      "in_summary": true,
+      "locator_hint": "The backup window utc of svc.alpha-032 is 20:05",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-032?",
+      "source_file": "docs/doc-032.md",
+      "subject": "svc.alpha-032",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 32,
+      "expected_value": {
+        "exact": "2447",
+        "regex": "(?<![a-z0-9])2447(?![a-z0-9])"
+      },
+      "id": "f-032-2",
+      "in_summary": false,
+      "locator_hint": "The cache ttl seconds of svc.alpha-032 is 2447",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-032?",
+      "source_file": "docs/doc-032.md",
+      "subject": "svc.alpha-032",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 32,
+      "expected_value": {
+        "exact": "eu-west-2",
+        "regex": "(?<![a-z0-9])eu-west-2(?![a-z0-9])"
+      },
+      "id": "f-032-3",
+      "in_summary": false,
+      "locator_hint": "The region of platform.global is eu-west-2",
+      "predicate": "region",
+      "question": "What is the region of platform.global?",
+      "source_file": "docs/doc-032.md",
+      "subject": "platform.global",
+      "trap_case": true
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 33,
+      "expected_value": {
+        "exact": "5",
+        "regex": "(?<![a-z0-9])5(?![a-z0-9])"
+      },
+      "id": "f-033-0",
+      "in_summary": true,
+      "locator_hint": "The retry count of svc.alpha-033 is 5",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-033?",
+      "source_file": "docs/doc-033.md",
+      "subject": "svc.alpha-033",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 33,
+      "expected_value": {
+        "exact": "eu-central-1",
+        "regex": "(?<![a-z0-9])eu-central-1(?![a-z0-9])"
+      },
+      "id": "f-033-1",
+      "in_summary": true,
+      "locator_hint": "The region of svc.alpha-033 is eu-central-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-033?",
+      "source_file": "docs/doc-033.md",
+      "subject": "svc.alpha-033",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 33,
+      "expected_value": {
+        "exact": "recreate",
+        "regex": "(?<![a-z0-9])recreate(?![a-z0-9])"
+      },
+      "id": "f-033-2",
+      "in_summary": false,
+      "locator_hint": "The deploy strategy of svc.alpha-033 is recreate",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-033?",
+      "source_file": "docs/doc-033.md",
+      "subject": "svc.alpha-033",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 33,
+      "expected_value": {
+        "exact": "canary",
+        "regex": "(?<![a-z0-9])canary(?![a-z0-9])"
+      },
+      "id": "f-033-3",
+      "in_summary": false,
+      "locator_hint": "The deploy strategy of platform.global is canary",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of platform.global?",
+      "source_file": "docs/doc-033.md",
+      "subject": "platform.global",
+      "trap_case": true
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 34,
+      "expected_value": {
+        "exact": "ops-channel-52",
+        "regex": "(?<![a-z0-9])ops-channel-52(?![a-z0-9])"
+      },
+      "id": "f-034-0",
+      "in_summary": true,
+      "locator_hint": "The oncall slack channel of svc.alpha-034 is ops-channel-52",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-034?",
+      "source_file": "docs/doc-034.md",
+      "subject": "svc.alpha-034",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 34,
+      "expected_value": {
+        "exact": "v2.0.1",
+        "regex": "(?<![a-z0-9])v2.0.1(?![a-z0-9])"
+      },
+      "id": "f-034-1",
+      "in_summary": true,
+      "locator_hint": "The api version of svc.alpha-034 is v2.0.1",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-034?",
+      "source_file": "docs/doc-034.md",
+      "subject": "svc.alpha-034",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 34,
+      "expected_value": {
+        "exact": "53",
+        "regex": "(?<![a-z0-9])53(?![a-z0-9])"
+      },
+      "id": "f-034-2",
+      "in_summary": false,
+      "locator_hint": "The alert threshold pct of svc.alpha-034 is 53",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-034?",
+      "source_file": "docs/doc-034.md",
+      "subject": "svc.alpha-034",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 34,
+      "expected_value": {
+        "exact": "95",
+        "regex": "(?<![a-z0-9])95(?![a-z0-9])"
+      },
+      "id": "f-034-3",
+      "in_summary": false,
+      "locator_hint": "The alert threshold pct of platform.global is 95",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of platform.global?",
+      "source_file": "docs/doc-034.md",
+      "subject": "platform.global",
+      "trap_case": true
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 35,
+      "expected_value": {
+        "exact": "1269",
+        "regex": "(?<![a-z0-9])1269(?![a-z0-9])"
+      },
+      "id": "f-035-0",
+      "in_summary": true,
+      "locator_hint": "The cache ttl seconds of svc.alpha-035 is 1269",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-035?",
+      "source_file": "docs/doc-035.md",
+      "subject": "svc.alpha-035",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 35,
+      "expected_value": {
+        "exact": "444",
+        "regex": "(?<![a-z0-9])444(?![a-z0-9])"
+      },
+      "id": "f-035-1",
+      "in_summary": true,
+      "locator_hint": "The max connections of svc.alpha-035 is 444",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-035?",
+      "source_file": "docs/doc-035.md",
+      "subject": "svc.alpha-035",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 35,
+      "expected_value": {
+        "exact": "1",
+        "regex": "(?<![a-z0-9])1(?![a-z0-9])"
+      },
+      "id": "f-035-2",
+      "in_summary": false,
+      "locator_hint": "The retry count of svc.alpha-035 is 1",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-035?",
+      "source_file": "docs/doc-035.md",
+      "subject": "svc.alpha-035",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 35,
+      "expected_value": {
+        "exact": "us-east-1",
+        "regex": "(?<![a-z0-9])us-east-1(?![a-z0-9])"
+      },
+      "id": "f-035-3",
+      "in_summary": false,
+      "locator_hint": "The region of svc.alpha-035 is us-east-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-035?",
+      "source_file": "docs/doc-035.md",
+      "subject": "svc.alpha-035",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 36,
+      "expected_value": {
+        "exact": "rolling-restart",
+        "regex": "(?<![a-z0-9])rolling-restart(?![a-z0-9])"
+      },
+      "id": "f-036-0",
+      "in_summary": true,
+      "locator_hint": "The deploy strategy of svc.alpha-036 is rolling-restart",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-036?",
+      "source_file": "docs/doc-036.md",
+      "subject": "svc.alpha-036",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 36,
+      "expected_value": {
+        "exact": "Alice Lindqvist",
+        "regex": "(?<![a-z0-9])Alice Lindqvist(?![a-z0-9])"
+      },
+      "id": "f-036-1",
+      "in_summary": true,
+      "locator_hint": "The owner of svc.alpha-036 is Alice Lindqvist",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-036?",
+      "source_file": "docs/doc-036.md",
+      "subject": "svc.alpha-036",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 36,
+      "expected_value": {
+        "exact": "ops-channel-85",
+        "regex": "(?<![a-z0-9])ops-channel-85(?![a-z0-9])"
+      },
+      "id": "f-036-2",
+      "in_summary": false,
+      "locator_hint": "The oncall slack channel of svc.alpha-036 is ops-channel-85",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-036?",
+      "source_file": "docs/doc-036.md",
+      "subject": "svc.alpha-036",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 36,
+      "expected_value": {
+        "exact": "v4.2.11",
+        "regex": "(?<![a-z0-9])v4.2.11(?![a-z0-9])"
+      },
+      "id": "f-036-3",
+      "in_summary": false,
+      "locator_hint": "The api version of svc.alpha-036 is v4.2.11",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-036?",
+      "source_file": "docs/doc-036.md",
+      "subject": "svc.alpha-036",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 37,
+      "expected_value": {
+        "exact": "61",
+        "regex": "(?<![a-z0-9])61(?![a-z0-9])"
+      },
+      "id": "f-037-0",
+      "in_summary": true,
+      "locator_hint": "The alert threshold pct of svc.alpha-037 is 61",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-037?",
+      "source_file": "docs/doc-037.md",
+      "subject": "svc.alpha-037",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 37,
+      "expected_value": {
+        "exact": "08:35",
+        "regex": "(?<![a-z0-9])08:35(?![a-z0-9])"
+      },
+      "id": "f-037-1",
+      "in_summary": true,
+      "locator_hint": "The backup window utc of svc.alpha-037 is 08:35",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-037?",
+      "source_file": "docs/doc-037.md",
+      "subject": "svc.alpha-037",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 37,
+      "expected_value": {
+        "exact": "715",
+        "regex": "(?<![a-z0-9])715(?![a-z0-9])"
+      },
+      "id": "f-037-2",
+      "in_summary": false,
+      "locator_hint": "The cache ttl seconds of svc.alpha-037 is 715",
+      "predicate": "cache_ttl_seconds",
+      "question": "What is the cache ttl seconds of svc.alpha-037?",
+      "source_file": "docs/doc-037.md",
+      "subject": "svc.alpha-037",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 37,
+      "expected_value": {
+        "exact": "342",
+        "regex": "(?<![a-z0-9])342(?![a-z0-9])"
+      },
+      "id": "f-037-3",
+      "in_summary": false,
+      "locator_hint": "The max connections of svc.alpha-037 is 342",
+      "predicate": "max_connections",
+      "question": "What is the max connections of svc.alpha-037?",
+      "source_file": "docs/doc-037.md",
+      "subject": "svc.alpha-037",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 38,
+      "expected_value": {
+        "exact": "1",
+        "regex": "(?<![a-z0-9])1(?![a-z0-9])"
+      },
+      "id": "f-038-0",
+      "in_summary": true,
+      "locator_hint": "The retry count of svc.alpha-038 is 1",
+      "predicate": "retry_count",
+      "question": "What is the retry count of svc.alpha-038?",
+      "source_file": "docs/doc-038.md",
+      "subject": "svc.alpha-038",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 38,
+      "expected_value": {
+        "exact": "ap-south-1",
+        "regex": "(?<![a-z0-9])ap-south-1(?![a-z0-9])"
+      },
+      "id": "f-038-1",
+      "in_summary": true,
+      "locator_hint": "The region of svc.alpha-038 is ap-south-1",
+      "predicate": "region",
+      "question": "What is the region of svc.alpha-038?",
+      "source_file": "docs/doc-038.md",
+      "subject": "svc.alpha-038",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 38,
+      "expected_value": {
+        "exact": "rolling-restart",
+        "regex": "(?<![a-z0-9])rolling-restart(?![a-z0-9])"
+      },
+      "id": "f-038-2",
+      "in_summary": false,
+      "locator_hint": "The deploy strategy of svc.alpha-038 is rolling-restart",
+      "predicate": "deploy_strategy",
+      "question": "What is the deploy strategy of svc.alpha-038?",
+      "source_file": "docs/doc-038.md",
+      "subject": "svc.alpha-038",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 38,
+      "expected_value": {
+        "exact": "Carmen Lindqvist",
+        "regex": "(?<![a-z0-9])Carmen Lindqvist(?![a-z0-9])"
+      },
+      "id": "f-038-3",
+      "in_summary": false,
+      "locator_hint": "The owner of svc.alpha-038 is Carmen Lindqvist",
+      "predicate": "owner",
+      "question": "What is the owner of svc.alpha-038?",
+      "source_file": "docs/doc-038.md",
+      "subject": "svc.alpha-038",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 39,
+      "expected_value": {
+        "exact": "ops-channel-85",
+        "regex": "(?<![a-z0-9])ops-channel-85(?![a-z0-9])"
+      },
+      "id": "f-039-0",
+      "in_summary": true,
+      "locator_hint": "The oncall slack channel of svc.alpha-039 is ops-channel-85",
+      "predicate": "oncall_slack_channel",
+      "question": "What is the oncall slack channel of svc.alpha-039?",
+      "source_file": "docs/doc-039.md",
+      "subject": "svc.alpha-039",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 39,
+      "expected_value": {
+        "exact": "v2.7.3",
+        "regex": "(?<![a-z0-9])v2.7.3(?![a-z0-9])"
+      },
+      "id": "f-039-1",
+      "in_summary": true,
+      "locator_hint": "The api version of svc.alpha-039 is v2.7.3",
+      "predicate": "api_version",
+      "question": "What is the api version of svc.alpha-039?",
+      "source_file": "docs/doc-039.md",
+      "subject": "svc.alpha-039",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 39,
+      "expected_value": {
+        "exact": "78",
+        "regex": "(?<![a-z0-9])78(?![a-z0-9])"
+      },
+      "id": "f-039-2",
+      "in_summary": false,
+      "locator_hint": "The alert threshold pct of svc.alpha-039 is 78",
+      "predicate": "alert_threshold_pct",
+      "question": "What is the alert threshold pct of svc.alpha-039?",
+      "source_file": "docs/doc-039.md",
+      "subject": "svc.alpha-039",
+      "trap_case": false
+    },
+    {
+      "conflict_case": false,
+      "correction_case": false,
+      "doc_index": 39,
+      "expected_value": {
+        "exact": "21:05",
+        "regex": "(?<![a-z0-9])21:05(?![a-z0-9])"
+      },
+      "id": "f-039-3",
+      "in_summary": false,
+      "locator_hint": "The backup window utc of svc.alpha-039 is 21:05",
+      "predicate": "backup_window_utc",
+      "question": "What is the backup window utc of svc.alpha-039?",
+      "source_file": "docs/doc-039.md",
+      "subject": "svc.alpha-039",
+      "trap_case": false
+    }
+  ],
+  "facts_per_doc": 4,
+  "seed": 20261115
+}

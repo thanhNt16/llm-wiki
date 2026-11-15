@@ -15,9 +15,7 @@ skill (installed alongside this one). Run **one** command from the project
 root — it resolves the engine itself:
 
 ```bash
-WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
-[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
-python3 "$WIKI" init --name "$(basename "$PWD")"
+llm-wiki init --name "$(basename "$PWD")"
 ```
 
 Do **not** probe for the script, check for an existing `.llm-wiki/`, or verify
@@ -32,7 +30,7 @@ attempt: ask the user before removing it.
 ## Contract
 
 - If output says `"initialized": false`, the wiki already exists — do nothing
-  destructive; optionally run `wiki.py doctor`.
+  destructive; optionally run `llm-wiki doctor`.
 - After first init, report: storage path, revision, and the seven commands
   (init, ingest, compile, query, context, review, doctor).
 - Exit codes: 3 validation, 4 stale revision, 5 locked (another writer active).

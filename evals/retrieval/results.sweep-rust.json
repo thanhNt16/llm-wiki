@@ -1,0 +1,476 @@
+{
+ "wiki": "/tmp/sweep/retrieval-wiki-rust",
+ "k": 5,
+ "n_answerable": 25,
+ "n_unanswerable": 2,
+ "recall@5": 1.0,
+ "precision@5": 0.973,
+ "mrr": 1.0,
+ "mean_matches": 2.1,
+ "unanswerable_clean": 2,
+ "rows": [
+  {
+   "id": "q01",
+   "q": "What was the reported defect in STC-108?",
+   "k": 5,
+   "matches": 3,
+   "top_k": [
+    "stc-108",
+    "stc-108",
+    "stc-108"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q02",
+   "q": "How was the blank purchase-order title field fixed?",
+   "k": 5,
+   "matches": 3,
+   "top_k": [
+    "purchase order",
+    "purchase order",
+    "pin-development-field-order"
+   ],
+   "recall": 1.0,
+   "precision": 0.6666666666666666,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q03",
+   "q": "What is the status of STC-88?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "stc-88"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q04",
+   "q": "Who reported the missing image on part details?",
+   "k": 5,
+   "matches": 2,
+   "top_k": [
+    "stc-125",
+    "stc-125"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q05",
+   "q": "What is the runbook for getting a real typecheck in main.ui?",
+   "k": 5,
+   "matches": 4,
+   "top_k": [
+    "pm-97",
+    "pm-97",
+    "pm-97",
+    "pm-97"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q06",
+   "q": "How are @mentions stored in the comment model?",
+   "k": 5,
+   "matches": 4,
+   "top_k": [
+    "pm-97",
+    "pm-97",
+    "pm-97",
+    "pm-97"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q07",
+   "q": "What is blocking the pm-97 push?",
+   "k": 5,
+   "matches": 4,
+   "top_k": [
+    "pm-97",
+    "pm-97",
+    "pm-97",
+    "pm-97"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q08",
+   "q": "How does stock item delete work?",
+   "k": 5,
+   "matches": 3,
+   "top_k": [
+    "stock item delete",
+    "stock item delete",
+    "stock item delete"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q09",
+   "q": "What open questions remain on stock item delete?",
+   "k": 5,
+   "matches": 3,
+   "top_k": [
+    "stock item delete",
+    "stock item delete",
+    "stock item delete"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q10",
+   "q": "How is available quantity computed in stock allocation?",
+   "k": 5,
+   "matches": 2,
+   "top_k": [
+    "stock allocation",
+    "stock allocation"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q11",
+   "q": "What decisions were made for the agent platform?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "agent platform"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q12",
+   "q": "What is the opt-in switch for the development workflow UI?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "development-workflow-ui"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q13",
+   "q": "What open questions exist about stock location paths?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "stock location path"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q14",
+   "q": "Where are the STC retest reports archived?",
+   "k": 5,
+   "matches": 4,
+   "top_k": [
+    "stc-retest-batch",
+    "stc-retest-batch-1",
+    "stc-retest-batch-2",
+    "stc-ticket-archive"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q15",
+   "q": "What did the 2026-08-25 cleanup affect?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "cleanup-2026-08-25"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q16",
+   "q": "What does the pin-development-field-order runbook say?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "pin-development-field-order"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q17",
+   "q": "What is the root cause recorded for STC-117?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "stc-117"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q18",
+   "q": "What claims exist about the admin account?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "admin-account"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q19",
+   "q": "How many retry attempts are configured?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "decoy-q19"
+   ],
+   "recall": 0.0,
+   "precision": 0.0,
+   "rr": 0.0,
+   "unanswerable": true,
+   "abstain_ok": true,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q20",
+   "q": "What is our pricing plan for 2028?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "decoy-q20"
+   ],
+   "recall": 0.0,
+   "precision": 0.0,
+   "rr": 0.0,
+   "unanswerable": true,
+   "abstain_ok": true,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q21",
+   "q": "Title field blank when editing a purchase order",
+   "k": 5,
+   "matches": 3,
+   "top_k": [
+    "purchase order",
+    "purchase order",
+    "pin-development-field-order"
+   ],
+   "recall": 1.0,
+   "precision": 0.6666666666666666,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q22",
+   "q": "Part pages never show the picture even though the part has one",
+   "k": 5,
+   "matches": 2,
+   "top_k": [
+    "stc-125",
+    "stc-125"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q23",
+   "q": "What happens to the part's quantity when a stock item is soft deleted?",
+   "k": 5,
+   "matches": 3,
+   "top_k": [
+    "stock item delete",
+    "stock item delete",
+    "stock item delete"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q24",
+   "q": "The lodash types issue is blocking the push \u2014 how do I unblock it?",
+   "k": 5,
+   "matches": 4,
+   "top_k": [
+    "pm-97",
+    "pm-97",
+    "pm-97",
+    "pm-97"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q25",
+   "q": "What is the status of the useRemoveStock hook?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "useRemoveStock"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q26",
+   "q": "What decision was made about the Available and OK concepts?",
+   "k": 5,
+   "matches": 1,
+   "top_k": [
+    "available-and-ok"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  },
+  {
+   "id": "q27",
+   "q": "What was the stock allocation status at the end of August 2026?",
+   "k": 5,
+   "matches": 2,
+   "top_k": [
+    "stock allocation",
+    "stock allocation"
+   ],
+   "recall": 1.0,
+   "precision": 1.0,
+   "rr": 1.0,
+   "unanswerable": false,
+   "abstain_ok": false,
+   "superseded_shown": 0,
+   "conflicts": 0
+  }
+ ]
+}

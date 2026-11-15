@@ -1,0 +1,4 @@
+{"authority": "doc", "locator": "s:The deploy strategy of svc.alpha-021 is recreate", "predicate": "deploy_strategy", "subject": "svc.alpha-021", "value": "recreate"}
+{"authority": "doc", "locator": "s:The owner of svc.alpha-021 is Devon Okafor", "predicate": "owner", "subject": "svc.alpha-021", "value": "Devon Okafor"}
+{"authority": "doc", "locator": "s:The oncall slack channel of svc.alpha-021 is ops-channel-53", "predicate": "oncall_slack_channel", "subject": "svc.alpha-021", "value": "ops-channel-53"}
+{"authority": "doc", "locator": "s:The api version of svc.alpha-021 is v1.7.1", "predicate": "api_version", "subject": "svc.alpha-021", "value": "v1.7.1"}

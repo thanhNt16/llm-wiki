@@ -29,11 +29,48 @@ import time
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, _HERE)
+sys.path.insert(0, os.path.join(_REPO_ROOT, "evals"))
 sys.path.insert(0, os.path.join(_REPO_ROOT, "evals", "benchmarks"))
 
+import _engine  # noqa: E402
 import assertions  # noqa: E402
 from driver import Engine, _stage_and_reconcile  # noqa: E402
 from fixture import BATCHES, CORPUS_DOCS  # noqa: E402
+
+
+class _CliEngine:
+    """argv-prefix engine for non-python engines (rust binary). Mirrors the
+    driver.Engine surface run_e2e uses: .run/.json subprocess calls plus a
+    .wiki_py attribute that carries the invocation string templated into
+    scenario instructions."""
+    def __init__(self, argv):
+        self.argv = [str(a) for a in argv]
+        self.wiki_py = self.argv[0]
+
+    def run(self, args, cwd=None, input_text=None):
+        try:
+            proc = subprocess.run(
+                self.argv + [str(a) for a in args],
+                cwd=str(cwd or os.getcwd()), capture_output=True, text=True,
+                input=input_text, timeout=300)
+        except subprocess.TimeoutExpired:
+            return 124, "", "timeout"
+        return proc.returncode, proc.stdout, proc.stderr
+
+    def json(self, args, cwd=None, input_text=None):
+        code, out, err = self.run(args, cwd, input_text)
+        if code != 0:
+            return code, None, err
+        try:
+            return code, json.loads(out), err
+        except ValueError:
+            return code, None, "non-JSON stdout: %s" % out[:200]
+
+# Set in main() after --engine parsing; scenario instructions drop the
+# literal "python3 " interpreter word for non-python engines.
+ENGINE_IS_RUST = False
+
+
 
 CORPUS = os.path.join(_REPO_ROOT, "evals", "golden-corpus")
 RESULTS = os.path.join(_HERE, "results.jsonl")
@@ -213,10 +250,12 @@ def _seed_retry_page(engine, project):
             break
     if claim_id is None:
         raise RuntimeError("seed page: no retry-subject claim to dep on")
+    # --file - (stdin) instead of --text: clap (rust engine) rejects flag
+    # values that start with "---"; stdin works on both engines.
     code, out, err = engine.run(
         ["write-page", "--artifact", "wiki/concepts/retry-policy.md",
-         "--text", SEED_PAGE.replace("{claim}", claim_id)],
-        cwd=project)
+         "--file", "-"],
+        cwd=project, input_text=SEED_PAGE.replace("{claim}", claim_id))
     if code != 0:
         raise RuntimeError("seed retry-policy page exit=%d: %s"
                            % (code, (out + err).strip()[:300]))
@@ -260,6 +299,10 @@ def run_scenario(runtime, sid, spec, engine, timeout, keep):
         setup_project(spec.get("setup", "none"), engine, project)
         instruction = spec["instruction"].format(
             project=project, wiki=engine.wiki_py, docs=_skill_docs())
+        # python scenarios hardcode `python3 {wiki}`; for a non-python
+        # engine the binary IS the invocation, so drop the interpreter word.
+        if ENGINE_IS_RUST:
+            instruction = instruction.replace("python3 ", "")
         argv, cwd = _runtime_command(runtime, instruction, project)
 
         ts = time.strftime("%Y%m%d-%H%M%S")
@@ -320,15 +363,27 @@ def main(argv=None):
                     help="per-scenario runtime timeout seconds")
     ap.add_argument("--keep", action="store_true",
                     help="keep temp project dirs for debugging")
+    _engine.add_engine_arg(ap)
     args = ap.parse_args(argv)
 
     with open(SCENARIOS_PATH) as f:
         scenarios = json.load(f)
-    engine = Engine(assertions.engine_path())
-    if not engine.wiki_py:
-        print("error: no wiki.py engine found "
-              "(set WIKI_E2E_ENGINE)", file=sys.stderr)
-        return 2
+    global ENGINE_IS_RUST
+    ENGINE_IS_RUST = _engine.engine_name(args.engine) == "rust"
+    if ENGINE_IS_RUST:
+        try:
+            argv_prefix = _engine.engine_argv(args.engine)
+        except _engine.EngineError as e:
+            print("error: %s" % e, file=sys.stderr)
+            return 2
+        engine = _CliEngine(argv_prefix)
+        assertions._ENGINE_ARGV = argv_prefix
+    else:
+        engine = Engine(assertions.engine_path())
+        if not engine.wiki_py:
+            print("error: no wiki.py engine found "
+                  "(set WIKI_E2E_ENGINE)", file=sys.stderr)
+            return 2
 
     runtimes = RUNTIMES if args.runtime == "all" else (args.runtime,)
     sids = SCENARIO_IDS if args.scenario == "all" else (args.scenario,)

@@ -1,0 +1,4 @@
+{"authority": "doc", "locator": "s:The retry count of svc.alpha-008 is 5", "predicate": "retry_count", "subject": "svc.alpha-008", "value": 5}
+{"authority": "doc", "locator": "s:The eviction policy of svc.shared-cache is lru", "predicate": "eviction_policy", "subject": "svc.shared-cache", "value": "lru"}
+{"authority": "doc", "locator": "s:The deploy strategy of svc.alpha-008 is rolling-restart", "predicate": "deploy_strategy", "subject": "svc.alpha-008", "value": "rolling-restart"}
+{"authority": "doc", "locator": "s:The owner of svc.alpha-008 is Mira Dubois", "predicate": "owner", "subject": "svc.alpha-008", "value": "Mira Dubois"}

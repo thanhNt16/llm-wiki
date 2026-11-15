@@ -1,0 +1,4 @@
+{"authority": "doc", "locator": "s:The retry count of svc.alpha-028 is 6", "predicate": "retry_count", "subject": "svc.alpha-028", "value": 6}
+{"authority": "doc", "locator": "s:The region of svc.alpha-028 is eu-central-1", "predicate": "region", "subject": "svc.alpha-028", "value": "eu-central-1"}
+{"authority": "doc", "locator": "s:The deploy strategy of svc.alpha-028 is canary", "predicate": "deploy_strategy", "subject": "svc.alpha-028", "value": "canary"}
+{"authority": "doc", "locator": "s:The owner of svc.alpha-028 is Henrik Lindqvist", "predicate": "owner", "subject": "svc.alpha-028", "value": "Henrik Lindqvist"}

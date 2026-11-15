@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/llm-wiki"]
+resolver = "2"

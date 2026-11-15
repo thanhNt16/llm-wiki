@@ -1,0 +1,28 @@
+{
+  "init+inbox": {
+    "claims": 0,
+    "sources": 0,
+    "pages": 0,
+    "semantic_parity": true,
+    "diffs": []
+  },
+  "build": {
+    "claims": 9,
+    "sources": 7,
+    "pages": 6,
+    "semantic_parity": false,
+    "diffs": [
+      "page diff wiki/concepts/retry-policy.md: py={\"body\": \"\\nPayment gateway calls retry with exponential backoff; ADR-007 documents 3\\nattempts while the production matrix shows 5. See [[claim[[\\\"retry\\\", \\\"max-attempts\\\", 3, {}]]]].\\n\", \"frontmatter\": {\"deps\": [\"claim[[\\\"retry\\\", \\\"max-attempts\\\", 3, {}]]@1\"], \"owner\": \"source[adr-007-retries.md rust={\"body\": \"\\nPayment gateway calls retry with exponential backoff; ADR-007 documents 3\\nattempts while the production matrix shows 5. See [[claim[[\\\"retry\\\", \\\"backoff\\\", \\\"exponential\\\", {}]]]].\\n\", \"frontmatter\": {\"deps\": [\"claim[[\\\"retry\\\", \\\"backoff\\\", \\\"exponential\\\", {}]]@1\"], \"owner\": \"source[",
+      "page diff wiki/review.md: py={\"body\": \"\\n# Review queue\\n\\n0 open, 0 deferred, 0 total.\\n\\nNo open or deferred review items.\\n\", \"frontmatter\": {\"deps\": \"[]\", \"type\": \"review\"}} rust={\"body\": \"\\n# Review queue\\n\\n0 open, 0 deferred, 0 total \\u2014 full table: [review.md](review.md).\\n\\nNo open or deferred review items.\\n\", \"frontmatter\": {\"deps\": \"[]\", \"type\": \"review\"}}"
+    ]
+  },
+  "build_uncorrected": {
+    "claims": 9,
+    "sources": 7,
+    "pages": 5,
+    "semantic_parity": false,
+    "diffs": [
+      "page diff wiki/review.md: py={\"body\": \"\\n# Review queue\\n\\n0 open, 0 deferred, 0 total.\\n\\nNo open or deferred review items.\\n\", \"frontmatter\": {\"deps\": \"[]\", \"type\": \"review\"}} rust={\"body\": \"\\n# Review queue\\n\\n0 open, 0 deferred, 0 total \\u2014 full table: [review.md](review.md).\\n\\nNo open or deferred review items.\\n\", \"frontmatter\": {\"deps\": \"[]\", \"type\": \"review\"}}"
+    ]
+  }
+}

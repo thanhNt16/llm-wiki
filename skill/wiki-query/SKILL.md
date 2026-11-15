@@ -11,19 +11,17 @@ never writes.
 ## Engine
 
 Queries go through the deterministic CLI shipped with the `llm-wiki` skill
-(installed alongside this one). Resolve it once, then run from the project
+(installed alongside this one). Run from the project
 root:
 
 ```bash
-WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
-[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
-python3 "$WIKI" query-prepare --question "what is the current attribution window?"
-python3 "$WIKI" query-prepare --question "what was it in August?" --as-of 2026-08-15
+llm-wiki query-prepare --question "what is the current attribution window?"
+llm-wiki query-prepare --question "what was it in August?" --as-of 2026-08-15
 ```
 
 Ranking is FTS5 BM25 over porter-stemmed claim text; the output `ranker`
 field is `bm25`, or `legacy` when the cache is stale — fix with
-`wiki.py doctor --rebuild-fts`.
+`llm-wiki doctor --rebuild-fts`.
 
 ## Answer contract — include in prose
 
@@ -53,7 +51,7 @@ When `gaps` covers the core of the question (the "I don't have enough
 evidence" case), record it so the next compile pass can target the hole:
 
 ```bash
-python3 "$WIKI" write-page --file q.md --artifact wiki/questions/<slug>.md --deps ''
+llm-wiki write-page --file q.md --artifact wiki/questions/<slug>.md --deps ''
 ```
 
 `q.md`: `type: question`, `asked: <today YYYY-MM-DD>`, empty `deps`, body =

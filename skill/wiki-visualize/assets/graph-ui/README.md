@@ -17,7 +17,7 @@ data means rewriting that JSON file — never editing `src/`.
 `graph-data.json` is produced by the llm-wiki engine, not by this repo:
 
 ```bash
-python3 "$WIKI" graph-data --full > public/graph-data.json
+llm-wiki graph-data --full > public/graph-data.json
 ```
 
 Payload shape: `{project, nodes, links, claim_count, source_count,
@@ -50,7 +50,7 @@ reload the page for fresh data.
 ## Build / serve statically
 
 ```bash
-python3 "$WIKI" graph-data --full > public/graph-data.json   # refresh data first
+llm-wiki graph-data --full > public/graph-data.json   # refresh data first
 npm run build                                        # vite copies public/ → dist/
 npx serve dist
 ```
@@ -60,5 +60,5 @@ and rebuild to ship newer data.
 
 ## Regeneration checklist
 
-1. `python3 "$WIKI" graph-data --full > public/graph-data.json`
+1. `llm-wiki graph-data --full > public/graph-data.json`
 2. Dev server: reload the page. Static: `npm run build`, then serve `dist/`.

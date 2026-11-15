@@ -48,7 +48,9 @@ class TestSkillPackage(unittest.TestCase):
         real = set()
         for action in parser._subparsers._group_actions:
             real.update(action.choices.keys())
-        invocations = set(re.findall(r"wiki\.py ([a-z-]+)", text))
+        # Post-P6 flip: skill surfaces invoke the `llm-wiki` binary (which
+        # shares the subcommand set); flag-like tokens (`--root`) excluded.
+        invocations = set(re.findall(r"llm-wiki ([a-z][a-z-]*)", text))
         unknown = invocations - real
         self.assertEqual(unknown, set(), "COMMANDS.md references unknown subcommands")
 
@@ -73,7 +75,10 @@ class TestSkillPackage(unittest.TestCase):
             self.assertLessEqual(len(m.group(1) + m.group(2)), 1024)
             self.assertTrue(m.group(2).strip().startswith("Use when"),
                             "%s: description must describe triggers" % name)
-            self.assertIn("wiki.py", text, "%s: must point at the wiki.py engine" % name)
+            # Post-P6 flip: skills invoke the `llm-wiki` binary on PATH;
+            # the Python engine is a dev-reference under scripts/.
+            self.assertIn("llm-wiki ", text,
+                          "%s: must point at the llm-wiki binary" % name)
             found.add(name)
         self.assertEqual(found, expected)
 

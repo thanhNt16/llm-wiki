@@ -11,19 +11,17 @@ or modifies claims** — that is `wiki-compile`'s job.
 ## Engine
 
 All state changes go through the deterministic CLI shipped with the `llm-wiki`
-skill (installed alongside this one). Resolve it once, then run from the
+skill (installed alongside this one). Run from the
 project root:
 
 ```bash
-WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
-[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
-python3 "$WIKI" ingest --file path/to/doc.md
-python3 "$WIKI" ingest --dir path/to/folder          # recursive, one source per file
-python3 "$WIKI" ingest --url https://example.com/spec
-python3 "$WIKI" ingest --text "user said: use Postgres" --text-ref "chat-2026-09-15"
-python3 "$WIKI" ingest --file path/to/doc.md --source-id source_...  # pin identity
-python3 "$WIKI" ingest-git --repo . --max 200    # git commit history
-python3 "$WIKI" ingest-rss --url https://example.com/feed.xml   # RSS/Atom
+llm-wiki ingest --file path/to/doc.md
+llm-wiki ingest --dir path/to/folder          # recursive, one source per file
+llm-wiki ingest --url https://example.com/spec
+llm-wiki ingest --text "user said: use Postgres" --text-ref "chat-2026-09-15"
+llm-wiki ingest --file path/to/doc.md --source-id source_...  # pin identity
+llm-wiki ingest-git --repo . --max 200    # git commit history
+llm-wiki ingest-rss --url https://example.com/feed.xml   # RSS/Atom
 ```
 
 `--text-ref` pins a stable identity for a `--text` ingest: repeat calls with
@@ -76,7 +74,7 @@ Route every input through this table:
 3. Ingest it:
 
 ```bash
-python3 "$WIKI" ingest --file img.png --normalized-content desc.md --parser-name agent-vision
+llm-wiki ingest --file img.png --normalized-content desc.md --parser-name agent-vision
 ```
 
 The engine stores raw bytes + description as `content.md`; extraction records
@@ -86,7 +84,7 @@ place (`updated_normalized: true`). Add `--force` for a fresh version.
 ## Folder lane
 
 ```bash
-python3 "$WIKI" ingest --dir ./docs
+llm-wiki ingest --dir ./docs
 ```
 
 The engine walks deterministically, skips VCS/vendor dirs, hidden files, files

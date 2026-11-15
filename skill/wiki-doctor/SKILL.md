@@ -11,13 +11,11 @@ wrong, or before reporting.
 ## Engine
 
 Diagnostics go through the deterministic CLI shipped with the `llm-wiki`
-skill (installed alongside this one). Resolve it once, then run from the
+skill (installed alongside this one). Run from the
 project root:
 
 ```bash
-WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
-[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
-python3 "$WIKI" doctor
+llm-wiki doctor
 ```
 
 Findings have `severity` (error/warn/info), `code`, `detail`, `fix`.
@@ -59,7 +57,7 @@ links, splitting, or deleting pages are user decisions, never silent edits.
 
 ## Hard rules
 
-- Never repair canonical files by hand; fixes go through `wiki.py`
+- Never repair canonical files by hand; fixes go through `llm-wiki`
   subcommands.
 - On repeated command failures, run doctor and report findings to the user.
 

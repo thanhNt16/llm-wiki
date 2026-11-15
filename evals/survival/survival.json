@@ -1,0 +1,231 @@
+{
+  "python": {
+    "engine": "python",
+    "generated_at": "2026-11-15T13:19:46Z",
+    "checks": [
+      {
+        "id": "f1-early",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "f2-mid",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "f3-late",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "f4-deep",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "f5a-tldr",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "corr-twin",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "shared-value",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "er-90",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "near-subject",
+        "pass": true,
+        "detail": "no claim written; review item present"
+      },
+      {
+        "id": "scope-prod",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "scope-sandbox",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "er-enforcement",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "f5b-correction",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "er-45",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "scope-twins-both-live",
+        "pass": true,
+        "detail": "2 scoped claims, both accepted"
+      }
+    ],
+    "buckets": {
+      "deep": {
+        "planted": 1,
+        "survived": 1
+      },
+      "early": {
+        "planted": 1,
+        "survived": 1
+      },
+      "late": {
+        "planted": 1,
+        "survived": 1
+      },
+      "mid": {
+        "planted": 1,
+        "survived": 1
+      }
+    },
+    "stability": {
+      "runs": 3,
+      "stable": true,
+      "hashes": [
+        "54a4b298dbdb16ba9530b64428f4068dfc4bcbcce003cd429c631204a72ab2b3",
+        "54a4b298dbdb16ba9530b64428f4068dfc4bcbcce003cd429c631204a72ab2b3",
+        "54a4b298dbdb16ba9530b64428f4068dfc4bcbcce003cd429c631204a72ab2b3"
+      ]
+    },
+    "canonical_hash": "54a4b298dbdb16ba9530b64428f4068dfc4bcbcce003cd429c631204a72ab2b3",
+    "verdict": "pass",
+    "failed": []
+  },
+  "_parity": {
+    "engines": [
+      "python",
+      "rust"
+    ],
+    "structure_equal": true
+  },
+  "rust": {
+    "engine": "rust",
+    "generated_at": "2026-11-15T13:19:46Z",
+    "checks": [
+      {
+        "id": "f1-early",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "f2-mid",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "f3-late",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "f4-deep",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "f5a-tldr",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "corr-twin",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "shared-value",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "er-90",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "near-subject",
+        "pass": true,
+        "detail": "no claim written; review item present"
+      },
+      {
+        "id": "scope-prod",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "scope-sandbox",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "er-enforcement",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "f5b-correction",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "er-45",
+        "pass": true,
+        "detail": "ok"
+      },
+      {
+        "id": "scope-twins-both-live",
+        "pass": true,
+        "detail": "2 scoped claims, both accepted"
+      }
+    ],
+    "buckets": {
+      "deep": {
+        "planted": 1,
+        "survived": 1
+      },
+      "early": {
+        "planted": 1,
+        "survived": 1
+      },
+      "late": {
+        "planted": 1,
+        "survived": 1
+      },
+      "mid": {
+        "planted": 1,
+        "survived": 1
+      }
+    },
+    "stability": {
+      "runs": 3,
+      "stable": true,
+      "hashes": [
+        "54a4b298dbdb16ba9530b64428f4068dfc4bcbcce003cd429c631204a72ab2b3",
+        "54a4b298dbdb16ba9530b64428f4068dfc4bcbcce003cd429c631204a72ab2b3",
+        "54a4b298dbdb16ba9530b64428f4068dfc4bcbcce003cd429c631204a72ab2b3"
+      ]
+    },
+    "canonical_hash": "54a4b298dbdb16ba9530b64428f4068dfc4bcbcce003cd429c631204a72ab2b3",
+    "verdict": "pass",
+    "failed": []
+  }
+}

@@ -12,17 +12,15 @@ script applies.
 ## Engine
 
 All state changes go through the deterministic CLI shipped with the `llm-wiki`
-skill (installed alongside this one). Resolve it once, then run from the
+skill (installed alongside this one). Run from the
 project root:
 
 ```bash
-WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
-[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
-python3 "$WIKI" review list                     # open items
-python3 "$WIKI" review list --kind possible_contradiction
-python3 "$WIKI" review list --all               # include deferred
-python3 "$WIKI" review show --item review_...
-python3 "$WIKI" review act --item review_... --action accept --params params.json
+llm-wiki review list                     # open items
+llm-wiki review list --kind possible_contradiction
+llm-wiki review list --all               # include deferred
+llm-wiki review show --item review_...
+llm-wiki review act --item review_... --action accept --params params.json
 ```
 
 Actions: `accept reject merge mark_duplicate mark_authoritative
@@ -43,8 +41,8 @@ visible.
 2. `review show --item <id>` — present BOTH sides of a conflict to the human.
 3. `review act --item <id> --action <action> --params params.json` — the
    human decides, the script applies.
-4. If a claim changed: `python3 "$WIKI" build-pages`, then
-   `python3 "$WIKI" verify` — must report `"ok": true`. Repeat for the next
+4. If a claim changed: `llm-wiki build-pages`, then
+   `llm-wiki verify` — must report `"ok": true`. Repeat for the next
    item.
 
 ## Hard rules

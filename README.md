@@ -33,16 +33,19 @@ loads it:
 | `wiki-visualize` | 3D knowledge-graph explorer UI (React/Three.js, `graph-data` payload) |
 | `wiki-write` | claims → prose: synthesizes readable `wiki/` pages from accepted knowledge |
 
-All nine are thin facades over the shared `llm-wiki` skill, which ships the
-`wiki.py` engine, schemas, and references. The agent does semantic work
-(extraction, classification, prose) between deterministic script calls; every
-canonical mutation is a staged, locked, revision-checked transaction — failed
-runs never partially commit.
+All nine are thin facades over the shared `llm-wiki` skill (schemas +
+references) and invoke the `llm-wiki` binary on `PATH` — a Rust engine.
+The Python engine at `skill/llm-wiki/scripts/wiki.py` remains as a
+dev-reference (parity oracle for the P7 benchmark), runnable from a repo
+checkout. The agent does semantic work (extraction, classification,
+prose) between deterministic engine calls; every canonical mutation is a
+staged, locked, revision-checked transaction — failed runs never
+partially commit.
 
 ## Install
 
-One line, no clone (clones to `~/.llm-wiki` and symlinks the skill into OMP's
-user skills dir; re-running the same command updates the clone):
+One line, no clone (fetches the Rust binary release to `~/.local/bin/llm-wiki`
+and installs the embedded skill set into OMP's user skills dir):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/thanhNt16/llm-wiki/main/install.sh | bash
@@ -51,12 +54,17 @@ curl -fsSL https://raw.githubusercontent.com/thanhNt16/llm-wiki/main/install.sh 
 From a checkout of this repo instead:
 
 ```bash
-./install.sh              # OMP native: ~/.omp/agent/skills/{llm-wiki,wiki-*}
+./install.sh              # ~/.local/bin/llm-wiki + ~/.omp/agent/skills/{llm-wiki,wiki-*}
 ./install.sh --agents     # cross-runtime: ~/.agents/skills/{llm-wiki,wiki-*}
-./install.sh --cellockai  # CellockAI extension: copies into ~/.cellockai/skills/{llm-wiki,wiki-*}
-./install.sh --uninstall  # remove the symlinks
+./install.sh --cellockai  # CellockAI extension: ~/.cellockai/skills/{llm-wiki,wiki-*}
+./install.sh --uninstall  # remove installed skills
 ./install.sh --purge      # uninstall + delete the ~/.llm-wiki clone
 ```
+
+`LLM_WIKI_RELEASE=<tag>` pins a specific release;
+`LLM_WIKI_BINARY_TARBALL=<path>` installs a locally built release tarball.
+The Python engine is a dev-reference, not an install path — run it from
+this checkout (`python3 skill/llm-wiki/scripts/wiki.py <cmd>`).
 
 Then in any project, say `wiki-init`, "ingest this doc", "compile the wiki",
 "resume my project context", etc.
@@ -64,20 +72,29 @@ Then in any project, say `wiki-init`, "ingest this doc", "compile the wiki",
 ## Layout
 
 ```
-skill/llm-wiki/      shared engine skill: wiki.py CLI + wikicore + schemas + references + tests
+rust/crates/llm-wiki/ Rust engine (canonical): CLI, wikicore, embedded skills
+skill/llm-wiki/      shared skill: schemas + references; scripts/ = Python
+                     engine, dev-reference only (parity oracle, not installed)
 skill/wiki-*/        nine thin command skills (init, ingest, compile, query, context, review, doctor, visualize, write)
 evals/golden-corpus/ fixture project with planted correction/conflict/scope cases
 evals/deterministic/ PRD §58 release gates: python3 evals/deterministic/run_gates.py
 evals/benchmark/     PRD §60 wiki-vs-baseline lane comparison: python3 evals/benchmark/run_benchmark.py
+evals/survival/      planted-fact recall by position + trap/correction lane:
+                     python3 evals/survival/run_survival.py -e rust
 evals/semantic/      agent-run scenarios + rubrics (PRD §57)
 ```
 
 ## Verify
 
 ```bash
-python3 -m unittest discover -s skill/llm-wiki/scripts/tests   # unit tests
-python3 evals/deterministic/run_gates.py                       # 10 release gates
+(cd rust && cargo build --release && cargo test)                   # rust engine
+python3 -m unittest discover -s skill/llm-wiki/scripts/tests       # python dev-reference unit tests
+python3 evals/deterministic/run_gates.py --engine rust             # 10 release gates, rust engine
+python3 evals/deterministic/run_gates.py --engine python           # same gates vs the dev-reference
 ./install.sh && omp -p --no-session 'Do you have skills named llm-wiki and wiki-init?'
 ```
 
-Requirements: Python ≥3.9 (stdlib only), OMP v18+ for skill discovery.
+Requirements: the `llm-wiki` binary on PATH (install.sh or a release
+tarball; `cargo build --release` for a local build), OMP v18+ for skill
+discovery. Python ≥3.9 (stdlib only) is needed only for the dev-reference
+engine and the eval harnesses.
