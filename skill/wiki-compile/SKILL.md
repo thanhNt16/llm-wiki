@@ -12,22 +12,20 @@ and classifications when needed.
 ## Engine
 
 All state changes go through the deterministic CLI shipped with the `llm-wiki`
-skill (installed alongside this one). Resolve it once, then run from the
+skill (installed alongside this one). Run from the
 project root:
 
 ```bash
-WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
-[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
-python3 "$WIKI" compile        # → pending[] with content_path + topics_path + candidates_path
+llm-wiki compile        # → pending[] with content_path + topics_path + candidates_path
 # per pending entry:
 #  1) write topics.jsonl (one topic/line) BEFORE candidates:
 #     {"subject":"lake.s3","kind":"entity","title":"Amazon S3","aliases":["S3"]}
 #     kinds: concept|entity|procedure|question|change|decision
 #  2) read each content_path, write shorthand JSONL to candidates_path:
 #     {"subject":"a.b","predicate":"p","value":7,"locator":"h:Heading","authority":"manual"}
-python3 "$WIKI" compile --resume   # → auto counts + needs_review rows (usually empty)
+llm-wiki compile --resume   # → auto counts + needs_review rows (usually empty)
 # if needs_review: write classifications.json (only those rows), then:
-python3 "$WIKI" compile --resume   # → receipt + verify.ok
+llm-wiki compile --resume   # → receipt + verify.ok
 ```
 
 ### Shorthand
@@ -49,11 +47,11 @@ Low-level commands remain available when needed.
 After the final `compile --resume` lands:
 
 0. Topics — the receipt's `topics` block lists `decision_topics[]` (record each
-   with `wiki.py record-decision --file decision.json`), `unclaimed[]`
+   with `llm-wiki record-decision --file decision.json`), `unclaimed[]`
    (declared but no claims — extract more or accept), `auto_registered[]`,
    `kind_conflicts[]` (resolve via `review act set_topic_kind` on the
    `topic_kind_conflict` item), and `no_topics_declared` warnings.
-1. Plan — run `python3 "$WIKI" page-targets` and list EVERY `targets[]`
+1. Plan — run `llm-wiki page-targets` and list EVERY `targets[]`
    entry with a one-line justification BEFORE authoring; write the plan,
    then write the pages.
 2. Synthesis — for EVERY entry in the `targets[]` list you just planned,
@@ -61,11 +59,11 @@ After the final `compile --resume` lands:
    `target.artifact` and `target.claim_ids` verbatim — never hardcode
    `wiki/concepts/<slug>.md`; the kind router decides the directory.
    Write the page markdown to a file (or stdin / `--text`), then commit with
-   `python3 "$WIKI" write-page --file page.md --artifact <target.artifact> --deps '<claim_ids comma-joined>'`
+   `llm-wiki write-page --file page.md --artifact <target.artifact> --deps '<claim_ids comma-joined>'`
    (e.g. `--deps 'claim_abc123@3,claim_def456@1'`). A later
    `page-targets --stale-only` pass re-lists anything that goes stale.
-3. `python3 "$WIKI" build-pages` — rebuilds index/decision stubs and clears stale flags.
-4. `python3 "$WIKI" verify` — must report `"ok": true` before you finish. Fix every
+3. `llm-wiki build-pages` — rebuilds index/decision stubs and clears stale flags.
+4. `llm-wiki verify` — must report `"ok": true` before you finish. Fix every
    error (unresolved links, stale pages) and re-verify.
 
 Report the run receipt: changes counts, conflicts (new review items).
@@ -75,7 +73,7 @@ Report the run receipt: changes counts, conflicts (new review items).
 - **Evidence ≠ Claim ≠ Decision.** Claims are structured interpretations with
   citations; decisions are what the project deliberately chose — never
   inferred from repeated claims.
-- Never write claim files by hand; every mutation goes through `wiki.py`.
+- Never write claim files by hand; every mutation goes through `llm-wiki`.
 - Exit code 4 (stale revision): re-run `compile`/`status`, re-apply your
   semantic decision, commit with the fresh revision.
 - Exit codes: 3 validation, 4 stale revision, 5 locked.

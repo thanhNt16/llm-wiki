@@ -132,7 +132,7 @@ We chose MWAA because the managed scheduler removes on-call burden and our exist
 {"subject":"orchestrator selection","predicate":"rationale","value":"managed scheduler removes on-call burden and existing DAGs run unmodified","locator":"s:because the managed scheduler removes on-call burden and our existing DAGs run unmodified","authority":"decision"}
 {"subject":"MWAA","predicate":"expansion","value":"Managed Workflows for Apache Airflow","locator":"s:MWAA (Managed Workflows for Apache Airflow)"}
 ```
-- **Extend, don't create.** Run `wiki.py subjects` before minting a subject.
+- **Extend, don't create.** Run `llm-wiki subjects` before minting a subject.
   If an existing subject covers the fact, attach the claim to it — minting a
   near-duplicate subject is the default failure mode (doctor flags these as
   `near_duplicate_subject`).

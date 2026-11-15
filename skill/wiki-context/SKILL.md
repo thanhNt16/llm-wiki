@@ -10,16 +10,14 @@ Generates a bounded, budgeted pack for a task; never dumps the wiki.
 ## Engine
 
 Packs go through the deterministic CLI shipped with the `llm-wiki` skill
-(installed alongside this one). Resolve it once, then run from the project
+(installed alongside this one). Run from the project
 root:
 
 ```bash
-WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
-[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
-python3 "$WIKI" context-pack --task "implement order attribution fix" --budget 6000
-python3 "$WIKI" context-pack --resume
-python3 "$WIKI" context-pack --changes-since <context_id>
-python3 "$WIKI" context-pack --task "..." --budget 6000 --print-pack
+llm-wiki context-pack --task "implement order attribution fix" --budget 6000
+llm-wiki context-pack --resume
+llm-wiki context-pack --changes-since <context_id>
+llm-wiki context-pack --task "..." --budget 6000 --print-pack
 ```
 
 - Use `--print-pack` when the agent itself should consume the pack; use the

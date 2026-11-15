@@ -1,13 +1,13 @@
 # COMMANDS.md — per-command contracts
 
-Run scripts from the project root via the `WIKI` variable resolved in the
-skill (`python3 "$WIKI" <cmd> …`). All commands print one JSON object.
+Run commands from the project root; the `llm-wiki` binary must be on
+`PATH` (`llm-wiki <cmd> …`). All commands print one JSON object.
 
 ## global flags
 
 ```bash
-python3 "$WIKI" --root <dir> --wait-lock 60 ingest --file notes.md
-python3 "$WIKI" --no-wait ingest --text "x" --text-ref t1   # fail fast instead of waiting
+llm-wiki --root <dir> --wait-lock 60 ingest --file notes.md
+llm-wiki --no-wait ingest --text "x" --text-ref t1   # fail fast instead of waiting
 ```
 
 `--wait-lock SECONDS` (default 30) gates every mutating command: before it
@@ -26,11 +26,11 @@ the lock itself, so a lost race still exits 5. Exit codes: 3 validation,
 Idempotent, non-destructive. Creates `.llm-wiki/` layout, config, state.
 
 ```bash
-wiki.py init --name <project-name>
+llm-wiki init --name <project-name>
 ```
 
 - If output says `"initialized": false`, the wiki already exists — do nothing
-  destructive; optionally run `wiki.py doctor`.
+  destructive; optionally run `llm-wiki doctor`.
 - `init` writes a starter `.llm-wiki/page-kinds.json`
   (`{"rules": [], "default": "concepts"}`) — empty `rules` mean the built-in
   kind-routing heuristics apply (see `page-targets` under `write`), and the
@@ -48,15 +48,15 @@ everything else is project evidence. `--kind` applies to `--file`/`--text`
 only (`--url`/`--dir`/`--triage` reject it, exit 3).
 
 ```bash
-wiki.py ingest --file path/to/doc.md
-wiki.py ingest --url https://example.com/spec
-wiki.py ingest --text "user said: use Postgres" --text-ref "chat-2026-09-15"
-wiki.py ingest --file report.pdf     # preserved; extraction honestly marked not_extracted
-wiki.py ingest --dir docs/                        # recursive; batch receipt
-wiki.py ingest --dir docs/ --include-hidden --max-bytes 104857600 --force
-wiki.py ingest --file img.png --normalized-content desc.md --parser-name agent-vision
-wiki.py ingest --file path/to/doc.md --source-id source_...  # pin identity
-wiki.py ingest --text "session notes: ..." --text-ref session-2026-10-25 --kind session  # episodic evidence
+llm-wiki ingest --file path/to/doc.md
+llm-wiki ingest --url https://example.com/spec
+llm-wiki ingest --text "user said: use Postgres" --text-ref "chat-2026-09-15"
+llm-wiki ingest --file report.pdf     # preserved; extraction honestly marked not_extracted
+llm-wiki ingest --dir docs/                        # recursive; batch receipt
+llm-wiki ingest --dir docs/ --include-hidden --max-bytes 104857600 --force
+llm-wiki ingest --file img.png --normalized-content desc.md --parser-name agent-vision
+llm-wiki ingest --file path/to/doc.md --source-id source_...  # pin identity
+llm-wiki ingest --text "session notes: ..." --text-ref session-2026-10-25 --kind session  # episodic evidence
 ```
 
 Receipt fields: `source_id`, `version`, `sha256`, `deduplicated`, `warnings`,
@@ -84,9 +84,9 @@ sources. `--normalized-content` is per-file and is rejected with
 ### Connectors (SP2c)
 
 ```bash
-wiki.py ingest-git --repo . --max 200        # commit history as evidence
-wiki.py ingest-rss --url https://example.com/feed.xml
-wiki.py ingest-rss --file local-feed.xml --limit 50
+llm-wiki ingest-git --repo . --max 200        # commit history as evidence
+llm-wiki ingest-rss --url https://example.com/feed.xml
+llm-wiki ingest-rss --file local-feed.xml --limit 50
 ```
 
 Built-in connectors, stdlib-only, no third-party deps. Each item lands as
@@ -111,9 +111,9 @@ fetches and maps each item to one `feed_item` source
 (`ref preset:<preset>:<ref>#<item-id>`, dedup per item):
 
 ```bash
-wiki.py ingest --list-connectors                          # → {"connectors": ["github-issues","rest"]}
-wiki.py ingest --connector rest --ref http://localhost:8080/items --limit 20
-wiki.py ingest --connector github-issues --ref https://api.github.com/repos/org/proj/issues
+llm-wiki ingest --list-connectors                          # → {"connectors": ["github-issues","rest"]}
+llm-wiki ingest --connector rest --ref http://localhost:8080/items --limit 20
+llm-wiki ingest --connector github-issues --ref https://api.github.com/repos/org/proj/issues
 ```
 
 `rest` expects `{"items": [{id,title,body}, ...]}`; `github-issues`
@@ -131,10 +131,10 @@ extension, filename patterns, content sniffing, and size. Always run it
 before `--dir`-dumping an unknown folder.
 
 ```bash
-wiki.py triage --dir dumps/                      # manifest to stdout
-wiki.py triage --dir dumps/ --out manifest.json  # also write it
-wiki.py ingest --triage manifest.json            # batch-apply after review
-wiki.py ingest --triage manifest.json --force    # --force carries through
+llm-wiki triage --dir dumps/                      # manifest to stdout
+llm-wiki triage --dir dumps/ --out manifest.json  # also write it
+llm-wiki ingest --triage manifest.json            # batch-apply after review
+llm-wiki ingest --triage manifest.json --force    # --force carries through
 ```
 
 Manifest: `{"dir": <abs>, "files": [{"file", "kind", "priority",
@@ -156,12 +156,12 @@ staging run per pending source and returns `pending[]` entries with
 `content_path`, `topics_path`, `candidates_path`, and `classifications_path`:
 
 ```bash
-wiki.py compile
+llm-wiki compile
 # write topics.jsonl (one topic row per subject) to each topics_path FIRST,
 # then one shorthand JSON object per line to each candidates_path
-wiki.py compile --resume
+llm-wiki compile --resume
 # if needs_review rows remain, write classifications.json, then:
-wiki.py compile --resume
+llm-wiki compile --resume
 ```
 
 Runs are stored in `.llm-wiki/.state/staging/<run_id>/` with `topics.jsonl`,
@@ -209,10 +209,10 @@ topics: {declared, registered, auto_registered[], kind_conflicts[],
 ```
 
 - `decision_topics[]` — declared `decision`-kind subjects; record each via
-  `wiki.py record-decision --file decision.json` (see `record-decision`).
+  `llm-wiki record-decision --file decision.json` (see `record-decision`).
 - `kind_conflicts[]` — subjects declared with different kinds across rows;
   each also opens a `topic_kind_conflict` review item, resolved via
-  `wiki.py review act --action set_topic_kind`.
+  `llm-wiki review act --action set_topic_kind`.
 - `auto_registered[]` — subjects extracted but never declared; registered as
   `concept` with a warning. `unclaimed[]` — declared topics (except
   `source`/`decision`) that ended the run with zero claims.
@@ -220,12 +220,12 @@ topics: {declared, registered, auto_registered[], kind_conflicts[],
 Then:
 
 1. Synthesis — regenerate invalidated or stale pages you authored per the
-   wiki-write skill: run `wiki.py page-targets`, and for EVERY `targets[]`
+   wiki-write skill: run `llm-wiki page-targets`, and for EVERY `targets[]`
    entry use `target.artifact` + `target.claim_ids` verbatim (never hardcode
    `wiki/concepts/<slug>.md`). See the `write` section below.
-2. `wiki.py build-pages` — rebuilds index/decision stubs and clears stale
+2. `llm-wiki build-pages` — rebuilds index/decision stubs and clears stale
    flags.
-3. `wiki.py verify` — must report `"ok": true` before you finish. Fix every
+3. `llm-wiki verify` — must report `"ok": true` before you finish. Fix every
    error (unresolved links, stale pages) and re-verify.
 
 Report the run receipt: changes counts, conflicts (new review items).
@@ -233,7 +233,7 @@ Report the run receipt: changes counts, conflicts (new review items).
 ### One command (SP2d)
 
 ```bash
-wiki.py build
+llm-wiki build
 ```
 
 Runs compile → build-pages → verify in one call and emits the combined
@@ -252,7 +252,7 @@ re-locates the cited locator (`s:` text substring, `l:` line range, `h:`
 heading):
 
 ```bash
-wiki.py check-evidence [--details 100]
+llm-wiki check-evidence [--details 100]
 ```
 
 Per-claim verdict: `verified` (content intact + locator resolves), `stale`
@@ -271,10 +271,10 @@ whenever pages are stale. Full page contracts: the `wiki-write` skill
 (CONVENTIONS.md, PAGES.md there).
 
 ```bash
-wiki.py page-targets                    # qualifying subjects + stale pages
-wiki.py page-targets --kind concepts    # one kind only
-wiki.py page-targets --stale-only       # only refresh targets
-wiki.py page-targets --decide           # advisory Jev kind verdicts (see jev)
+llm-wiki page-targets                    # qualifying subjects + stale pages
+llm-wiki page-targets --kind concepts    # one kind only
+llm-wiki page-targets --stale-only       # only refresh targets
+llm-wiki page-targets --decide           # advisory Jev kind verdicts (see jev)
 ```
 
 A subject qualifies with ≥2 eligible claims (`accepted`/`provisional`)
@@ -328,10 +328,10 @@ and `stale` are set by the script), then commit with `target.artifact`
 verbatim:
 
 ```bash
-wiki.py write-page --file page.md --artifact <target.artifact> --deps 'claim_abc123@3,claim_def456@1'
+llm-wiki write-page --file page.md --artifact <target.artifact> --deps 'claim_abc123@3,claim_def456@1'
 # → {"written": "wiki/concepts/attribution.md", "deps": [...], "claims_cited": 4}
-wiki.py write-page --file - --artifact wiki/concepts/attribution.md   # page text on stdin
-wiki.py write-page --text '<markdown>' --artifact wiki/questions/open-billing.md --deps ''
+llm-wiki write-page --file - --artifact wiki/concepts/attribution.md   # page text on stdin
+llm-wiki write-page --text '<markdown>' --artifact wiki/questions/open-billing.md --deps ''
 ```
 
 - Deps resolution order: `--deps` (comma-joined) → `--deps-file` (a JSON
@@ -382,9 +382,9 @@ wiki.py write-page --text '<markdown>' --artifact wiki/questions/open-billing.md
   `.state/dependencies.json` and the stale flag clears in the same
   transaction. Exit 4 → re-run `page-targets`, re-author, commit with the
   fresh revision.
-- Inspect before refreshing: `wiki.py page-show --artifact wiki/concepts/attribution.md`
+- Inspect before refreshing: `llm-wiki page-show --artifact wiki/concepts/attribution.md`
   → `{artifact, front, body, claim_details, stale, deps_registered}`.
-- After the last page: `wiki.py build-pages`, then `wiki.py verify` (must be
+- After the last page: `llm-wiki build-pages`, then `llm-wiki verify` (must be
   `"ok": true`). `overview.md`, `wiki/review.md`, `wiki/changes/index.md`,
   and the section indexes are script-generated — never author them with
   `write-page`.
@@ -394,8 +394,8 @@ wiki.py write-page --text '<markdown>' --artifact wiki/questions/open-billing.md
 Read-only. For "why do we…", "what does X use", "what changed", historical:
 
 ```bash
-wiki.py query-prepare --question "what is the current attribution window?"
-wiki.py query-prepare --question "what was it in August?" --as-of 2026-08-15
+llm-wiki query-prepare --question "what is the current attribution window?"
+llm-wiki query-prepare --question "what was it in August?" --as-of 2026-08-15
 ```
 
 Ranking is deterministic BM25-lite (stdlib only): each claim is three
@@ -433,8 +433,8 @@ Answer contract:
 Read-only subject census for coverage checks and gap hunting:
 
 ```bash
-wiki.py subjects                # all subjects
-wiki.py subjects --prefix svc.  # one subject prefix
+llm-wiki subjects                # all subjects
+llm-wiki subjects --prefix svc.  # one subject prefix
 ```
 
 → `{"subjects": [{subject, predicates[], statuses: {<status>: count},
@@ -450,8 +450,8 @@ Read-only census of the canonical topic registry (`.llm-wiki/topics.json`),
 plus an idempotent migration for wikis that predate the registry:
 
 ```bash
-wiki.py topics            # registry census
-wiki.py topics --backfill # register existing claim subjects (idempotent)
+llm-wiki topics            # registry census
+llm-wiki topics --backfill # register existing claim subjects (idempotent)
 ```
 
 → `{"version": N, "topics": [{subject, kind, status, title, claim_count,
@@ -471,7 +471,7 @@ Mints a canonical decision record — the apply step for `decision`-kind
 topics listed in the receipt's `decision_topics[]`:
 
 ```bash
-wiki.py record-decision --file decision.json
+llm-wiki record-decision --file decision.json
 ```
 
 Input: `{title, status, decided_on, claims[], evidence[], body?, scope?}` —
@@ -486,10 +486,10 @@ must exist and be non-terminal. Every `evidence[]` item requires
 Generate a bounded pack for a task; never dump the wiki.
 
 ```bash
-wiki.py context-pack --task "implement order attribution fix" --budget 6000
-wiki.py context-pack --resume
-wiki.py context-pack --changes-since <context_id>
-wiki.py context-pack --task "..." --budget 6000 --print-pack   # prints the pack text
+llm-wiki context-pack --task "implement order attribution fix" --budget 6000
+llm-wiki context-pack --resume
+llm-wiki context-pack --changes-since <context_id>
+llm-wiki context-pack --task "..." --budget 6000 --print-pack   # prints the pack text
 ```
 
 Use `--print-pack` when the agent itself should consume the pack; use the JSON
@@ -501,11 +501,11 @@ records exactly which claims/decisions/pages were included.
 Present open review items to the human; record their decision.
 
 ```bash
-wiki.py review list                     # open items (default status)
-wiki.py review list --kind possible_contradiction
-wiki.py review list --status deferred   # or --all for open+deferred+resolved
-wiki.py review show --item review_...
-wiki.py review act --item review_... --action accept --params params.json
+llm-wiki review list                     # open items (default status)
+llm-wiki review list --kind possible_contradiction
+llm-wiki review list --status deferred   # or --all for open+deferred+resolved
+llm-wiki review show --item review_...
+llm-wiki review act --item review_... --action accept --params params.json
 ```
 
 Actions: `accept reject merge mark_duplicate mark_authoritative
@@ -527,7 +527,7 @@ mark_superseded set_scope set_validity defer reopen set_topic_kind`.
   it (`entry.kind` or `alternate_kinds[]`). It sets the topic's kind, marks
   it `resolved`, and marks pages stale in the old kind dir when it changes.
 - Loop: `review list` → `review show` (present BOTH sides) → `review act` →
-  `wiki.py build-pages` if a claim changed → `wiki.py verify` green.
+  `llm-wiki build-pages` if a claim changed → `llm-wiki verify` green.
 
 Batch surfaces (SP3): `review triage` groups the open queue deterministically
 and attaches a conservative `suggested_action`+`params` per item —
@@ -540,9 +540,9 @@ defer always works; accept/reject need a `claim_id` (human supplies it for
 claim-less items):
 
 ```bash
-wiki.py review triage                        # groups by linked-claim subject
-wiki.py review triage --group-by kind        # bucket by item field
-wiki.py review apply --file actions.json     # one txn, one revision bump
+llm-wiki review triage                        # groups by linked-claim subject
+llm-wiki review triage --group-by kind        # bucket by item field
+llm-wiki review apply --file actions.json     # one txn, one revision bump
 # actions.json: [{"id": "review_…", "action": "defer", "params": {}}, ...]
 ```
 ## decide
@@ -551,7 +551,7 @@ Record a project decision — the write path for `decisions/`. Decisions are
 what the project deliberately chose, never inferred from claims.
 
 ```bash
-wiki.py decide --title "Use transactional outbox" \
+llm-wiki decide --title "Use transactional outbox" \
                --claims claim_abc123,claim_def456 \
                --evidence source_...@1 --evidence source_...@2 \
                --authority explicit_project_decision \
@@ -587,8 +587,8 @@ deterministic results: with Jev disabled or offline, every command's
 output is identical (only `decision` fields absent).
 
 ```bash
-wiki.py jev --check                                     # readiness probe; exit 0 either way
-wiki.py jev --state "subject: svc.billing; ..." \
+llm-wiki jev --check                                     # readiness probe; exit 0 either way
+llm-wiki jev --state "subject: svc.billing; ..." \
             --question '{"same":{"type":"noul","instructions":"..."}}'
 ```
 
@@ -635,9 +635,9 @@ gate paths.
 Static + semantic diagnostics. Run when something looks wrong, or before reporting.
 
 ```bash
-wiki.py doctor
-wiki.py doctor --scope concepts       # only findings mentioning "concepts"
-wiki.py doctor --fix-indexes          # rebuild section indexes + overview, re-lint
+llm-wiki doctor
+llm-wiki doctor --scope concepts       # only findings mentioning "concepts"
+llm-wiki doctor --fix-indexes          # rebuild section indexes + overview, re-lint
 ```
 
 Findings have `severity` (error/warn/info), `code`, `detail`, `fix`.
@@ -720,7 +720,7 @@ false, PDFs/docx/xlsx ingest with `coverage: "not_extracted"` and the
 `remediation` string names the install step.
 
 ```bash
-wiki.py doctor --rebuild-index   # regenerate the derived claims index
+llm-wiki doctor --rebuild-index   # regenerate the derived claims index
 ```
 
 Transactional recovery path for `.state/index.json` (corrupt/stale/lying):
@@ -729,7 +729,7 @@ the commit stamps a fresh, complete revision watermark. Readers fall back to
 full scans on their own; this just restores the fast path.
 
 ```bash
-wiki.py doctor --rebuild-fts    # rebuild the FTS5 search cache
+llm-wiki doctor --rebuild-fts    # rebuild the FTS5 search cache
 ```
 
 Rebuilds `.state/fts.sqlite` (porter-stemmed BM25 index over claims) when
@@ -739,7 +739,7 @@ While stale, `query-prepare` reports `ranker: "legacy"` (slower scoring).
 ## export-okf
 
 ```bash
-wiki.py export-okf <dir>    # write an OKF v0.2 bundle
+llm-wiki export-okf <dir>    # write an OKF v0.2 bundle
 ```
 
 Deterministic Markdown+YAML export for openwiki's visualizer: `index.md`
@@ -751,7 +751,7 @@ round-trip gate in `evals/okf-oracle/` (openwiki `visualize` loads it).
 ## graph-export
 
 ```bash
-wiki.py graph-export <dir>    # self-contained static visualizer bundle
+llm-wiki graph-export <dir>    # self-contained static visualizer bundle
 ```
 
 One command, zero npm: writes `<dir>/index.html` + hashed `assets/*` + a
@@ -766,7 +766,7 @@ host, or open it behind `python3 -m http.server` (the UI fetches
 ## viz-serve
 
 ```bash
-wiki.py viz-serve [--port 4321] [--no-open]
+llm-wiki viz-serve [--port 4321] [--no-open]
 ```
 
 Serves the same UI from a live loopback server (`127.0.0.1` only, never
@@ -782,8 +782,8 @@ Read-only. Emits the knowledge-graph payload consumed by the `wiki-visualize`
 skill (React/Three.js explorer). Never mutates the wiki.
 
 ```bash
-wiki.py graph-data                    # JSON to stdout
-wiki.py graph-data --output out.json  # write file instead
+llm-wiki graph-data                    # JSON to stdout
+llm-wiki graph-data --output out.json  # write file instead
 ```
 
 Output shape: `{project, nodes, links, claim_count, source_count,
@@ -796,7 +796,7 @@ echoes the build time.
   `title`/`origin`. Entity nodes group claims by two-segment subject prefix;
   `label` strips the project prefix. `claim_ids` lists the entity's claim
   ids; full claim dicts are embedded as `claims` only with `--full`
-  (`wiki.py graph-data --full`). Source/decision node `claims` fields are
+  (`llm-wiki graph-data --full`). Source/decision node `claims` fields are
   unchanged (source `[]`; decision already id lists).
 - Page nodes cover authored `wiki/{sources,concepts,entities,procedures,
   questions,changes}/*.md` (not `index.md`); `key`/`path` are the artifact
@@ -826,13 +826,13 @@ transaction and archives the rest. Dry-run by default; nothing mutates
 without `--apply`.
 
 ```bash
-wiki.py dream                          # dry-run plan (exit 0)
-wiki.py dream --apply                  # archive + delete + edge cleanup
-wiki.py dream --apply --phase junk     # one phase only (repeatable)
-wiki.py dream --purge                  # purge plan only (no delete)
-wiki.py dream --purge --apply          # delete _archive ≥90d & unreferenced
-wiki.py dream --purge --dry-run        # same as bare --purge
-wiki.py dream --retention-days 60      # override 90-day archive retention
+llm-wiki dream                          # dry-run plan (exit 0)
+llm-wiki dream --apply                  # archive + delete + edge cleanup
+llm-wiki dream --apply --phase junk     # one phase only (repeatable)
+llm-wiki dream --purge                  # purge plan only (no delete)
+llm-wiki dream --purge --apply          # delete _archive ≥90d & unreferenced
+llm-wiki dream --purge --dry-run        # same as bare --purge
+llm-wiki dream --retention-days 60      # override 90-day archive retention
 ```
 
 Phases:

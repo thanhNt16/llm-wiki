@@ -1,0 +1,270 @@
+{
+  "engines": {
+    "python": {
+      "cold_start": {
+        "reps": 20,
+        "status_s": {
+          "max": 0.061506,
+          "median": 0.058063,
+          "min": 0.057231,
+          "n": 20
+        }
+      },
+      "compile": {
+        "reconcile_apply_s": {
+          "max": 9.513554,
+          "median": 9.290314,
+          "min": 9.143089,
+          "n": 5
+        },
+        "reconcile_prepare_s": {
+          "max": 8.689517,
+          "median": 8.208757,
+          "min": 8.117016,
+          "n": 5
+        },
+        "stage_candidates_s": {
+          "max": 9.288481,
+          "median": 9.219107,
+          "min": 8.956194,
+          "n": 5
+        },
+        "total_s": {
+          "max": 27.460066,
+          "median": 26.718178,
+          "min": 26.216299,
+          "n": 5
+        }
+      },
+      "graph": {
+        "graph_data_s": {
+          "max": 0.132841,
+          "median": 0.129139,
+          "min": 0.127499,
+          "n": 5
+        },
+        "payload_bytes": 174429,
+        "viz_serve_ttff_s": {
+          "n": 0,
+          "reason": "n/a: python engine is the dev-reference CLI; the install target is the rust binary (viz-serve is measured on the shipped engine only)"
+        }
+      },
+      "ingest": {
+        "batch_cold_s": {
+          "max": 0.616523,
+          "median": 0.609273,
+          "min": 0.602686,
+          "n": 5
+        },
+        "per_file_s": {
+          "max": 0.079851,
+          "median": 0.059322,
+          "min": 0.055715,
+          "n": 750
+        },
+        "warm_rededup_s": {
+          "max": 0.075402,
+          "median": 0.068884,
+          "min": 0.068604,
+          "n": 5
+        }
+      },
+      "name": "python",
+      "peak_rss": {
+        "ingest_dir_time_l": {
+          "max_rss_mb": 32.8,
+          "method": "/usr/bin/time -l",
+          "wall_s": 0.617
+        },
+        "pipeline_max_rss_mb": 33.6,
+        "pipeline_method": "resource.getrusage(RUSAGE_CHILDREN) peak across all engine subprocesses during the k=5 init+per-file-ingest+stage+prepare+apply pipeline"
+      },
+      "query": {
+        "max_s": 0.078191,
+        "median_s": 0.069294,
+        "min_s": 0.067767,
+        "n": 120,
+        "p50_s": 0.069294,
+        "p95_s": 0.071766,
+        "poisoned_index": {
+          "first_query_s": 0.077649,
+          "poisoned": [
+            {
+              "kind": "claims-index-json",
+              "path": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvsperf-r0damiyr/wiki-python/.llm-wiki/.state/claims-index.json"
+            }
+          ],
+          "rebuild_cost_s": -0.000949,
+          "rebuilt_on_query": false,
+          "repair_commit_s": 0.261818,
+          "repair_commit_steady_s": 0.262768,
+          "repair_method": "wall of ingest+stage-candidates+reconcile-prepare+reconcile-apply for one fresh source, poisoned vs healthy wiki",
+          "second_query_s": 0.071651,
+          "watermarks_after_query": {
+            "claims-index.json": 0
+          },
+          "watermarks_after_repair": {
+            "claims-index.json": 304
+          },
+          "watermarks_before_query": {
+            "claims-index.json": 0
+          }
+        }
+      }
+    },
+    "rust": {
+      "cold_start": {
+        "reps": 20,
+        "status_s": {
+          "max": 0.008041,
+          "median": 0.00555,
+          "min": 0.005383,
+          "n": 20
+        }
+      },
+      "compile": {
+        "reconcile_apply_s": {
+          "max": 1.618481,
+          "median": 1.531043,
+          "min": 1.497195,
+          "n": 5
+        },
+        "reconcile_prepare_s": {
+          "max": 0.433207,
+          "median": 0.419,
+          "min": 0.414768,
+          "n": 5
+        },
+        "stage_candidates_s": {
+          "max": 1.409452,
+          "median": 1.388036,
+          "min": 1.366113,
+          "n": 5
+        },
+        "total_s": {
+          "max": 3.437442,
+          "median": 3.361444,
+          "min": 3.282309,
+          "n": 5
+        }
+      },
+      "graph": {
+        "graph_data_s": {
+          "max": 0.037358,
+          "median": 0.032645,
+          "min": 0.032193,
+          "n": 5
+        },
+        "payload_bytes": 160804,
+        "viz_serve_ttff_s": {
+          "max": 0.061809,
+          "median": 0.054382,
+          "min": 0.036855,
+          "n": 5
+        }
+      },
+      "ingest": {
+        "batch_cold_s": {
+          "max": 0.546145,
+          "median": 0.530419,
+          "min": 0.517983,
+          "n": 5
+        },
+        "per_file_s": {
+          "max": 0.021328,
+          "median": 0.006972,
+          "min": 0.006417,
+          "n": 750
+        },
+        "warm_rededup_s": {
+          "max": 0.018632,
+          "median": 0.015419,
+          "min": 0.015016,
+          "n": 5
+        }
+      },
+      "name": "rust",
+      "peak_rss": {
+        "ingest_dir_time_l": {
+          "max_rss_mb": 8.0,
+          "method": "/usr/bin/time -l",
+          "wall_s": 0.549
+        },
+        "pipeline_max_rss_mb": 34.6,
+        "pipeline_method": "resource.getrusage(RUSAGE_CHILDREN) peak across all engine subprocesses during the k=5 init+per-file-ingest+stage+prepare+apply pipeline"
+      },
+      "query": {
+        "max_s": 0.015814,
+        "median_s": 0.012282,
+        "min_s": 0.011939,
+        "n": 120,
+        "p50_s": 0.012282,
+        "p95_s": 0.013337,
+        "poisoned_index": {
+          "first_query_s": 0.016016,
+          "poisoned": [
+            {
+              "kind": "rust-sqlite",
+              "path": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvsperf-r0damiyr/wiki-rust/.llm-wiki/.state/index.sqlite"
+            },
+            {
+              "kind": "claims-index-json",
+              "path": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvsperf-r0damiyr/wiki-rust/.llm-wiki/.state/claims-index.json"
+            }
+          ],
+          "rebuild_cost_s": 0.225059,
+          "rebuilt_on_query": false,
+          "repair_commit_s": 0.275122,
+          "repair_commit_steady_s": 0.050063,
+          "repair_method": "wall of ingest+stage-candidates+reconcile-prepare+reconcile-apply for one fresh source, poisoned vs healthy wiki",
+          "second_query_s": 0.011957,
+          "watermarks_after_query": {
+            "claims-index.json": 0,
+            "index.sqlite": 0
+          },
+          "watermarks_after_repair": {
+            "claims-index.json": 304,
+            "index.sqlite": 304
+          },
+          "watermarks_before_query": {
+            "claims-index.json": 0,
+            "index.sqlite": 0
+          }
+        }
+      }
+    }
+  },
+  "footprint": {
+    "note": "python engine also requires a Python >=3.9 runtime on PATH; the rust binary is self-contained",
+    "python_engine_bytes": 784054,
+    "python_engine_dir": "/Users/harry/orca/workspaces/llm-wiki/orca/skill/llm-wiki/scripts",
+    "python_engine_files": 57,
+    "rust_binary_bytes": 14026528,
+    "rust_binary_stripped_bytes": 12609984
+  },
+  "headline_speedups": {
+    "cold_start_status": 10.462,
+    "compile_total": 7.948,
+    "graph_data": 3.956,
+    "ingest_batch_cold": 1.149,
+    "ingest_per_file": 8.509,
+    "ingest_warm_dedup": 4.467,
+    "query_p50": 5.642,
+    "query_p95": 5.381
+  },
+  "meta": {
+    "corpus_dir": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvsperf-r0damiyr/corpus",
+    "docs": 150,
+    "engines": {
+      "python": "/opt/homebrew/opt/python@3.15/bin/python3.15 /Users/harry/orca/workspaces/llm-wiki/orca/skill/llm-wiki/scripts/wiki.py",
+      "rust": "/Users/harry/orca/workspaces/llm-wiki/orca/rust/target/release/llm-wiki"
+    },
+    "generated_at": "2026-11-15T12:41:10Z",
+    "lane": "rust-vs-python/B",
+    "machine": "arm64",
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python": "3.15.2",
+    "queries": 120,
+    "reps": 5
+  }
+}

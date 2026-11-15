@@ -1,0 +1,4 @@
+{"authority": "doc", "locator": "s:The oncall slack channel of svc.alpha-009 is ops-channel-63", "predicate": "oncall_slack_channel", "subject": "svc.alpha-009", "value": "ops-channel-63"}
+{"authority": "doc", "locator": "s:The eviction policy of svc.shared-cache is lfu", "predicate": "eviction_policy", "subject": "svc.shared-cache", "value": "lfu"}
+{"authority": "doc", "locator": "s:The alert threshold pct of svc.alpha-009 is 80", "predicate": "alert_threshold_pct", "subject": "svc.alpha-009", "value": 80}
+{"authority": "doc", "locator": "s:The backup window utc of svc.alpha-009 is 23:45", "predicate": "backup_window_utc", "subject": "svc.alpha-009", "value": "23:45"}

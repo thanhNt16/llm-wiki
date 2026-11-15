@@ -9,8 +9,14 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "..", "skill", "llm-wiki", "scripts"))
 sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.join(HERE, ".."))
 
 import bench  # noqa: E402
+import _engine  # noqa: E402
+
+
+ENGINE_ARGV = None     # resolved in main(): None = in-process python lane
+
 
 CEILINGS_FAST = {          # 1,000-claim corpus; RSS medians ×1.3 (SP2a Task 10)
     "apply_s": 5.0,
@@ -29,12 +35,27 @@ CEILINGS_DEEP = {          # 5k, then 10k; RSS measured once ×1.3, rounded up
 
 
 def run(n_docs):
-    m = bench.run_corpus(n_docs)
+    m = bench.run_corpus(n_docs, engine_argv=ENGINE_ARGV)
     return m
 
 
-def main():
-    deep = "--deep" in sys.argv
+def main(argv=None):
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="Perf ceilings (SP1). Fast tier in CI-seconds; "
+                    "--deep covers 5k/10k.")
+    ap.add_argument("--deep", action="store_true",
+                    help="run the 5k/10k deep tier")
+    _engine.add_engine_arg(ap)
+    args = ap.parse_args(argv)
+    global ENGINE_ARGV
+    if _engine.engine_name(args.engine) == "rust":
+        try:
+            ENGINE_ARGV = _engine.engine_argv(args.engine)
+        except _engine.EngineError as e:
+            print("error: %s" % e, file=sys.stderr)
+            return 2
+    deep = args.deep
     results = {"fast": run(100)}
     fails = []
     for metric, ceiling in CEILINGS_FAST.items():

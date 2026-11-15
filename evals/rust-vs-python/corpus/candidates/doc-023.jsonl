@@ -1,0 +1,4 @@
+{"authority": "doc", "locator": "s:The retry count of svc.alpha-023 is 9", "predicate": "retry_count", "subject": "svc.alpha-023", "value": 9}
+{"authority": "doc", "locator": "s:The region of svc.alpha-023 is us-east-1", "predicate": "region", "subject": "svc.alpha-023", "value": "us-east-1"}
+{"authority": "doc", "locator": "s:The deploy strategy of svc.alpha-023 is rolling-restart", "predicate": "deploy_strategy", "subject": "svc.alpha-023", "value": "rolling-restart"}
+{"authority": "doc", "locator": "s:The owner of svc.alpha-023 is Jonas Novak", "predicate": "owner", "subject": "svc.alpha-023", "value": "Jonas Novak"}

@@ -1,0 +1,174 @@
+{
+  "binary_install": {
+    "binary_installed": true,
+    "binary_path": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.local/bin/llm-wiki",
+    "exit": 0,
+    "init_status_ok": true,
+    "init_status_s": 0.01,
+    "install_s": 0.765,
+    "stderr_tail": [],
+    "stdout_tail": [
+      "verified llm-wiki-local-aarch64-apple-darwin.tar.gz.sha256",
+      "installing llm-wiki-local-aarch64-apple-darwin.tar.gz \u2192 /var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.local/bin/llm-wiki",
+      "installed /var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.local/bin/llm-wiki (local)",
+      "{\"count\":10,\"installed\":[\"llm-wiki\",\"wiki-compile\",\"wiki-context\",\"wiki-doctor\",\"wiki-ingest\",\"wiki-init\",\"wiki-query\",\"wiki-review\",\"wiki-visualize\",\"wiki-write\"],\"target\":\"/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.omp/agent/skills\"}",
+      "",
+      "verify with:",
+      "  omp -p --no-session 'Do you have skills named llm-wiki and wiki-init? Answer yes/no.'"
+    ],
+    "step_count": 4,
+    "steps": [
+      "verified llm-wiki-local-aarch64-apple-darwin.tar.gz.sha256",
+      "installing llm-wiki-local-aarch64-apple-darwin.tar.gz \u2192 /var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.local/bin/llm-wiki",
+      "installed /var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.local/bin/llm-wiki (local)",
+      "installed 10 skills -> /var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.omp/agent/skills"
+    ],
+    "time_to_working_s": 0.775,
+    "wiki_status": {
+      "counts": {
+        "claims": 0,
+        "decisions": 0,
+        "pages": 0,
+        "pending": 0,
+        "sources": 0
+      },
+      "initialized": true,
+      "pending_versions": 0,
+      "project": "probe-wiki",
+      "revision": 0,
+      "skill_version": "0.3.0",
+      "stale_artifacts": []
+    }
+  },
+  "failure_modes": {
+    "missing_tarball": {
+      "clear_error": true,
+      "exit": 1,
+      "message": [
+        "error: LLM_WIKI_BINARY_TARBALL=/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/nope.tar.gz not found"
+      ]
+    },
+    "python_flag": {
+      "dev_reference_message": true,
+      "exit": 1,
+      "installed_anything": false,
+      "message": [
+        "error: --python was removed at the phase-6 flip (spec \u00a713).",
+        "       The Python engine is now a dev-reference for parity work \u2014",
+        "       run it from a repo checkout:",
+        "         python3 skill/llm-wiki/scripts/wiki.py <cmd>",
+        "       The installed skill surface invokes the llm-wiki binary;",
+        "       run ./install.sh (or --binary) to install it."
+      ]
+    },
+    "tampered_sha256": {
+      "aborted": true,
+      "binary_installed": false,
+      "exit": 1,
+      "mentions_sha256_mismatch": true,
+      "message": [
+        "error: sha256 mismatch for llm-wiki-local-aarch64-apple-darwin.tar.gz (want 0214215ee03d6c11bc52526e37ee2f25566b9fd11a33bae9b4c9e325a0121e86, got 3214215ee03d6c11bc52526e37ee2f25566b9fd11a33bae9b4c9e325a0121e86)"
+      ]
+    }
+  },
+  "footprint": {
+    "note": "python engine also requires a Python >=3.9 runtime on PATH; the rust binary is self-contained",
+    "python_engine_bytes": 784054,
+    "python_engine_dir": "/Users/harry/orca/workspaces/llm-wiki/orca/skill/llm-wiki/scripts",
+    "python_engine_files": 57,
+    "rust_binary_bytes": 14010288,
+    "rust_binary_stripped_bytes": 12593568
+  },
+  "iteration_speed": {
+    "docs": 150,
+    "engines": {
+      "python": {
+        "max": 0.243579,
+        "median": 0.238819,
+        "min": 0.237151,
+        "n": 5
+      },
+      "rust": {
+        "max": 0.069876,
+        "median": 0.069437,
+        "min": 0.067271,
+        "n": 5
+      }
+    },
+    "method": "edit one claims/*.json value + `compile` + `build-pages` + `query-prepare`, wall per rep"
+  },
+  "mcp": {
+    "client_config_detail": {
+      "has_mcpServers": true,
+      "keys": [
+        "mcpServers"
+      ]
+    },
+    "client_config_path": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.claude.json",
+    "client_config_written": true,
+    "exit": 0,
+    "note": "no claude CLI / real client config on sandbox PATH; fallback ~/.claude.json edit exercised; no --dry-run or list-clients flag exists on mcp-register",
+    "python_subcommand_count": 32,
+    "rust_subcommand_count": 35,
+    "stderr_tail": [],
+    "stdout_tail": [
+      "{\"action\":\"registered\",\"cli_used\":false,\"client\":\"claude-code\",\"config_path\":\"/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.claude.json\",\"config_written\":true,\"docs\":{\"AGENTS.md\":\"created\",\"CLAUDE.md\":\"created\"}}"
+    ]
+  },
+  "meta": {
+    "docs": 150,
+    "generated_at": "2026-11-15T08:40:23Z",
+    "lane": "rust-vs-python/B-install",
+    "perf_json": "/Users/harry/orca/workspaces/llm-wiki/orca/evals/rust-vs-python/perf.json",
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "reps": 5,
+    "sandbox_root": "/var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2"
+  },
+  "otool_L": "/Users/harry/orca/workspaces/llm-wiki/orca/rust/target/release/llm-wiki:\n\t/usr/lib/libiconv.2.dylib (compatibility version 7.0.0, current version 7.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)\n",
+  "scorecard": {
+    "faster": {
+      "evidence": "python/rust median ratios from perf.json headline speedups",
+      "speedups": {
+        "cold_start_status": 10.343,
+        "compile_total": 8.448,
+        "graph_data": 3.966,
+        "ingest_batch_cold": 1.13,
+        "ingest_per_file": 8.719,
+        "ingest_warm_dedup": 4.49,
+        "query_p50": 5.54,
+        "query_p95": 5.158
+      },
+      "verdict": "pass"
+    },
+    "one_command_install": {
+      "evidence": "./install.sh --binary (or curl|bash) \u2192 verified llm-wiki on PATH",
+      "step_log": [
+        "verified llm-wiki-local-aarch64-apple-darwin.tar.gz.sha256",
+        "installing llm-wiki-local-aarch64-apple-darwin.tar.gz \u2192 /var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.local/bin/llm-wiki",
+        "installed /var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.local/bin/llm-wiki (local)",
+        "installed 10 skills -> /var/folders/rw/lz_rc3xs33q9rb8c3jp7whn80000gn/T/rvs-ux-6g9avpw2/install/home/.omp/agent/skills"
+      ],
+      "steps": 4,
+      "time_to_working_s": 0.775,
+      "verdict": "pass"
+    },
+    "single_binary": {
+      "evidence": "rust/target/release/llm-wiki = 14010288 bytes, no runtime deps required",
+      "verdict": "pass"
+    },
+    "smaller": {
+      "evidence": "rust binary 14010288 bytes (stripped 12593568) vs python engine source 784054 bytes across 57 files; python additionally requires a >=3.9 interpreter on PATH",
+      "verdict": "mixed"
+    },
+    "zero_external_deps": {
+      "evidence": "otool -L lists only system frameworks/libraries",
+      "non_system_libs": [],
+      "verdict": "pass"
+    }
+  },
+  "tarball": {
+    "bytes": 5570808,
+    "path": "llm-wiki-local-aarch64-apple-darwin.tar.gz",
+    "sha256_sidecar": "llm-wiki-local-aarch64-apple-darwin.tar.gz.sha256"
+  }
+}

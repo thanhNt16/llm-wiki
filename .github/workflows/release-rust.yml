@@ -1,0 +1,134 @@
+name: release-rust
+
+# Tag-triggered release builds for the llm-wiki Rust binary (spec §12).
+# Matrix: macos-aarch64, macos-x86_64, linux-x86_64-musl, linux-aarch64-musl,
+# windows-x86_64. Artifacts: llm-wiki-<bare-version>-<triple>.{tar.gz,zip}
+# + per-artifact .sha256 sidecar + combined SHA256SUMS, attached to the
+# GitHub release created by softprops/action-gh-release. Version = crate
+# version = git tag (v*). macOS binaries are ad-hoc signed.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  guard:
+    # Refuse to release when the tag disagrees with Cargo.toml's version —
+    # artifact names embed the bare crate version.
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ver
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          crate="$(grep -m1 '^version' rust/crates/llm-wiki/Cargo.toml | cut -d'"' -f2)"
+          if [ "$tag" != "$crate" ]; then
+            echo "::error::tag v$tag != crate version $crate"
+            exit 1
+          fi
+          echo "version=$crate" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: guard
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14,        target: aarch64-apple-darwin,    cross: false }
+          - { os: macos-13,        target: x86_64-apple-darwin,     cross: false }
+          - { os: ubuntu-latest,   target: x86_64-unknown-linux-musl, cross: true }
+          - { os: ubuntu-latest,   target: aarch64-unknown-linux-musl, cross: true }
+          - { os: windows-latest,  target: x86_64-pc-windows-msvc,  cross: false }
+
+    runs-on: ${{ matrix.os }}
+    env:
+      TARGET: ${{ matrix.target }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # musl targets build via `cross` (Docker containers with musl-gcc);
+      # everything else is a native cargo build.
+      - name: Install cross (musl lanes)
+        if: matrix.cross
+        run: cargo install cross --locked
+
+      - name: cargo build --release
+        shell: bash
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            cross build --release --target "$TARGET" --manifest-path rust/Cargo.toml
+          else
+            cargo build --release --target "$TARGET" --manifest-path rust/Cargo.toml
+          fi
+
+      - name: Package (tar.gz + sha256)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          VERSION: ${{ needs.guard.outputs.version }}
+        run: |
+          mkdir -p dist stage
+          cp "rust/target/$TARGET/release/llm-wiki" stage/llm-wiki
+          strip stage/llm-wiki 2>/dev/null || true
+          name="llm-wiki-${VERSION}-${TARGET}"
+          tar -czf "dist/${name}.tar.gz" -C stage llm-wiki
+          (cd dist && shasum -a 256 "${name}.tar.gz" > "${name}.tar.gz.sha256")
+          ls -l dist
+
+      - name: Package (zip + sha256)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.guard.outputs.version }}
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $name = "llm-wiki-$env:VERSION-$env:TARGET"
+          Compress-Archive -Path "rust/target/$env:TARGET/release/llm-wiki.exe" `
+            -DestinationPath "dist/$name.zip"
+          $hash = (Get-FileHash -Algorithm SHA256 "dist/$name.zip").Hash.ToLower()
+          "$hash  $name.zip" | Out-File -Encoding ascii "dist/$name.zip.sha256"
+          Get-ChildItem dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Combined SHA256SUMS
+        shell: bash
+        run: |
+          cd dist
+          # Per-artifact sidecars already exist; SHA256SUMS aggregates them.
+          cat ./*.sha256 > SHA256SUMS
+          ls -l
+          cat SHA256SUMS
+
+      - name: Attach to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

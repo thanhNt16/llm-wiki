@@ -5,7 +5,7 @@
 - **Agent-owned via `write-page` only:** `wiki/{sources,concepts,entities,
   procedures,questions,changes}/*.md`. NEVER hand-edit these files — not to
   fix a typo, not to update frontmatter. Every change goes through
-  `wiki.py write-page --file ... --artifact ... --deps 'claim_X@3,...'` so
+  `llm-wiki write-page --file ... --artifact ... --deps 'claim_X@3,...'` so
   deps are re-registered and the stale flag clears atomically.
 - **Script-owned (`write-page` rejects them):** `wiki/index.md`,
   `wiki/overview.md`, `wiki/review.md`, `wiki/log.md`, `wiki/decisions/*`,
@@ -127,7 +127,7 @@ entries — no code changes:
   `orphan_page`/`dead_end_page` doctor findings.
 - Circular first-creation needs two passes: write page B without the link,
   write page A linking B, then re-write B linking A.
-- Run `wiki.py subjects` before authoring — if a near-duplicate subject
+- Run `llm-wiki subjects` before authoring — if a near-duplicate subject
   already has a page, refresh it instead of minting a twin (doctor flags
   unlinked near-dupes as `near_duplicate_subject`).
 - Optional frontmatter `stale_after: YYYY-MM-DD` gives a page a TTL; doctor

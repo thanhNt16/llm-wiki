@@ -31,6 +31,39 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 INSTALL = os.path.join(REPO_ROOT, "install.sh")
 GOLDEN_DOCS = os.path.join(REPO_ROOT, "evals", "golden-corpus", "docs")
 
+_EVALS_DIR = os.path.join(REPO_ROOT, "evals")
+if _EVALS_DIR not in sys.path:
+    sys.path.insert(0, _EVALS_DIR)
+import _engine  # noqa: E402
+
+# Set by main() after --engine parsing. For non-python engines the smoke
+# lane skips install.sh (it installs python skills only) and resolves the
+# binary from the mode's installed skills dir, then $LLM_WIKI_BINARY, then
+# rust/target/release — the install/uninstall steps become explicit
+# "skipped-rust" records, never silent passes.
+RUST_MODE = False
+
+RUST_INSTALL_CANDIDATES = (
+    os.path.join("llm-wiki", "bin", "llm-wiki"),
+    os.path.join("llm-wiki", "scripts", "llm-wiki"),
+    "llm-wiki",
+)
+
+
+def _resolve_rust_binary(skills_dir):
+    """Installed rust engine in this mode's skills dir, else repo/env fallbacks."""
+    for rel in RUST_INSTALL_CANDIDATES:
+        cand = os.path.join(skills_dir, rel)
+        if os.path.isfile(cand) and os.access(cand, os.X_OK):
+            return cand
+    env = os.environ.get("LLM_WIKI_BINARY")
+    if env and os.path.isfile(env):
+        return os.path.abspath(env)
+    try:
+        return _engine.engine_argv("rust")[0]
+    except _engine.EngineError:
+        return ""
+
 MODE_BUDGET_S = 10.0
 
 SKILL_NAMES = ("llm-wiki", "wiki-init", "wiki-ingest", "wiki-compile",
@@ -141,34 +174,46 @@ def smoke_mode(mode, flag, rel_skills, fixture, stubbin):
         env = make_env(home, stubbin)
         skills_dir = os.path.join(home, rel_skills)
 
-        # 1. install
-        argv = ["bash", INSTALL] + ([flag] if flag else [])
-        ok, _ = run_step(rec, "install", argv, env)
-        if not ok:
-            return rec
+        # 1. install — python skills only; the rust engine has no install.sh
+        #    surface yet (P7), so that step is a recorded skip, not a pass.
+        if RUST_MODE:
+            rec["steps"].append({"name": "install", "ok": None,
+                                 "detail": "skipped-rust: install.sh installs "
+                                           "python skills only",
+                                 "exit": None})
+        else:
+            argv = ["bash", INSTALL] + ([flag] if flag else [])
+            ok, _ = run_step(rec, "install", argv, env)
+            if not ok:
+                return rec
 
         # 2. resolve installed engine
-        engine = os.path.join(skills_dir, "llm-wiki", "scripts", "wiki.py")
-        ok = os.path.isfile(engine)
+        if RUST_MODE:
+            engine = _resolve_rust_binary(skills_dir)
+        else:
+            engine = os.path.join(skills_dir, "llm-wiki", "scripts", "wiki.py")
+        ok = bool(engine) and os.path.isfile(engine)
         rec["steps"].append({"name": "resolve_engine", "ok": ok,
-                             "detail": engine, "exit": 0 if ok else 1})
+                             "detail": engine or "no engine resolved",
+                             "exit": 0 if ok else 1})
         if not ok:
             return rec
 
         # 3. engine lifecycle in temp project
+        prefix = [engine] if RUST_MODE else [sys.executable, engine]
         seq = [
-            ("init", [sys.executable, engine, "init", "--name", "smoke"],
+            ("init", prefix + ["init", "--name", "smoke"],
              check_json(lambda d: d.get("initialized") is True, "init")),
-            ("ingest", [sys.executable, engine, "ingest", "--file", fixture],
+            ("ingest", prefix + ["ingest", "--file", fixture],
              check_json(lambda d: bool(d.get("source_id")), "ingest")),
-            ("verify", [sys.executable, engine, "verify"],
+            ("verify", prefix + ["verify"],
              check_json(lambda d: d.get("ok") is True, "verify ok")),
-            ("doctor", [sys.executable, engine, "doctor"],
+            ("doctor", prefix + ["doctor"],
              check_json(lambda d: not any(
                  f.get("severity") == "error"
                  for f in d.get("findings", [])), "doctor errors")),
             ("query_prepare",
-             [sys.executable, engine, "query-prepare", "--question", "retries"],
+             prefix + ["query-prepare", "--question", "retries"],
              None),
         ]
         for name, argv, check in seq:
@@ -177,15 +222,29 @@ def smoke_mode(mode, flag, rel_skills, fixture, stubbin):
                 return rec
 
         # 4. uninstall + leftover assert
-        ok, _ = run_step(rec, "uninstall", ["bash", INSTALL, "--uninstall"], env)
-        if not ok:
-            return rec
-        left = leftovers(skills_dir)
-        ok = not left
-        rec["steps"].append({"name": "no_leftovers", "ok": ok,
-                             "detail": ",".join(left), "exit": 0 if ok else 1})
-        if not ok:
-            return rec
+        if RUST_MODE:
+            rec["steps"].append({"name": "uninstall", "ok": None,
+                                 "detail": "skipped-rust: no rust "
+                                           "install.sh surface",
+                                 "exit": None})
+            left = leftovers(skills_dir)
+            rec["steps"].append({"name": "no_leftovers", "ok": not left,
+                                 "detail": ",".join(left),
+                                 "exit": 0 if not left else 1})
+            if left:
+                return rec
+        else:
+            ok, _ = run_step(rec, "uninstall",
+                             ["bash", INSTALL, "--uninstall"], env)
+            if not ok:
+                return rec
+            left = leftovers(skills_dir)
+            ok = not left
+            rec["steps"].append({"name": "no_leftovers", "ok": ok,
+                                 "detail": ",".join(left),
+                                 "exit": 0 if ok else 1})
+            if not ok:
+                return rec
 
         rec["status"] = "passed"
         return rec
@@ -195,10 +254,15 @@ def smoke_mode(mode, flag, rel_skills, fixture, stubbin):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="install-mode smoke harness")
     ap.add_argument("--mode", choices=list(MODES) + ["all"], default="all")
+    _engine.add_engine_arg(ap)
     args = ap.parse_args(argv)
+
+    global RUST_MODE
+    RUST_MODE = _engine.engine_name(args.engine) == "rust"
 
     fixture = resolve_fixture()
     if fixture is None:

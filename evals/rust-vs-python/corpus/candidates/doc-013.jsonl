@@ -1,0 +1,4 @@
+{"authority": "doc", "locator": "s:The retry count of svc.alpha-013 is 7", "predicate": "retry_count", "subject": "svc.alpha-013", "value": 7}
+{"authority": "doc", "locator": "s:The region of svc.alpha-013 is ap-south-1", "predicate": "region", "subject": "svc.alpha-013", "value": "ap-south-1"}
+{"authority": "doc", "locator": "s:The deploy strategy of svc.alpha-013 is rolling-restart", "predicate": "deploy_strategy", "subject": "svc.alpha-013", "value": "rolling-restart"}
+{"authority": "doc", "locator": "s:The owner of svc.alpha-013 is Farid Okafor", "predicate": "owner", "subject": "svc.alpha-013", "value": "Farid Okafor"}

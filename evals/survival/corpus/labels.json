@@ -1,0 +1,193 @@
+{
+  "ingest_order": [
+    "long/platform-report-q3.md",
+    "traps/twin-a.md",
+    "traps/twin-b.md",
+    "traps/retention.md",
+    "traps/near-subject.md",
+    "traps/scope-prod.md",
+    "traps/scope-sandbox.md",
+    "traps/diff-predicate.md",
+    "long/platform-report-addendum.md",
+    "traps/retention-change.md"
+  ],
+  "labels": [
+    {
+      "id": "f1-early",
+      "kind": "planted",
+      "bucket": "early",
+      "subject": "checkout",
+      "predicate": "hard-timeout-ms",
+      "scope": {},
+      "value": 3000,
+      "status": "accepted",
+      "evidence_count": 1,
+      "superseded_by": null,
+      "locator_line": 125
+    },
+    {
+      "id": "f2-mid",
+      "kind": "planted",
+      "bucket": "mid",
+      "subject": "search",
+      "predicate": "shard-count",
+      "scope": {},
+      "value": 24,
+      "status": "accepted",
+      "evidence_count": 1,
+      "superseded_by": null,
+      "locator_line": 357
+    },
+    {
+      "id": "f3-late",
+      "kind": "planted",
+      "bucket": "late",
+      "subject": "warehouse",
+      "predicate": "vacuum-window",
+      "scope": {},
+      "value": "02:00-04:00 UTC",
+      "status": "accepted",
+      "evidence_count": 1,
+      "superseded_by": null,
+      "locator_line": 666
+    },
+    {
+      "id": "f4-deep",
+      "kind": "planted",
+      "bucket": "deep",
+      "subject": "ledger",
+      "predicate": "export-format",
+      "scope": {},
+      "value": "parquet",
+      "status": "accepted",
+      "evidence_count": 1,
+      "superseded_by": null,
+      "locator_line": 784
+    },
+    {
+      "id": "f5a-tldr",
+      "kind": "superseded-old",
+      "bucket": null,
+      "subject": "attribution",
+      "predicate": "window-days",
+      "scope": {},
+      "value": 30,
+      "status": "superseded",
+      "evidence_count": 1,
+      "superseded_by": "f5b-correction",
+      "locator_line": null
+    },
+    {
+      "id": "corr-twin",
+      "kind": "corroboration",
+      "subject": "attribution pipeline",
+      "predicate": "rollout-mode",
+      "scope": {},
+      "value": "canary",
+      "status": "accepted",
+      "evidence_count": 2,
+      "superseded_by": null
+    },
+    {
+      "id": "shared-value",
+      "kind": "trap-shared-value",
+      "subject": "retention",
+      "predicate": "window-days",
+      "scope": {},
+      "value": 7,
+      "status": "accepted",
+      "evidence_count": 1,
+      "superseded_by": null
+    },
+    {
+      "id": "er-90",
+      "kind": "superseded-old",
+      "subject": "event-retention",
+      "predicate": "retention-days",
+      "scope": {},
+      "value": 90,
+      "status": "superseded",
+      "evidence_count": 1,
+      "superseded_by": "er-45",
+      "bucket": null
+    },
+    {
+      "id": "near-subject",
+      "kind": "trap-near-subject",
+      "subject": "event-retention",
+      "predicate": "retention-days",
+      "scope": {},
+      "value": 90,
+      "status": "rejected_tier_match",
+      "evidence_count": 0,
+      "superseded_by": null,
+      "review_item": true
+    },
+    {
+      "id": "scope-prod",
+      "kind": "scope-twin",
+      "subject": "audit-log",
+      "predicate": "retention-days",
+      "scope": {
+        "environment": "production"
+      },
+      "value": 365,
+      "status": "accepted",
+      "evidence_count": 1,
+      "superseded_by": null
+    },
+    {
+      "id": "scope-sandbox",
+      "kind": "scope-twin",
+      "subject": "audit-log",
+      "predicate": "retention-days",
+      "scope": {
+        "environment": "sandbox"
+      },
+      "value": 365,
+      "status": "accepted",
+      "evidence_count": 1,
+      "superseded_by": null
+    },
+    {
+      "id": "er-enforcement",
+      "kind": "trap-diff-predicate",
+      "subject": "event-retention",
+      "predicate": "enforcement",
+      "scope": {},
+      "value": "lazy",
+      "status": "accepted",
+      "evidence_count": 1,
+      "superseded_by": null
+    },
+    {
+      "id": "f5b-correction",
+      "kind": "correction-current",
+      "subject": "attribution",
+      "predicate": "window-days",
+      "scope": {},
+      "value": 7,
+      "status": "accepted",
+      "evidence_count": 1,
+      "superseded_by": null
+    },
+    {
+      "id": "er-45",
+      "kind": "correction-current",
+      "subject": "event-retention",
+      "predicate": "retention-days",
+      "scope": {},
+      "value": 45,
+      "status": "accepted",
+      "evidence_count": 1,
+      "superseded_by": null
+    }
+  ],
+  "review_expect": [
+    {
+      "kind": "rejected_tier_match",
+      "subject": "Event Retention",
+      "predicate": "retention-days"
+    }
+  ]
+}

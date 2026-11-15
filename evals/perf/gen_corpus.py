@@ -3,10 +3,8 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, "..", "..", "skill", "llm-wiki", "scripts"))
 
-from wikicore import compile as wc_compile, sources  # noqa: E402
-from wikicore.store import Wiki, init_wiki  # noqa: E402
+
 
 SUBJECT_POOL = ["acme.svc%02d" % i for i in range(40)]
 PREDICATES = ("status", "owner", "summary", "limit", "endpoint")
@@ -36,7 +34,14 @@ def build(root, n_docs, per_doc=10):
     Every stage_candidates() call parks a run dir under .state/staging
     (the same layout cmd_reconcile_prepare consumes); callers enumerate
     run ids from there.
+
+    wikicore is imported lazily so the _cand/_report fixture builders
+    stay usable by CLI-engine lanes (rust) that never load wikicore.
     """
+    sys.path.insert(0, os.path.join(HERE, "..", "..", "skill",
+                                    "llm-wiki", "scripts"))
+    from wikicore import compile as wc_compile, sources  # noqa: E402
+    from wikicore.store import Wiki, init_wiki  # noqa: E402
     wiki = Wiki(root)
     init_wiki(wiki, "perf")
     for n in range(n_docs):

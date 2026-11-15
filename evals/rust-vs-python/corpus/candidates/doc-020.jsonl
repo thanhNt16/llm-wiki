@@ -1,0 +1,4 @@
+{"authority": "doc", "locator": "s:The cache ttl seconds of svc.alpha-020 is 2598", "predicate": "cache_ttl_seconds", "subject": "svc.alpha-020", "value": 2598}
+{"authority": "doc", "locator": "s:The max connections of svc.alpha-020 is 48", "predicate": "max_connections", "subject": "svc.alpha-020", "value": 48}
+{"authority": "doc", "locator": "s:The retry count of svc.alpha-020 is 7", "predicate": "retry_count", "subject": "svc.alpha-020", "value": 7}
+{"authority": "doc", "locator": "s:The region of svc.alpha-020 is us-east-1", "predicate": "region", "subject": "svc.alpha-020", "value": "us-east-1"}

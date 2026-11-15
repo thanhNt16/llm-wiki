@@ -13,18 +13,16 @@ state.
 ## Engine
 
 All page writes go through the deterministic CLI shipped with the `llm-wiki`
-skill (installed alongside this one). Resolve it once, then run from the
+skill (installed alongside this one). Run from the
 project root:
 
 ```bash
-WIKI=$(ls "$SKILL_DIR/../llm-wiki/scripts/wiki.py" ~/.omp/agent/skills/llm-wiki/scripts/wiki.py ~/.agents/skills/llm-wiki/scripts/wiki.py ~/.cellockai/skills/llm-wiki/scripts/wiki.py "$PWD/../llm-wiki/scripts/wiki.py" 2>/dev/null | head -1)
-[ -f "$WIKI" ] || echo "wiki.py not found — set WIKI=/path/to/llm-wiki/scripts/wiki.py manually"
-python3 "$WIKI" page-targets
+llm-wiki page-targets
 ```
 
 ## Pipeline
 
-1. `python3 "$WIKI" page-targets` — subjects that qualify for a page, plus
+1. `llm-wiki page-targets` — subjects that qualify for a page, plus
    stale pages needing refresh. Flags: `--kind <concepts|entities|procedures|questions|sources|changes>`,
    `--stale-only`, `--decide` (advisory Jev verdicts on heuristic-routed targets).
 2. Author a page for **every** `targets[]` entry — `entities`,
@@ -36,20 +34,20 @@ python3 "$WIKI" page-targets
    `target.matched_rule`) — use `target.artifact` verbatim as `--artifact`;
    never guess `wiki/concepts/…`. If `matched_rule` looks wrong, add a
    `page-kinds.json` rule first, re-run `page-targets`, then write.
-   Consulted-when-ready: run `wiki.py jev --check` once per session; when
+   Consulted-when-ready: run `llm-wiki jev --check` once per session; when
    `ready: true`, re-run `page-targets --decide` and pin any differing
    `decision.suggested_kind` as a `page-kinds.json` rule before writing,
    and pass `--allow-new` only when a refusal's `decision.same_page_p` is
    low or you justify the escape in your output.
-3. `python3 "$WIKI" write-page --file page.md --artifact <target.artifact> --deps 'claim_abc123@3,claim_def456@1'`
+3. `llm-wiki write-page --file page.md --artifact <target.artifact> --deps 'claim_abc123@3,claim_def456@1'`
    — pass deps inline (comma-joined, current versions, one entry per cited
    `[[claim_id]]`; they duplicate the frontmatter `deps:` list). `--deps-file deps.json`
    remains for long lists. Validates frontmatter and links, stages the page,
    registers `deps`, clears the stale flag, commits. Receipt:
    `{"written": ..., "deps": [...], "claims_cited": n}`.
-4. After the last page: `python3 "$WIKI" build-pages` — regenerates section
+4. After the last page: `llm-wiki build-pages` — regenerates section
    indexes and `overview.md`.
-5. `python3 "$WIKI" verify` — must report `"ok": true` before you finish. Fix
+5. `llm-wiki verify` — must report `"ok": true` before you finish. Fix
    every error (unresolved links, stale pages) and re-verify.
 
 ## Hard rules

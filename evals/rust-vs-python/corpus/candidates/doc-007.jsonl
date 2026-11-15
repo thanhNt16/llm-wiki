@@ -1,0 +1,4 @@
+{"authority": "doc", "locator": "s:The alert threshold pct of svc.alpha-007 is 93", "predicate": "alert_threshold_pct", "subject": "svc.alpha-007", "value": 93}
+{"authority": "doc", "locator": "s:The backup window utc of svc.alpha-007 is 15:00", "predicate": "backup_window_utc", "subject": "svc.alpha-007", "value": "15:00"}
+{"authority": "doc", "locator": "s:The cache ttl seconds of svc.alpha-007 is 3121", "predicate": "cache_ttl_seconds", "subject": "svc.alpha-007", "value": 3121}
+{"authority": "doc", "locator": "s:The max connections of svc.alpha-007 is 241", "predicate": "max_connections", "subject": "svc.alpha-007", "value": 241}

@@ -11,3 +11,5 @@ evals/okf-oracle/openwiki/
 !skill/wiki-visualize/assets/graph-ui/dist/**
 /llm-wiki/
 evals/benchmark/results.json
+rust/target/
+docs/superpowers/

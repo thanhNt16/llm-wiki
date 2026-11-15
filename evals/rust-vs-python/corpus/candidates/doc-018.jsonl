@@ -1,0 +1,4 @@
+{"authority": "doc", "locator": "s:The retry count of svc.alpha-018 is 4", "predicate": "retry_count", "subject": "svc.alpha-018", "value": 4}
+{"authority": "doc", "locator": "s:The rate limit rpm of svc.shared-rate is 1200", "predicate": "rate_limit_rpm", "subject": "svc.shared-rate", "value": 1200}
+{"authority": "doc", "locator": "s:The deploy strategy of svc.alpha-018 is blue-green", "predicate": "deploy_strategy", "subject": "svc.alpha-018", "value": "blue-green"}
+{"authority": "doc", "locator": "s:The owner of svc.alpha-018 is Elena Weber", "predicate": "owner", "subject": "svc.alpha-018", "value": "Elena Weber"}
