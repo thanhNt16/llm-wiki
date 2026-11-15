@@ -189,9 +189,13 @@ install_binary() {
       tag="$LLM_WIKI_RELEASE"
     else
       tag="$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" \
-        | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')"
+        2>/dev/null | grep '"tag_name"' \
+        | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' || true)"
       if [[ -z "$tag" ]]; then
-        echo "error: could not resolve latest release tag for $GITHUB_REPO" >&2
+        echo "error: no release published for $GITHUB_REPO yet." >&2
+        echo "  - merge the release CI workflow and push a vX.Y.Z tag, or" >&2
+        echo "  - build locally: (cd rust && cargo build --release), then" >&2
+        echo "    LLM_WIKI_BINARY_TARBALL=<tarball> ./install.sh" >&2
         exit 1
       fi
     fi
