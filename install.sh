@@ -201,7 +201,14 @@ install_binary() {
     fi
     archive="llm-wiki-${tag#v}-$triple.tar.gz"
     url="https://github.com/$GITHUB_REPO/releases/download/$tag/$archive"
-    curl -fsSL "$url" -o "$tmp/$archive"
+    if ! curl -fsSL --head "$url" >/dev/null 2>&1; then
+      echo "error: release $tag has no asset for this platform ($archive)." >&2
+      echo "  - macOS builds are maintainer-uploaded; check the release page" >&2
+      echo "    https://github.com/$GITHUB_REPO/releases/tag/$tag" >&2
+      echo "  - or build from source: git clone + (cd rust && cargo build --release)" >&2
+      echo "    then LLM_WIKI_BINARY_TARBALL=<tarball> ./install.sh" >&2
+      exit 1
+    fi
     curl -fsSL "$url.sha256" -o "$tmp/$archive.sha256"
     want="$(awk '{print $1}' "$tmp/$archive.sha256")"
     got="$(sha256_file "$tmp/$archive")"
