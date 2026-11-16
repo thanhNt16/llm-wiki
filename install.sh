@@ -188,9 +188,16 @@ install_binary() {
     if [[ -n "${LLM_WIKI_RELEASE:-}" ]]; then
       tag="$LLM_WIKI_RELEASE"
     else
-      tag="$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" \
-        2>/dev/null | grep '"tag_name"' \
-        | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' || true)"
+      # github.com redirect (no API rate limit — api.github.com 403s after
+      # 60 req/hr/IP unauthenticated); API kept as fallback for exactness.
+      tag="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+        "https://github.com/$GITHUB_REPO/releases/latest" 2>/dev/null \
+        | sed -En 's#.*/tag/(v?[0-9][^/?]*).*#\1#p')"
+      if [[ -z "$tag" ]]; then
+        tag="$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" \
+          2>/dev/null | grep '"tag_name"' \
+          | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' || true)"
+      fi
       if [[ -z "$tag" ]]; then
         echo "error: no release published for $GITHUB_REPO yet." >&2
         echo "  - merge the release CI workflow and push a vX.Y.Z tag, or" >&2
