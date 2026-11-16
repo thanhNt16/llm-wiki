@@ -140,9 +140,12 @@ impl Stamp {
         {
             use std::os::windows::fs::MetadataExt;
             return Stamp {
-                ino: Some(md.file_index().unwrap_or(0)),
+                // file_index()/last_change_time() are nightly-only
+                // (windows_by_handle); stable build tracks mtime+ctime+size,
+                // with no inode anchor on Windows.
+                ino: None,
                 mtime_ns: Some(md.last_write_time() as u128 * 100), // 100ns → ns
-                ctime_ns: Some(md.last_change_time() as u128 * 100),
+                ctime_ns: Some(md.creation_time() as u128 * 100),
                 size: md.file_size(),
             };
         }
