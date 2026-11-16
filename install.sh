@@ -209,6 +209,7 @@ install_binary() {
       echo "    then LLM_WIKI_BINARY_TARBALL=<tarball> ./install.sh" >&2
       exit 1
     fi
+    curl -fsSL "$url" -o "$tmp/$archive"
     curl -fsSL "$url.sha256" -o "$tmp/$archive.sha256"
     want="$(awk '{print $1}' "$tmp/$archive.sha256")"
     got="$(sha256_file "$tmp/$archive")"
