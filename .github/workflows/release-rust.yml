@@ -43,10 +43,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-14,        target: aarch64-apple-darwin,    cross: false }
-          # intel mac cross-built from arm64 runner: macos-13 is EOL and
-          # its runner queue is dead (9h+ waits observed)
-          - { os: macos-14,        target: x86_64-apple-darwin,      cross: false }
+          # macOS lanes removed: since GitHub's 2025 billing change, macOS
+          # runners require a payment method on the account even for public
+          # repos — without one the jobs are cancelled instantly (observed:
+          # 0 steps, no cancel request). darwin tarballs are built+uploaded
+          # by the maintainer from an arm64 mac (both targets cross-compile):
+          #   cargo build --release --target {aarch64,x86_64}-apple-darwin
+          # Re-add the two macos-14 entries once billing is configured.
           - { os: ubuntu-latest,   target: x86_64-unknown-linux-musl, cross: true }
           - { os: ubuntu-latest,   target: aarch64-unknown-linux-musl, cross: true }
           - { os: windows-latest,  target: x86_64-pc-windows-msvc,  cross: false }
