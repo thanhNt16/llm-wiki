@@ -3,9 +3,10 @@
 //! One variant per CLI exit class; `error_type` is the stable string
 //! agents parse out of the stdout error payload. `Usage` is reserved for
 //! CLI-shape mistakes (clap failures + lane-selection misuse); genuine
-//! runtime rejections — including any `io`/`serde_json`/`rusqlite`
-//! failure — collapse to `Txn`/`Repair` (exit 3), matching the Python
-//! catch-all that never emits a traceback.
+//! runtime rejections — including any `io`/`serde_json` failure — collapse
+//! to `Txn`/`Repair` (exit 3), matching the Python catch-all that never
+//! emits a traceback. Embeddings map storage-engine-specific errors (the
+//! CLI's rusqlite) to `Txn` themselves.
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -55,6 +56,9 @@ impl From<serde_json::Error> for EngineError {
     }
 }
 
+/// Feature-gated so the core stays sqlite-free by default; the CLI engine
+/// enables it to keep its rusqlite `?` call sites unchanged.
+#[cfg(feature = "rusqlite")]
 impl From<rusqlite::Error> for EngineError {
     fn from(e: rusqlite::Error) -> Self {
         Self::Txn(e.to_string())

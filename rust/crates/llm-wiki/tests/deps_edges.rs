@@ -5,6 +5,7 @@ use llm_wiki::txn::Txn;
 use serde_json::json;
 
 fn new_wiki() -> (tempfile::TempDir, Wiki) {
+    llm_wiki::install_commit_hook();
     let dir = tempfile::tempdir().unwrap();
     let wiki = Wiki::open(dir.path()).unwrap();
     init_wiki(&wiki, "t").unwrap();
