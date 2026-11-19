@@ -25,7 +25,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 
 use serde_json::{json, Map, Value};
@@ -60,13 +59,10 @@ pub fn commit_hook() -> Option<CommitHook> {
     COMMIT_HOOK.get().copied()
 }
 
-static RUN_COUNTER: AtomicU64 = AtomicU64::new(0);
-
-/// `run_<millis><counter><pid>` — callers that don't mint their own ids
-/// (ULID-minting `ids.new` port is a later task).
+/// `ids.new("run")` — Python parity (transaction.py:124 mints
+/// `self.run_id = ids.new("run")`).
 pub fn mint_run_id() -> String {
-    let n = RUN_COUNTER.fetch_add(1, Ordering::Relaxed);
-    format!("run_{:x}{:02x}{:x}", util::unix_millis(), n, std::process::id() & 0xff)
+    crate::ids::new("run")
 }
 
 #[derive(Debug, Default, Clone)]
