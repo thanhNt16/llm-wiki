@@ -28,6 +28,7 @@ fn run_json(args: &[&str]) -> (i32, Value) {
 }
 
 fn seed_claim(dir: &Path, status: &str) -> Value {
+    llm_wiki::install_commit_hook();
     let wiki = llm_wiki::store::Wiki::open(dir).unwrap();
     let mut c = json!({
         "id": ids::new("claim"),

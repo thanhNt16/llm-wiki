@@ -1,0 +1,20 @@
+[package]
+name = "llm-wiki-core"
+version = "0.1.0"
+edition = "2021"
+description = "Evidence-store core: .llm-wiki layout/init, manifest+config io, JSONL readback, and the PLAN→STAGE→VALIDATE→COMMIT transaction engine (ports of wikicore/store.py + transaction.py)."
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+fs4 = "0.13"
+# Optional: lets an embedding engine keep its `From<rusqlite::Error>`
+# conversion for EngineError without the core depending on sqlite.
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+
+[features]
+rusqlite = ["dep:rusqlite"]
+
+[dev-dependencies]
+tempfile = "3"

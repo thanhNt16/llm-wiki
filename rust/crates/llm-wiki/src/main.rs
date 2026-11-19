@@ -544,6 +544,9 @@ enum Commands {
 }
 
 fn main() {
+    // Keep the sqlite projection fresh inside every commit's critical
+    // section (core `Txn` is index-free; the hook seam is §10.2).
+    llm_wiki::install_commit_hook();
     let cli = match Cli::try_parse() {
         Ok(c) => c,
         Err(e) => {

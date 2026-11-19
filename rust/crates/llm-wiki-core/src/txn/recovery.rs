@@ -79,7 +79,7 @@ fn list_dirs(dir: &Path) -> Vec<PathBuf> {
 
 /// True while a staging run dir is in one of the §5.5 live phases —
 /// repair and junk cleanup MUST skip these.
-pub(crate) fn staging_is_live(d: &Path) -> bool {
+pub fn staging_is_live(d: &Path) -> bool {
     let has = |n: &str| d.join(n).is_file();
     (has("pending.json") && !has("compile.json"))
         || (has("candidates.jsonl") && !has("comparisons.json"))

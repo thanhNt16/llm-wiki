@@ -514,6 +514,7 @@ dependencies = [
  "clap",
  "flate2",
  "fs4",
+ "llm-wiki-core",
  "quick-xml",
  "rayon",
  "regex",
@@ -523,9 +524,20 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
- "thiserror",
  "tiny_http",
  "ureq",
+]
+
+[[package]]
+name = "llm-wiki-core"
+version = "0.1.0"
+dependencies = [
+ "fs4",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

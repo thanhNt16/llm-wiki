@@ -56,7 +56,19 @@ pub mod deps;
 pub mod doctor;
 pub mod dream;
 pub mod emit;
-pub mod err;
+/// Evidence-store core (`err`/`store`/`txn`) — ported from
+/// `wikicore/store.py` + `transaction.py` — now lives in the
+/// `llm-wiki-core` crate; re-exported so `crate::err`/`crate::store`/
+/// `crate::txn` paths across the CLI are unchanged.
+pub use llm_wiki_core::{err, store, txn};
+
+/// Register the CLI's derived-index projection as the process-wide commit
+/// hook (idempotent). Call once before any commit — from `main` and from
+/// library-level tests that drive `Txn` directly.
+pub fn install_commit_hook() {
+    llm_wiki_core::txn::set_commit_hook(index::on_commit);
+}
+
 pub mod formats;
 pub mod evidence;
 pub mod ids;
@@ -70,9 +82,7 @@ pub mod review;
 pub mod secrets;
 pub mod schema;
 pub mod shorthand;
-pub mod store;
 pub mod synthesize;
 pub mod skills_embed;
-pub mod txn;
 pub mod topics;
 pub mod util;

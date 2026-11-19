@@ -72,6 +72,8 @@ Then in any project, say `wiki-init`, "ingest this doc", "compile the wiki",
 ## Layout
 
 ```
+rust/crates/llm-wiki-core/ Evidence-store core (store.py + transaction.py port):
+                     .llm-wiki layout/init, JSONL readback, txn engine
 rust/crates/llm-wiki/ Rust engine (canonical): CLI, wikicore, embedded skills
 skill/llm-wiki/      shared skill: schemas + references; scripts/ = Python
                      engine, dev-reference only (parity oracle, not installed)

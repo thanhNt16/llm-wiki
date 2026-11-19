@@ -7,7 +7,8 @@
 //!   → `journal.json` + `journal-<run>.json`  (BEFORE apply)
 //!   → backup every existing target to `.backup-<rev>/`
 //!   → apply (atomic_write / unlink)
-//!   → index::on_commit hook (§10.2 seam; Task 8 fills)
+//!   → commit hook (§10.2 seam: [`set_commit_hook`]; the core is
+//!     index-free — the embedding CLI registers its projection updater)
 //!   → receipt + operations.jsonl + manifest revision bump
 //!   → clear journals + backup + staging
 //!
@@ -25,6 +26,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::OnceLock;
 
 use serde_json::{json, Map, Value};
 
@@ -39,6 +41,24 @@ use stamps::Stamp;
 /// Python `claims.INDEX_REL` — staged writes of this file get the §5.3
 /// revision watermark patched to current+1 under the flock.
 pub const CLAIMS_INDEX_REL: &str = ".state/claims-index.json";
+
+/// Derived-index updater invoked INSIDE the commit critical section after
+/// apply (transaction.py's ftx patch/rebuild/restamp step). `ops` is the
+/// journal op list, `new_rev` the revision this commit creates.
+pub type CommitHook = fn(&Wiki, &[[String; 2]], i64) -> Result<(), EngineError>;
+
+static COMMIT_HOOK: OnceLock<CommitHook> = OnceLock::new();
+
+/// Register the process-wide commit hook (idempotent — first registration
+/// wins; a library embedding must call this before its first commit).
+pub fn set_commit_hook(hook: CommitHook) {
+    let _ = COMMIT_HOOK.set(hook);
+}
+
+/// The registered hook, if any.
+pub fn commit_hook() -> Option<CommitHook> {
+    COMMIT_HOOK.get().copied()
+}
 
 static RUN_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -465,9 +485,12 @@ impl<'w> Txn<'w> {
                 }
             }
         }
-        // §10.2 hook — patch/rebuild/restamp keeps index.sqlite live
-        // (transaction.py:314-328).
-        crate::index::on_commit(self.wiki, &self.ops(), current + 1)?;
+        // §10.2 hook — the embedding binary's derived projection (the CLI's
+        // sqlite index; transaction.py:314-328) stays live inside the same
+        // critical section. Core itself ships without one.
+        if let Some(hook) = commit_hook() {
+            hook(self.wiki, &self.ops(), current + 1)?;
+        }
         // (e) receipt + operations line + manifest revision bump.
         fs::create_dir_all(self.wiki.p(".state/operations"))?;
         write_json_atomic(
@@ -525,7 +548,9 @@ impl<'w> Txn<'w> {
 
 /// Port of `_append_operations_line` (transaction.py:54-74): append one
 /// JSONL record after amputating a torn tail left by a mid-append crash.
-fn append_operations_line(path: &Path, line: &str) -> Result<(), EngineError> {
+/// Public: the operations log is core state and embedders may append
+/// their own receipt-style records.
+pub fn append_operations_line(path: &Path, line: &str) -> Result<(), EngineError> {
     if path.symlink_metadata().is_ok() {
         let mut data = fs::read(path)?;
         let body_len = data.iter().rposition(|b| *b != b'\n').map(|i| i + 1).unwrap_or(0);

@@ -123,7 +123,9 @@ impl Stamp {
         Ok(ino_eq && mtime_eq && ctime_eq && self.size == cur.size)
     }
 
-    pub(crate) fn from_meta(md: &fs::Metadata) -> Stamp {
+    /// Build a stamp from an already-captured `symlink_metadata` (callers
+    /// that stat a path once and reuse the tuple).
+    pub fn from_meta(md: &fs::Metadata) -> Stamp {
         #[cfg(unix)]
         {
             use std::os::unix::fs::MetadataExt;

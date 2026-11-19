@@ -42,6 +42,7 @@ fn claim_fixture(subject: &str, status: &str) -> Value {
 
 /// Commit one claim through the real save path (index stays derived).
 fn seed_claim(dir: &Path, subject: &str, status: &str) -> Value {
+    llm_wiki::install_commit_hook();
     let wiki = llm_wiki::store::Wiki::open(dir).unwrap();
     let mut c = claim_fixture(subject, status);
     let mut txn = Txn::begin(&wiki, &ids::new_run()).unwrap();

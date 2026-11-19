@@ -8,6 +8,9 @@ use tempfile::TempDir;
 /// Fresh initialized wiki in a tempdir — `(dir, wiki)`, keep `dir` alive.
 #[allow(dead_code)]
 pub fn wiki() -> (TempDir, Wiki) {
+    // Library-level txns must carry the CLI's sqlite index hook, same as
+    // the binary path (idempotent).
+    llm_wiki::install_commit_hook();
     let dir = tempfile::tempdir().unwrap();
     let wiki = Wiki::open(dir.path()).unwrap();
     init_wiki(&wiki, "t").unwrap();
