@@ -1,3 +1,3 @@
 [workspace]
-members = ["crates/llm-wiki", "crates/llm-wiki-core"]
+members = ["crates/llm-wiki", "crates/llm-wiki-core", "crates/wiki"]
 resolver = "2"

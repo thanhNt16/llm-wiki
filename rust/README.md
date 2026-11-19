@@ -32,7 +32,21 @@ cargo doc --no-deps # rustdoc; must build warning-free
 Suites live in `rust/crates/llm-wiki/tests/` — one file per lane
 (`cli_*` end-to-end via `CARGO_BIN_EXE`, `txn_*` library-level,
 `edge_cases` hardening, `dir_cursors`, `index_contract`, `deps_edges`,
-`claims_index`).
+`claims_index`); the `wiki` front-end's surface tests live in
+`rust/crates/wiki/tests/`.
+
+## `wiki` — wiki.py-shaped front-end (issue #15)
+
+`cargo build -p wiki` also produces `wiki` (`rust/target/release/wiki`): a
+drop-in for the `wiki.py` calls the skills make — `init`, `ingest`,
+`compile`, `query-prepare` (alias `query`) — dispatching into the same
+engine. Flags mirror wiki.py's argparse for that subset, including the
+wiki.py lock contract: global `--root`, `--wait-lock SECONDS`
+(**default 30**, exit 5 on timeout — unlike `llm-wiki`'s block-forever
+default), `--no-wait`; `init`/`ingest` (unless `--list-connectors`)/`compile`
+are the mutating set that waits. Output contract is identical: one JSON
+object on stdout (errors included), exit codes 0/2/3/4/5.
+
 
 ## Commands (Phase 1)
 
