@@ -1095,6 +1095,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "wiki"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "llm-wiki",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "winapi-util"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
